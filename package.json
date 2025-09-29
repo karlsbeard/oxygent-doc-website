@@ -1,0 +1,57 @@
+{
+  "name": "fuma",
+  "version": "0.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=22",
+    "pnpm": ">=9"
+  },
+  "scripts": {
+    "prepare": "husky",
+    "build": "next build",
+    "dev": "next dev --turbo",
+    "start": "next start",
+    "postinstall": "fumadocs-mdx",
+    "lint": "eslint .",
+    "lint:fix": "eslint --fix"
+  },
+  "dependencies": {
+    "@icons-pack/react-simple-icons": "^13.7.0",
+    "@orama/tokenizers": "^3.1.12",
+    "clsx": "^2.1.1",
+    "fumadocs-core": "15.7.5",
+    "fumadocs-mdx": "11.8.1",
+    "fumadocs-typescript": "^4.0.6",
+    "fumadocs-ui": "15.7.5",
+    "lucide-react": "^0.542.0",
+    "next": "15.5.2",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "tailwind-merge": "^3.3.1"
+  },
+  "devDependencies": {
+    "@antfu/eslint-config": "^5.2.1",
+    "@commitlint/cli": "^19.8.1",
+    "@commitlint/config-conventional": "^19.8.1",
+    "@eslint-react/eslint-plugin": "^1.52.3",
+    "@tailwindcss/postcss": "^4.1.12",
+    "@types/mdx": "^2.0.13",
+    "@types/node": "24.3.0",
+    "@types/react": "^19.1.12",
+    "@types/react-dom": "^19.1.8",
+    "eslint": "^9.33.0",
+    "eslint-plugin-better-tailwindcss": "^3.7.6",
+    "eslint-plugin-format": "^1.0.1",
+    "eslint-plugin-mdx": "^3.6.2",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.20",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.1.5",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.12",
+    "typescript": "^5.9.2"
+  },
+  "lint-staged": {
+    "*": "eslint --fix"
+  }
+}

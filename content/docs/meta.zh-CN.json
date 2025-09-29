@@ -1,0 +1,13 @@
+{
+  "pages": [
+    "index",
+    "---入门指南---",
+    "overview",
+    "quick-start",
+    "installation",
+    "common-strategies",
+    "---核心功能---",
+    "agents",
+    "workflows"
+  ]
+}

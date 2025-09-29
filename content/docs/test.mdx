@@ -1,0 +1,28 @@
+---
+title: Core Concepts
+description: Core concepts and architecture of OxyGent
+---
+
+## Agent
+
+Agent is the core concept of OxyGent, representing an intelligent entity with specific capabilities and goals.
+
+```python
+from oxygent import Agent
+
+# Create a new agent
+agent = Agent(
+    name="assistant",
+    description="An intelligent assistant",
+    capabilities=["text_generation", "code_analysis"]
+)
+```
+
+## Tool Integration
+
+OxyGent supports rich tool integration, allowing your agents to perform various tasks.
+
+<Cards>
+  <Card title="Tool Development" href="/docs/tools" />
+  <Card title="Plugin System" href="/docs/plugins" />
+</Cards>

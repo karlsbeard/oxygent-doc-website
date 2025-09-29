@@ -1,0 +1,13 @@
+{
+  "pages": [
+    "index",
+    "---Getting Started---",
+    "overview",
+    "quick-start",
+    "installation",
+    "common-strategies",
+    "---Core Features---",
+    "agents",
+    "workflows"
+  ]
+}
