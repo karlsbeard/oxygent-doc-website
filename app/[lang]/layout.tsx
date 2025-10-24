@@ -17,10 +17,23 @@ export default async function Layout({ params, children }: IProps) {
   })
 
   return (
-    <RootProvider i18n={provider(lang)}>
+    <RootProvider
+      i18n={provider(lang)}
+      search={{
+        options: {
+          type: 'static',
+        },
+      }}
+    >
       <Wrapper>
         {children}
       </Wrapper>
     </RootProvider>
   )
+}
+
+export function generateStaticParams() {
+  return i18n.languages.map(lang => ({
+    lang,
+  }))
 }

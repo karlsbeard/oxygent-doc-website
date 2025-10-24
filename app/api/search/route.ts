@@ -2,7 +2,10 @@ import { createTokenizer } from '@orama/tokenizers/mandarin'
 import { createFromSource } from 'fumadocs-core/search/server'
 import { source } from '@/lib/source'
 
-export const { GET } = createFromSource(source, {
+// Static mode for GitHub Pages - cache the search index
+export const revalidate = false
+
+export const { staticGET: GET } = createFromSource(source, {
   localeMap: {
     'zh-CN': {
       components: {
