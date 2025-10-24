@@ -1,0 +1,67 @@
+---
+title: RAG Implementation
+description: The following uses character matching for simulation. In production environments, typically retrieve top-K relevant content from knowledge base based on query, and can add multi-path retrieval logic
+---
+
+## Overview
+
+This example demonstrates rag implementation in OxyGent.
+
+## Code
+
+```python
+import os
+from oxygent import MAS, oxy, OxyRequest
+
+def add_knowledge(oxy_request: OxyRequest):
+    def retrieval(query):
+        """The following uses character matching for simulation. In production, typically retrieve top-K relevant content from knowledge base based on query, can add multi-path retrieval logic"""
+        knowledage_dict = {
+            "211 delivery": "**JD 211 Delivery Service**: Orders placed before 11:00 AM (or 10:00 AM in some cities) are delivered the same day; orders placed before 11:00 PM are delivered by 3:00 PM the next day. (Note: Timing starts from order submission for in-stock orders, and from payment completion for prepaid orders)",
+            "mission": "JD's mission is 'Technology for a Better Life'.",
+            "vision": "JD's vision is to become the world's most trusted company.",
+            "values": "JD's core values are: Customer First, Innovation, Fighting Spirit, Responsibility, Gratitude, and Integrity.",
+        }
+        return "\n\n".join([v for k, v in knowledage_dict.items() if k in query])
+
+    oxy_request.arguments["knowledge"] = retrieval(oxy_request.get_query())
+    return oxy_request
+
+oxy_space = [
+    oxy.HttpLLM(
+        name="default_llm",
+        api_key=os.getenv("DEFAULT_LLM_API_KEY"),
+        base_url=os.getenv("DEFAULT_LLM_BASE_URL"),
+        model_name=os.getenv("DEFAULT_LLM_MODEL_NAME"),
+        llm_params={"temperature": 0.1},
+    ),
+    oxy.ChatAgent(
+        name="QA_agent",
+        llm_model="default_llm",
+        prompt="You are a helpful assistant! You can refer to the following knowledge to answer questions:\n${knowledge}",   # Placeholder
+        func_process_input=add_knowledge,   # Inject knowledge information into prompt
+    ),
+]
+
+async def main():
+    async with MAS(oxy_space=oxy_space) as mas:
+        await mas.start_web_service(first_query="What is JD's 211 delivery service?")
+
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(main())
+```
+
+## Key Points
+
+- This example shows how to use OxyGent for rag implementation
+- Follow the code comments for detailed explanations
+- Make sure to set up your environment variables before running
+
+## Running the Example
+
+To run this example:
+
+```bash
+python 03_rag.py
+```

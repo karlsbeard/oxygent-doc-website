@@ -16,6 +16,17 @@ export const docs = defineDocs({
   },
 })
 
+// Define examples collection
+export const examples = defineDocs({
+  dir: 'content/examples',
+  docs: {
+    schema: frontmatterSchema,
+  },
+  meta: {
+    schema: metaSchema,
+  },
+})
+
 export default defineConfig({
   mdxOptions: {
     // MDX options

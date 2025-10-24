@@ -112,8 +112,8 @@ export default async function Layout({ params, children }: IProps) {
       url: `/${lang}/api-docs`,
     },
     {
-      text: customTranslations[currentLang]['demo.title'],
-      url: `/${lang}/demo`,
+      text: customTranslations[currentLang]['examples.title'],
+      url: `/${lang}/examples`,
     },
   ]
 

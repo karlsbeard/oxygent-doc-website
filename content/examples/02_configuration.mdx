@@ -1,0 +1,52 @@
+---
+title: Configuration Parameters
+description: Example demonstrating configuration parameters
+---
+
+## Overview
+
+This example demonstrates configuration parameters in OxyGent.
+
+## Code
+
+```python
+import os
+from oxygent import MAS, oxy
+
+oxy_space = [
+    oxy.HttpLLM(
+        name="default_llm",
+        api_key=os.getenv("DEFAULT_LLM_API_KEY"),
+        base_url=os.getenv("DEFAULT_LLM_BASE_URL"),
+        model_name=os.getenv("DEFAULT_LLM_MODEL_NAME"),
+        llm_params={"temperature": 0.1},   # Configure LLM parameters
+    ),
+    oxy.ChatAgent(
+        name="QA_agent",
+        llm_model="default_llm",
+        prompt="You are a helpful assistant!"   # Configure agent parameters
+    ),
+]
+
+async def main():
+    async with MAS(oxy_space=oxy_space) as mas:
+        await mas.start_web_service(first_query="Hello")
+
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(main())
+```
+
+## Key Points
+
+- This example shows how to use OxyGent for configuration parameters
+- Follow the code comments for detailed explanations
+- Make sure to set up your environment variables before running
+
+## Running the Example
+
+To run this example:
+
+```bash
+python 02_configuration.py
+```

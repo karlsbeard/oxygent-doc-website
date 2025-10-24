@@ -1,0 +1,50 @@
+---
+title: Hello World
+description: Example demonstrating hello world
+---
+
+## Overview
+
+This example demonstrates hello world in OxyGent.
+
+## Code
+
+```python
+import os
+from oxygent import MAS, oxy
+
+oxy_space = [
+    oxy.HttpLLM(   # Register LLM model
+        name="default_llm",
+        api_key=os.getenv("DEFAULT_LLM_API_KEY"),
+        base_url=os.getenv("DEFAULT_LLM_BASE_URL"),
+        model_name=os.getenv("DEFAULT_LLM_MODEL_NAME"),
+    ),
+    oxy.ChatAgent(   # Register Q&A agent
+        name="QA_agent",
+        llm_model="default_llm",   # Equip with LLM model
+    ),
+]
+
+async def main():
+    async with MAS(oxy_space=oxy_space) as mas:
+        await mas.start_web_service(first_query="Hello")
+
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(main())
+```
+
+## Key Points
+
+- This example shows how to use OxyGent for hello world
+- Follow the code comments for detailed explanations
+- Make sure to set up your environment variables before running
+
+## Running the Example
+
+To run this example:
+
+```bash
+python 01_hello_world.py
+```

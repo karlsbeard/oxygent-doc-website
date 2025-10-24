@@ -50,7 +50,7 @@ const customZhCN = {
   'documentation.title': '文档',
   'ecosystem.title': '生态',
   'api.title': 'API',
-  'demo.title': '在线演示',
+  'examples.title': '在线演示',
   'home.slogan': '智能代理框架，重新定义AI应用开发',
   'home.description': 'OxyGent 是一个高性能的智能代理框架，专为构建强大的AI应用而设计。',
 }
@@ -59,7 +59,7 @@ const customEnUS: typeof customZhCN = {
   'documentation.title': 'Documentation',
   'ecosystem.title': 'Ecosystem',
   'api.title': 'API',
-  'demo.title': 'Demo',
+  'examples.title': 'Examples',
   'home.slogan': 'Intelligent Agent Framework, Redefining AI Application Development',
   'home.description': 'OxyGent is a high-performance intelligent agent framework designed for building powerful AI applications.',
 }

@@ -1,0 +1,44 @@
+---
+title: Environment Setup
+description: Example demonstrating environment setup
+---
+
+## Overview
+
+This example demonstrates environment setup in OxyGent.
+
+## Code
+
+```python
+# Python environment (version 3.10 and above)
+"""
+conda create -n oxy_env python==3.10
+conda activate oxy_env
+"""
+
+# OxyGent environment
+"""
+pip install oxygent
+"""
+
+# Node.js environment (if using MCP tools) - can download from https://nodejs.org
+"""
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+\. "$HOME/.nvm/nvm.sh"
+nvm install 22
+"""
+```
+
+## Key Points
+
+- This example shows how to use OxyGent for environment setup
+- Follow the code comments for detailed explanations
+- Make sure to set up your environment variables before running
+
+## Running the Example
+
+To run this example:
+
+```bash
+python 00_environment_setup.py
+```

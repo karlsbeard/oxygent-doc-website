@@ -1,6 +1,10 @@
 # deps
 /node_modules
 
+
+# oxygent
+/OxyGent
+
 # generated content
 .contentlayer
 .content-collections

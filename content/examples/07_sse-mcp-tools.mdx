@@ -1,0 +1,59 @@
+---
+title: SSE MCP Tools
+description: Example demonstrating sse mcp tools
+---
+
+## Overview
+
+This example demonstrates sse mcp tools in OxyGent.
+
+## Code
+
+```python
+"""
+Depends on ./mcp_servers/jd_docs_sse.py file, and needs to start SSE MCP server first
+"""
+import os
+from oxygent import MAS, oxy
+
+oxy_space = [
+    oxy.HttpLLM(
+        name="default_llm",
+        api_key=os.getenv("DEFAULT_LLM_API_KEY"),
+        base_url=os.getenv("DEFAULT_LLM_BASE_URL"),
+        model_name=os.getenv("DEFAULT_LLM_MODEL_NAME"),
+        llm_params={"temperature": 0.1},
+    ),
+    oxy.SSEMCPClient(   # Register SSE MCP tools
+        name="jd_docs_tools",
+        sse_url="http://127.0.0.1:9000/sse"
+    ),
+    oxy.ReActAgent(
+        name="QA_agent",
+        llm_model="default_llm",
+        tools=["jd_docs_tools"],   # Equip agent with tools
+    ),
+]
+
+async def main():
+    async with MAS(oxy_space=oxy_space) as mas:
+        await mas.start_web_service(first_query="What is JD's 211 delivery service?")
+
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(main())
+```
+
+## Key Points
+
+- This example shows how to use OxyGent for sse mcp tools
+- Follow the code comments for detailed explanations
+- Make sure to set up your environment variables before running
+
+## Running the Example
+
+To run this example:
+
+```bash
+python 07_sse_mcp_tools.py
+```

@@ -1,0 +1,114 @@
+---
+title: Distributed System
+description: Example demonstrating distributed system
+---
+
+## Overview
+
+This example demonstrates distributed system in OxyGent.
+
+## Code
+
+```python
+"""
+Depends on ./05_functionhub_tools.py file, and needs to start the service first
+"""
+
+import os
+
+from oxygent import MAS, Config, OxyRequest, oxy
+
+Config.set_agent_llm_model("default_llm")
+Config.set_server_port(8081)  # Start service on port 8081
+
+async def note_workflow(oxy_request: OxyRequest):
+    query = oxy_request.get_query(master_level=True)
+
+    oxy_response = await oxy_request.call(
+        callee="get_current_time",
+        arguments={"timezone": "Asia/Shanghai"},
+    )
+
+    oxy_response = await oxy_request.call(
+        callee="file_agent",
+        arguments={
+            "query": f"{query}\n\nCurrent time: {oxy_response.output}\n\nFormat: [June 18, 2025 10:00] Location Meeting\n\nRecord to note.txt file in local_file folder"
+        },
+    )
+
+    return oxy_response.output
+
+def master_reflexion(response: str, oxy_request: OxyRequest) -> str:
+    if not response.startswith("Task completed!"):
+        return "Please start your answer with \"Task completed!\""
+
+oxy_space = [
+    oxy.HttpLLM(
+        name="default_llm",
+        api_key=os.getenv("DEFAULT_LLM_API_KEY"),
+        base_url=os.getenv("DEFAULT_LLM_BASE_URL"),
+        model_name=os.getenv("DEFAULT_LLM_MODEL_NAME"),
+        llm_params={"temperature": 0.1},
+    ),
+    oxy.StdioMCPClient(
+        name="time_tools",
+        params={
+            "command": "uvx",
+            "args": ["mcp-server-time", "--local-timezone=Asia/Shanghai"],
+        },
+    ),
+    oxy.StdioMCPClient(
+        name="file_tools",
+        params={
+            "command": "npx",
+            "args": ["-y", "@modelcontextprotocol/server-filesystem", "./local_file"],
+        },
+    ),
+    oxy.SSEOxyGent(
+        name="QA_agent",
+        desc="An assistant that can query JD knowledge",
+        server_url="http://127.0.0.1:8080",  # Register remote OxyGent service
+    ),
+    oxy.ReActAgent(
+        name="file_agent",
+        desc="An assistant that can operate files",
+        tools=["file_tools"],
+    ),
+    oxy.WorkflowAgent(
+        name="note_agent",
+        desc="A life assistant that takes notes",
+        sub_agents=["file_agent"],
+        tools=["time_tools"],
+        func_workflow=note_workflow,
+    ),
+    oxy.ReActAgent(
+        name="master_agent",
+        is_master=True,
+        sub_agents=["QA_agent", "note_agent"],
+        func_reflexion=master_reflexion,
+    ),
+]
+
+async def main():
+    async with MAS(oxy_space=oxy_space) as mas:
+        await mas.start_web_service(first_query="What is JD's 211 delivery service?")
+
+if __name__ == "__main__":
+    import asyncio
+
+    asyncio.run(main())
+```
+
+## Key Points
+
+- This example shows how to use OxyGent for distributed system
+- Follow the code comments for detailed explanations
+- Make sure to set up your environment variables before running
+
+## Running the Example
+
+To run this example:
+
+```bash
+python 21_distributed.py
+```
