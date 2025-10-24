@@ -48,7 +48,7 @@ export const translations: Record<string, Partial<Translations>> = {
  */
 const customZhCN = {
   'documentation.title': '文档',
-  'ecosystem.title': '生态',
+  // 'ecosystem.title': '生态',
   'api.title': 'API',
   'examples.title': '在线演示',
   'home.slogan': '智能代理框架，重新定义AI应用开发',
@@ -57,7 +57,7 @@ const customZhCN = {
 
 const customEnUS: typeof customZhCN = {
   'documentation.title': 'Documentation',
-  'ecosystem.title': 'Ecosystem',
+  // 'ecosystem.title': 'Ecosystem',
   'api.title': 'API',
   'examples.title': 'Examples',
   'home.slogan': 'Intelligent Agent Framework, Redefining AI Application Development',

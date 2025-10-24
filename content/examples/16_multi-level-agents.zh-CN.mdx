@@ -1,16 +1,16 @@
 ---
-title: Multi-Level Agents
-description: Demonstrates hierarchical multi-level agent architecture in OxyGent
+title: 多层级智能体
+description: 演示 OxyGent 中的分层多级智能体架构
 ---
 
-## Overview
+## 概述
 
-This example demonstrates how to build a multi-level (hierarchical) agent system in OxyGent with 3 levels:
-- Level 1: Master agent coordinating everything
-- Level 2: QA agent and note agent
-- Level 3: Time agent and file agent
+本示例演示如何在 OxyGent 中构建三层级的智能体系统：
+- 第一层：主控智能体，协调所有任务
+- 第二层：问答智能体和笔记智能体
+- 第三层：时间智能体和文件智能体
 
-## Code
+## 代码
 
 ```python
 import os
@@ -125,14 +125,14 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## Key Points
+## 要点
 
-- **3-Level Architecture**: Master agent (L1) → QA/Note agents (L2) → Time/File agents (L3)
-- **Hierarchical Coordination**: Upper-level agents can delegate tasks to sub-agents
-- **Global LLM Configuration**: Use `Config.set_agent_llm_model()` to set default LLM for all agents
-- **Custom Prompt**: The note agent has a custom prompt defining its behavior and tool usage
+- **三层架构**：主控智能体(L1) → 问答/笔记智能体(L2) → 时间/文件智能体(L3)
+- **分层协调**：上层智能体可以将任务委托给子智能体
+- **全局 LLM 配置**：使用 `Config.set_agent_llm_model()` 为所有智能体设置默认 LLM
+- **自定义提示词**：笔记智能体有自定义提示词，定义其行为和工具使用方式
 
-## Agent Hierarchy
+## 智能体层级结构
 
 ```
 master_agent (L1)
@@ -145,12 +145,12 @@ master_agent (L1)
         └── file_tools
 ```
 
-## Running the Example
+## 运行示例
 
-To run this example:
+运行此示例：
 
 ```bash
 python 16_多层级智能体.py
 ```
 
-The example creates a note at the specified time using hierarchical agent coordination.
+该示例通过分层智能体协调，在指定时间创建笔记。

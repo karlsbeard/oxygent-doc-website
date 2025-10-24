@@ -5,33 +5,91 @@ description: OxyGent 代码示例和教程的完整集合
 
 ## 欢迎来到 OxyGent 示例
 
-本节包含了全面的实用示例，展示 OxyGent 的各种特性和功能。
+本节包含 23+ 个实用示例，全面展示 OxyGent 的各种特性和功能。从基础安装到高级多智能体系统，这些示例将引导您深入了解整个 OxyGent 生态系统。
 
-### 入门指南
+### 🚀 入门指南
 
 如果您是 OxyGent 新手，请从这些基础示例开始：
 
-- **[环境安装](/examples/00_environment-setup)** - 设置您的开发环境
-- **[Hello World](/examples/01_hello-world)** - 您的第一个 OxyGent 应用程序
-- **[配置参数](/examples/02_configuration)** - 学习如何配置 OxyGent
+- **[环境安装](/examples/00_environment-setup)** - 安装 Python 环境和 OxyGent
+- **[Hello World](/examples/01_hello-world)** - 创建您的第一个 OxyGent 聊天智能体应用
+- **[配置参数](/examples/02_configuration)** - 学习如何配置 LLM 参数和智能体提示词
 
-### 核心功能
+### 🎯 核心功能
 
 探索 OxyGent 的核心功能：
 
-- **[RAG 实现](/examples/03_rag)** - 检索增强生成
-- **[MoA 简单实现](/examples/04_moa-implementation)** - 混合智能体
-- **[FunctionHub 工具](/examples/05_functionhub-tools)** - 使用工具
+- **[RAG 实现](/examples/03_rag)** - 基于知识库的检索增强生成
+- **[MoA 简单实现](/examples/04_moa-implementation)** - 混合智能体增强响应质量
+- **[FunctionHub 工具](/examples/05_functionhub-tools)** - 创建和使用自定义工具
 
-### 高级主题
+### 🔧 MCP 工具集成
 
-对于有经验的用户，深入了解高级特性：
+学习如何集成模型上下文协议（MCP）工具：
 
-- **[多智能体](/examples/14_multi-agent)** - 构建复杂的多智能体系统
-- **[多层级智能体](/examples/16_multi-level-agents)** - 分层智能体架构
-- **[工作流](/examples/18_workflow)** - 设计智能体工作流
-- **[反思](/examples/20_reflexion)** - 自我改进的智能体
+- **[本地 MCP 工具](/examples/06_local-mcp-tools)** - 使用本地 MCP 服务器进行文件操作
+- **[SSE MCP 工具](/examples/07_sse-mcp-tools)** - 集成基于 SSE 的 MCP 工具
+- **[外部 MCP 工具](/examples/08_external-mcp-tools)** - 连接到外部 MCP 服务
 
-### 所有示例
+### ⚡ 并发与性能
 
-在侧边栏中按类别浏览所有示例。
+优化智能体系统以获得更好的性能：
+
+- **[并发测试](/examples/09_concurrent-testing)** - 在并发模式下测试智能体
+- **[并发限制](/examples/10_concurrency-limits)** - 控制和限制并发执行
+
+### ⚙️ 配置与部署
+
+了解生产环境部署的最佳实践：
+
+- **[生产环境配置](/examples/11_production-config)** - 为生产环境配置 OxyGent
+- **[多环境配置](/examples/12_multi-environment-config)** - 管理开发、测试和生产环境配置
+- **[全局 LLM 配置](/examples/15_global-llm-config)** - 为所有智能体设置全局 LLM 模型
+
+### 🤖 高级智能体系统
+
+构建复杂的多智能体架构：
+
+- **[自动召回工具](/examples/13_auto-recall-tools)** - 自动召回 Top-K 相关工具
+- **[多智能体系统](/examples/14_multi-agent)** - 协调多个专业化智能体
+- **[多层级智能体](/examples/16_multi-level-agents)** - 创建分层智能体结构
+- **[自定义解析](/examples/17_custom-parsing)** - 为智能体实现自定义解析逻辑
+- **[分布式系统](/examples/21_distributed)** - 构建分布式智能体系统
+
+### 🔄 工作流与编排
+
+设计复杂的智能体工作流和模式：
+
+- **[工作流](/examples/18_workflow)** - 设计和实现智能体工作流
+- **[用户级查询](/examples/19_user-level-query)** - 处理用户级查询路由
+- **[反思](/examples/20_reflexion)** - 实现自我反思和改进机制
+- **[多模态](/examples/22_multimodal)** - 处理多模态输入
+
+### 📚 示例分类
+
+**按难度分类：**
+- 🟢 **入门级**: 00-05（环境安装、基础功能、核心特性）
+- 🟡 **中级**: 06-12（MCP 工具、并发、配置）
+- 🔴 **高级**: 13-22（多智能体、工作流、分布式）
+
+**按主题分类：**
+- **安装配置**: 00, 02, 11, 12, 15
+- **智能体基础**: 01, 03, 04, 05
+- **工具与 MCP**: 06, 07, 08, 13
+- **多智能体**: 14, 16, 21
+- **工作流**: 18, 19, 20
+- **性能优化**: 09, 10
+- **进阶特性**: 17, 22
+
+### 💡 使用建议
+
+- 建议按数字顺序学习示例，以获得结构化的学习路径
+- 每个示例都基于前面示例的概念构建
+- 查看代码注释以获取详细说明
+- 运行示例前请确保已设置环境变量
+
+### 🔗 快速链接
+
+- [OxyGent 文档](/)
+- [API 参考](/api)
+- [GitHub 仓库](https://github.com/jd-opensource/OxyGent)
