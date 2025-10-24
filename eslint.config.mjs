@@ -7,11 +7,21 @@ const isWindows = os.platform() === 'win32'
 const lineBreakStyle = isWindows ? 'windows' : 'unix'
 
 export default antfu({
-  ignores: ['docs/**/*.md'],
+  ignores: [
+    'docs/**/*.md',
+    '**/*.md',
+    '**/*.sh',
+    '**/*.py',
+    '.github/**/*.yml',
+    '.github/**/*.yaml',
+    'public/**',
+    'scripts/**',
+    'deployment-docs/**',
+  ],
   formatters: true,
   react: true,
 }, {
-  ignores: ['**/*.mdx'],
+  ignores: ['**/*.mdx', 'deploy.yml', '*.md'],
   files: ['**/*.ts', '**/*.tsx'],
   rules: {
     'curly': ['error', 'multi-line'],

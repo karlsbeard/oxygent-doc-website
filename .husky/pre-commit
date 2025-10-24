@@ -1,1 +1,14 @@
+#!/bin/sh
+
+# 检查 Node 版本
+NODE_VERSION=$(node -v | cut -d'v' -f2 | cut -d'.' -f1)
+
+if [ "$NODE_VERSION" -lt 22 ]; then
+  echo "⚠️  警告: Node.js 版本过低 (当前: v$(node -v | cut -d'v' -f2), 需要: >= 22)"
+  echo "⏭️  跳过本地 lint 检查（GitHub Actions 会使用 Node 22 进行检查）"
+  echo "✅ 允许提交（部署时会自动检查）"
+  exit 0
+fi
+
+# Node 版本足够，运行 lint
 pnpm lint-staged
