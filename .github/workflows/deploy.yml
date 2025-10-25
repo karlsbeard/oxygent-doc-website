@@ -57,9 +57,7 @@ jobs:
 
       - name: Build with Next.js
         run: pnpm build
-        env:
-          # GitHub Pages 部署路径: https://karlsbeard.github.io/oxygent-doc-website/
-          NEXT_PUBLIC_BASE_PATH: /oxygent-doc-website
+        # 无需手动设置 basePath，自动检测 CI=true 环境变量
 
       - name: Add .nojekyll file
         run: touch out/.nojekyll

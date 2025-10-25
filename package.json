@@ -9,13 +9,18 @@
   "scripts": {
     "prepare": "husky",
     "build": "next build",
-    "build:github-pages": "NEXT_PUBLIC_BASE_PATH=/oxygent-doc-website next build",
+    "build:test-gh-pages": "NEXT_PUBLIC_BASE_PATH=/oxygent-doc-website pnpm build",
+    "build:docker": "DOCKER_OUTPUT=true pnpm build",
     "dev": "next dev --turbo",
     "start": "next start",
     "postinstall": "fumadocs-mdx",
     "lint": "eslint .",
     "lint:fix": "eslint --fix",
-    "export": "next build && touch out/.nojekyll"
+    "docker:build": "docker-compose build",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "docker:restart": "docker-compose restart"
   },
   "dependencies": {
     "@icons-pack/react-simple-icons": "^13.7.0",

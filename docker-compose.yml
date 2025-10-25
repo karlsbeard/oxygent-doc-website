@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  # OxyGent Documentation Web 服务
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: oxygent-docs:latest
+    container_name: oxygent-docs
+    ports:
+      - '3000:3000'
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      # 可选：自定义 basePath
+      # - NEXT_PUBLIC_BASE_PATH=
+    restart: unless-stopped
+    # 健康检查
+    healthcheck:
+      test: [CMD, node, -e, "require('http').get('http://localhost:3000', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
