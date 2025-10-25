@@ -22,6 +22,7 @@ export default async function Layout({ params, children }: IProps) {
       search={{
         options: {
           type: 'static',
+          api: '/api/search',
         },
       }}
     >
