@@ -1,20 +1,12 @@
 {
   "pages": [
     "index",
-    "---OxyGent---",
+    "---Getting Started---",
     "introduction",
     "quick-start",
-    "Visualization",
-    "LLM",
-    "Four scopes",
-    "Lifecycle",
-    "Configuration",
-    "---Core Featues---",
-    "Agents",
-    "Flows",
-    "Tools",
-    "LLM",
-    "---MAS---",
-    "---Context---"
+    "installation",
+    "common-strategies",
+    "---Core Features---",
+    "agents"
   ]
 }

@@ -9,11 +9,13 @@
   "scripts": {
     "prepare": "husky",
     "build": "next build",
+    "build:github-pages": "NEXT_PUBLIC_BASE_PATH=/oxygent-doc-website next build",
     "dev": "next dev --turbo",
     "start": "next start",
     "postinstall": "fumadocs-mdx",
     "lint": "eslint .",
-    "lint:fix": "eslint --fix"
+    "lint:fix": "eslint --fix",
+    "export": "next build && touch out/.nojekyll"
   },
   "dependencies": {
     "@icons-pack/react-simple-icons": "^13.7.0",
