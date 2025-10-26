@@ -6,7 +6,13 @@
 
 ### 推荐部署方案
 
-- **[VERCEL_DEPLOYMENT.md](./VERCEL_DEPLOYMENT.md)** - Vercel 部署指南（推荐）
+- **[VERCEL_STEP_BY_STEP_GUIDE.md](./VERCEL_STEP_BY_STEP_GUIDE.md)** - 🎯 Vercel 图文详细教程（新手推荐）
+  - 📖 手把手图文教程
+  - ⏱️ 5分钟快速部署
+  - ❓ 10+ 常见问题解答
+  - 🔄 自动部署流程说明
+
+- **[VERCEL_DEPLOYMENT.md](./VERCEL_DEPLOYMENT.md)** - Vercel 部署指南（快速参考）
   - ✅ 零配置部署
   - ✅ 全球 CDN 加速
   - ✅ 自动优化
