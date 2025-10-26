@@ -34,6 +34,20 @@ A `source.config.ts` config file has been included, you can customise different 
 
 Read the [Introduction](https://fumadocs.dev/docs/mdx) for further details.
 
+## 📚 Documentation
+
+### Deployment Guides
+
+Choose the best deployment option for your needs:
+
+- **[Vercel Deployment](./docs/deployment/VERCEL_DEPLOYMENT.md)** (Recommended) - Zero-config deployment with global CDN
+- **[Docker Deployment](./docs/deployment/DOCKER_DEPLOYMENT.md)** - Containerized deployment for self-hosting
+- **[All Deployment Options](./docs/deployment/)** - View all deployment guides
+
+### Project History
+
+- **[Change History](./docs/history/)** - Project evolution and refactoring records
+
 ## Learn More
 
 To learn more about Next.js and Fumadocs, take a look at the following
