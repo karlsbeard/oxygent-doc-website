@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { defineI18nUI } from 'fumadocs-ui/i18n'
 import { RootProvider } from 'fumadocs-ui/provider'
+import SearchDialog from '@/components/search'
 import { i18n, translations } from '@/lib/i18n'
 import { Wrapper } from './layout.client'
 
@@ -20,10 +21,7 @@ export default async function Layout({ params, children }: IProps) {
     <RootProvider
       i18n={provider(lang)}
       search={{
-        options: {
-          type: 'static',
-          api: '/api/search',
-        },
+        SearchDialog,
       }}
     >
       <Wrapper>

@@ -3,11 +3,8 @@ import type { ReactNode } from 'react'
 import { HomeLayout } from 'fumadocs-ui/layouts/home'
 import {
   NavbarMenu,
-  NavbarMenuContent,
-  NavbarMenuLink,
   NavbarMenuTrigger,
 } from 'fumadocs-ui/layouts/home/navbar'
-import { BookTextIcon, CookingPotIcon, LayersIcon } from 'lucide-react'
 import Link from 'next/link'
 import { baseOptions } from '@/app/layout.config'
 import { customTranslations } from '@/lib/i18n'
@@ -23,22 +20,22 @@ export default async function Layout({ params, children }: IProps) {
   // Ensure lang exists in customTranslations, fallback to default
   const currentLang = customTranslations[lang] ? lang : 'en-US'
 
-  const documentationLinks = [{
-    text: '快速开始',
-    url: `/${lang}/docs`,
-    icon: <BookTextIcon />,
-    iconClassName: 'bg-gradient-to-br from-blue-500 to-blue-600',
-  }, {
-    text: '核心概念',
-    url: `/${lang}/docs/test`,
-    icon: <LayersIcon />,
-    iconClassName: 'bg-gradient-to-br from-green-500 to-green-600',
-  }, {
-    text: '开发指南',
-    url: `/${lang}/docs/guide`,
-    icon: <CookingPotIcon />,
-    iconClassName: 'bg-gradient-to-br from-purple-500 to-purple-600',
-  }]
+  // const documentationLinks = [{
+  //   text: '快速开始',
+  //   url: `/${lang}/docs`,
+  //   icon: <BookTextIcon />,
+  //   iconClassName: 'bg-gradient-to-br from-blue-500 to-blue-600',
+  // }, {
+  //   text: '核心概念',
+  //   url: `/${lang}/docs/test`,
+  //   icon: <LayersIcon />,
+  //   iconClassName: 'bg-gradient-to-br from-green-500 to-green-600',
+  // }, {
+  //   text: '开发指南',
+  //   url: `/${lang}/docs/guide`,
+  //   icon: <CookingPotIcon />,
+  //   iconClassName: 'bg-gradient-to-br from-purple-500 to-purple-600',
+  // }]
 
   // const ecosystemLinks = [{
   //   text: '🔧 开发工具',
@@ -59,7 +56,7 @@ export default async function Layout({ params, children }: IProps) {
               {customTranslations[currentLang]['documentation.title']}
             </Link>
           </NavbarMenuTrigger>
-          <NavbarMenuContent className="text-sm">
+          {/* <NavbarMenuContent className="text-sm">
             {documentationLinks.map(link => (
               <NavbarMenuLink
                 key={link.url}
@@ -80,7 +77,7 @@ export default async function Layout({ params, children }: IProps) {
                 </div>
               </NavbarMenuLink>
             ))}
-          </NavbarMenuContent>
+          </NavbarMenuContent> */}
         </NavbarMenu>
       ),
     },
