@@ -1,12 +1,17 @@
 import { createTokenizer } from '@orama/tokenizers/mandarin'
 import { createFromSource } from 'fumadocs-core/search/server'
-import { source } from '@/lib/source'
+import { docSource, examplesSource } from '@/lib/source'
 
-// Static mode for GitHub Pages
-// staticGET 在开发模式下动态生成索引，生产构建时生成静态文件
-export const revalidate = false
+function mergeSources(sources: any[]) {
+  return sources.reduce((acc, source) => {
+    return {
+      ...acc,
+      ...source,
+    }
+  }, {})
+}
 
-export const { staticGET: GET } = createFromSource(source, {
+export const { GET } = createFromSource(mergeSources([docSource, examplesSource]), {
   localeMap: {
     'zh-CN': {
       components: {

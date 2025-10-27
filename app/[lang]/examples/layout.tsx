@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { DocsLayout } from 'fumadocs-ui/layouts/docs'
 import { baseOptions } from '@/app/layout.config'
-import { examplesSource } from '@/lib/examples-source'
+import { examplesSource } from '@/lib/source'
 
 interface IProps {
   params: Promise<{ lang: string }>
