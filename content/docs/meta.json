@@ -1,12 +1,22 @@
 {
+  "title": "Documentation",
   "pages": [
     "index",
     "---Getting Started---",
-    "introduction",
     "quick-start",
-    "installation",
-    "common-strategies",
-    "---Core Features---",
-    "agents"
+    "---Core Concepts---",
+    "mas",
+    "---Agents---",
+    "agents-chat",
+    "agents-react",
+    "agents-parallel",
+    "agents-rag",
+    "agents-sse-agent",
+    "---Flows---",
+    "flows-parallel",
+    "flows-plan-and-solve",
+    "flows-reflexion",
+    "---LLMs---",
+    "llms-openai"
   ]
 }

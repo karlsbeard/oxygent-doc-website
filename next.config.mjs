@@ -27,6 +27,18 @@ const config = {
   // Docker standalone 模式需要 unoptimized
   images: {
     unoptimized: process.env.DOCKER_OUTPUT === 'true',
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'storage.jd.com',
+        pathname: '/ai-gateway-routing/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'img.shields.io',
+        pathname: '/**',
+      },
+    ],
   },
 }
 

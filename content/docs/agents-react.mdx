@@ -1,0 +1,281 @@
+---
+title: ReActAgent
+description: Versatile agent implementing the ReAct paradigm for complex tasks requiring reasoning and tool execution
+icon: Zap
+---
+
+# ReActAgent
+
+The ReActAgent implements the **ReAct (Reasoning and Acting)** paradigm, enabling autonomous agent behavior by combining language model reasoning with tool execution in an iterative loop.
+
+## Overview
+
+ReActAgent is OxyGent's most versatile agent for complex tasks requiring multiple tool interactions. It intelligently alternates between:
+
+1. **Reasoning**: Using LLMs to analyze the task and decide next actions
+2. **Acting**: Executing tools based on reasoning decisions
+3. **Observing**: Processing tool results to inform next reasoning step
+
+This cycle continues until the agent reaches a satisfactory answer or hits the maximum iteration limit.
+
+## Quick Start
+
+### Basic Usage
+
+```python
+import asyncio
+from oxygent import MAS, oxy
+
+oxy_space = [
+    oxy.HttpLLM(
+        name="default_llm",
+        base_url="your_base_url",
+        api_key="your_api_key",
+        model_name="your_model"
+    ),
+    oxy.FunctionTool(
+        name="calculator",
+        func=lambda x, y: x + y,
+        description="Add two numbers"
+    ),
+    oxy.ReActAgent(
+        name="assistant",
+        is_master=True,
+        llm_model="default_llm",
+        tools=["calculator"]
+    ),
+]
+
+async def main():
+    async with MAS(oxy_space=oxy_space) as mas:
+        result = await mas.call(
+            callee="assistant",
+            arguments={
+                "messages": [
+                    {"role": "user", "content": "What is 25 + 17?"}
+                ]
+            }
+        )
+        print(result.output)
+
+asyncio.run(main())
+```
+
+### With Multiple Tools
+
+```python
+from oxygent import preset_tools
+
+oxy_space = [
+    oxy.HttpLLM(name="default_llm", ...),
+    preset_tools.math_tools,
+    preset_tools.time_tools,
+    preset_tools.http_tools,
+    oxy.ReActAgent(
+        name="multi_tool_agent",
+        is_master=True,
+        llm_model="default_llm",
+        tools=["math_tools", "time_tools", "http_tools"],
+        max_react_rounds=10
+    ),
+]
+```
+
+## Configuration Options
+
+### Core Parameters
+
+#### `max_react_rounds` (int, default: 16)
+
+Maximum number of reasoning-acting iterations before fallback mechanism activates.
+
+```python
+oxy.ReActAgent(
+    name="patient_agent",
+    max_react_rounds=25,  # Allow more iterations for complex tasks
+    ...
+)
+```
+
+**When to adjust**:
+- Increase for complex multi-step tasks
+- Decrease for simple tasks to save costs
+- Monitor actual rounds used via logs
+
+#### `llm_model` (str, required)
+
+Name of the LLM component to use for reasoning.
+
+```python
+oxy_space = [
+    oxy.HttpLLM(name="fast_model", model_name="gpt-3.5-turbo", ...),
+    oxy.HttpLLM(name="smart_model", model_name="gpt-4", ...),
+    oxy.ReActAgent(
+        name="agent",
+        llm_model="smart_model",  # Use more capable model
+        ...
+    ),
+]
+```
+
+#### `tools` (list[str])
+
+List of tool names the agent can use. Tools must be registered in the same MAS.
+
+```python
+oxy.ReActAgent(
+    name="agent",
+    tools=["web_search", "calculator", "file_reader"],
+    ...
+)
+```
+
+### Memory Management
+
+#### `is_discard_react_memory` (bool, default: True)
+
+Controls how conversation history is stored:
+
+- **True**: Simple mode - only keeps final question-answer pairs
+- **False**: Advanced mode - retains detailed ReAct reasoning steps with weighted scoring
+
+```python
+# Simple mode (recommended for most use cases)
+oxy.ReActAgent(
+    name="simple_agent",
+    is_discard_react_memory=True,  # Clean history
+    ...
+)
+
+# Advanced mode (for debugging or complex reasoning chains)
+oxy.ReActAgent(
+    name="detailed_agent",
+    is_discard_react_memory=False,  # Keep full reasoning trace
+    memory_max_tokens=30000,
+    weight_short_memory=5,
+    weight_react_memory=1,
+    ...
+)
+```
+
+For more detailed configuration options and advanced features, please refer to the source documentation.
+
+## Understanding ReAct Execution Flow
+
+### Normal Execution Cycle
+
+```
+User Query
+    ↓
+┌─────────────────────────┐
+│  1. Reasoning (LLM)     │ ← System Prompt + History + Query
+│  Decides next action    │
+└─────────────────────────┘
+    ↓
+┌─────────────────────────┐
+│  2. Action (Tool Call)  │ ← Execute tool(s)
+│  or Final Answer        │
+└─────────────────────────┘
+    ↓
+┌─────────────────────────┐
+│  3. Observation         │ ← Tool results
+│  Add to ReAct memory    │
+└─────────────────────────┘
+    ↓
+  Repeat until answer or max_react_rounds
+    ↓
+Final Answer
+```
+
+## Best Practices
+
+### 1. Choose Appropriate max_react_rounds
+
+```python
+# Simple single-tool tasks
+oxy.ReActAgent(name="simple", max_react_rounds=3, ...)
+
+# Multi-step research tasks
+oxy.ReActAgent(name="researcher", max_react_rounds=20, ...)
+
+# Complex reasoning chains
+oxy.ReActAgent(name="planner", max_react_rounds=30, ...)
+```
+
+### 2. Memory Management Strategy
+
+```python
+# For production chatbots (clean history)
+oxy.ReActAgent(
+    name="chatbot",
+    is_discard_react_memory=True,
+    short_memory_size=10,  # Keep last 10 conversations
+)
+
+# For debugging/analysis (detailed trace)
+oxy.ReActAgent(
+    name="debug_agent",
+    is_discard_react_memory=False,
+    memory_max_tokens=50000,
+)
+```
+
+### 3. Tool Organization
+
+```python
+# Group related tools
+math_agent = oxy.ReActAgent(
+    name="math_agent",
+    tools=["calculator", "equation_solver", "statistics"],
+    ...
+)
+
+# Use hierarchical agents for complex domains
+main_agent = oxy.ReActAgent(
+    name="main",
+    sub_agents=["math_agent", "web_agent", "file_agent"],
+    ...
+)
+```
+
+## API Reference
+
+### Constructor Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `name` | str | Required | Unique identifier for the agent |
+| `is_master` | bool | False | Whether this is the entry point agent |
+| `llm_model` | str | Required | Name of LLM component to use |
+| `tools` | list[str] | [] | List of tool names |
+| `sub_agents` | list[str] | [] | List of sub-agent names |
+| `max_react_rounds` | int | 16 | Maximum reasoning-acting iterations |
+| `is_discard_react_memory` | bool | True | Discard detailed ReAct memory |
+| `short_memory_size` | int | 10 | Number of historical conversations to keep |
+
+## Multimodal Support
+
+ReActAgent supports multimodal queries (text, images, video):
+
+```python
+result = await mas.call(
+    callee="agent",
+    arguments={
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "What's in this image?"},
+                    {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64,..."}}
+                ]
+            }
+        ]
+    }
+)
+```
+
+## Related Links
+
+- [ChatAgent](/docs/agents-chat) - For simple conversational tasks
+- [ParallelAgent](/docs/agents-parallel) - For parallel task execution
+- [Tools](/docs/tools-function-hub) - Learn about available tools
