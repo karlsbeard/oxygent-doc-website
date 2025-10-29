@@ -1,0 +1,554 @@
+---
+title: Lifecycle Management
+description: Understanding OxyGent's component lifecycle, state management, and resource cleanup patterns
+icon: LifeBuoy
+---
+
+# Lifecycle Management
+
+OxyGent implements a comprehensive lifecycle management system that governs how components (agents, tools, flows) are initialized, executed, and cleaned up. Understanding this lifecycle is crucial for building reliable, resource-efficient multi-agent systems.
+
+## Overview
+
+The OxyGent lifecycle system operates at two primary levels:
+
+1. **MAS (Multi-Agent System) Lifecycle**: Application-level initialization and cleanup
+2. **Component Execution Lifecycle**: Request-level processing for agents and tools
+
+### Key Features
+
+- **Async Context Management**: Automatic resource setup and teardown using `async with`
+- **Structured Execution Flow**: Pre-process → Execute → Post-process hooks
+- **State Tracking**: Comprehensive state management for monitoring execution
+- **Resource Cleanup**: Guaranteed cleanup even when errors occur
+- **Database Persistence**: Automatic saving of traces and execution history
+
+### Component States
+
+OxyGent tracks execution state through the `OxyState` enum:
+
+| State | Description | When Applied |
+|-------|-------------|--------------|
+| `CREATED` | Component instantiated but not started | Initial state |
+| `RUNNING` | Currently executing | During execution |
+| `COMPLETED` | Successfully finished | Normal completion |
+| `FAILED` | Execution error occurred | Exception raised |
+| `PAUSED` | Temporarily suspended | Manual pause |
+| `SKIPPED` | Not executed (conditional) | Workflow skip |
+| `CANCELED` | Aborted before completion | User cancellation |
+
+## Quick Start
+
+### Basic MAS Lifecycle
+
+The MAS lifecycle is managed through Python's async context manager protocol:
+
+```python
+import asyncio
+from oxygent import MAS, oxy
+from oxygent.utils.env_utils import get_env_var
+
+oxy_space = [
+    oxy.HttpLLM(
+        name="default_llm",
+        api_key=get_env_var("DEFAULT_LLM_API_KEY"),
+        base_url=get_env_var("DEFAULT_LLM_BASE_URL"),
+        model_name=get_env_var("DEFAULT_LLM_MODEL_NAME"),
+    ),
+    oxy.ReActAgent(
+        name="assistant",
+        is_master=True,
+        llm_model="default_llm",
+    ),
+]
+
+async def main():
+    # __aenter__: Initialization phase
+    async with MAS(oxy_space=oxy_space) as mas:
+        # MAS is fully initialized here
+        # - All components registered
+        # - Databases connected
+        # - Agent organization built
+
+        result = await mas.call(
+            callee="assistant",
+            arguments={"messages": [{"role": "user", "content": "Hello"}]}
+        )
+        print(result.output)
+
+        # __aexit__: Cleanup phase (automatic)
+        # - Close database connections
+        # - Wait for background tasks
+        # - Release resources
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+### Component Execution Lifecycle
+
+Each component execution follows a structured flow with hooks:
+
+```python
+from oxygent.oxy import LocalAgent
+from oxygent.schemas import OxyRequest, OxyResponse
+
+class CustomAgent(LocalAgent):
+    async def _pre_process(self, oxy_request: OxyRequest) -> OxyRequest:
+        """Pre-processing hook: Prepare request before execution."""
+        # Access parent class pre-processing
+        oxy_request = await super()._pre_process(oxy_request)
+
+        # Add custom pre-processing logic
+        print(f"[PRE] Processing request for {oxy_request.callee}")
+        oxy_request.arguments["timestamp"] = "2025-10-29"
+
+        return oxy_request
+
+    async def _execute(self, oxy_request: OxyRequest) -> OxyResponse:
+        """Main execution logic."""
+        # Your agent implementation
+        user_query = oxy_request.arguments.get("messages", [])
+
+        # Process the query
+        result = f"Processed: {user_query}"
+
+        return OxyResponse(
+            output=result,
+            oxy_request=oxy_request
+        )
+
+    async def _post_process(self, oxy_response: OxyResponse) -> OxyResponse:
+        """Post-processing hook: Modify response after execution."""
+        # Access parent class post-processing
+        oxy_response = await super()._post_process(oxy_response)
+
+        # Add custom post-processing logic
+        print(f"[POST] Completed with output length: {len(oxy_response.output)}")
+
+        return oxy_response
+```
+
+## MAS Lifecycle Phases
+
+### Phase 1: Initialization (`__aenter__` / `init()`)
+
+When entering the MAS context, the following steps occur:
+
+```
+1. Register Oxy Components
+   ↓
+2. Initialize Database Connections
+   - Elasticsearch (traces, history)
+   - Redis (caching, queues)
+   - Vearch (vector search)
+   ↓
+3. Initialize All Oxy Instances
+   - Call each component's init() method
+   - Execute dependency injection
+   ↓
+4. Determine Master Agent
+   - Find agent with is_master=True
+   - Set as entry point
+   ↓
+5. Build Agent Organization
+   - Create hierarchical structure
+   - Map agents to tools
+   - Display organization tree
+```
+
+**Code Example**:
+
+```python
+async def init(self):
+    """MAS initialization sequence."""
+    # 1. Display banner
+    self.show_banner()
+    self.show_mas_info()
+
+    # 2. Register default and custom components
+    self.register_oxy_list(self.default_oxy_space)
+    self.register_oxy_list(self.oxy_space)
+
+    # 3. Initialize databases
+    await self.init_db()
+
+    # 4. Initialize all Oxy components
+    await self.init_all_oxy()
+
+    # 5. Set master agent
+    await self.init_master_agent_name()
+
+    # 6. Build organization structure
+    await self.init_agent_organization()
+```
+
+### Phase 2: Execution (Runtime)
+
+During execution, each component request flows through:
+
+```
+User/Parent Request
+    ↓
+┌──────────────────────┐
+│  _pre_process()      │  Prepare request
+│  - Load context      │
+│  - Validate input    │
+│  - Setup resources   │
+└──────────────────────┘
+    ↓
+┌──────────────────────┐
+│  _pre_save_data()    │  Save pre-execution state
+│  - Store trace       │
+│  - Log request       │
+└──────────────────────┘
+    ↓
+┌──────────────────────┐
+│  _execute()          │  Core logic
+│  - Process request   │
+│  - Call sub-agents   │
+│  - Generate response │
+└──────────────────────┘
+    ↓
+┌──────────────────────┐
+│  _post_process()     │  Modify response
+│  - Format output     │
+│  - Update state      │
+└──────────────────────┘
+    ↓
+┌──────────────────────┐
+│  _post_save_data()   │  Save results
+│  - Store trace       │
+│  - Log response      │
+│  - Update history    │
+└──────────────────────┘
+    ↓
+Return OxyResponse
+```
+
+### Phase 3: Cleanup (`__aexit__`)
+
+When exiting the MAS context:
+
+```
+1. Wait for Background Tasks
+   - Complete all async operations
+   - Finish database writes
+   ↓
+2. Close Database Connections
+   - Elasticsearch graceful shutdown
+   - Redis connection cleanup
+   ↓
+3. Cleanup MCP Servers
+   - Stop running MCP processes
+   - Release file handles
+   ↓
+4. Release Resources
+   - Clear active tasks
+   - Free memory
+```
+
+**Code Example**:
+
+```python
+async def __aexit__(self, exc_type, exc_val, exc_tb):
+    """MAS cleanup sequence."""
+    # 1. Wait for all background tasks
+    await asyncio.gather(*self.background_tasks)
+
+    # 2. Log exit
+    logger.info("=" * 64)
+    logger.info("🪂 OxyGent MAS Application Exit")
+    logger.info("=" * 64)
+
+    # 3. Close databases
+    await self.es_client.close()
+    await self.redis_client.close()
+
+    # 4. Cleanup servers
+    await self.cleanup_servers()
+```
+
+## Component Execution Lifecycle
+
+### Execution Hooks
+
+Every component execution provides hooks for customization:
+
+#### 1. `_pre_process(oxy_request)` → `OxyRequest`
+
+**Purpose**: Prepare the request before execution
+
+**Common Uses**:
+- Load historical context from database
+- Validate input parameters
+- Setup temporary resources
+- Inject default values
+
+**Example**:
+
+```python
+async def _pre_process(self, oxy_request: OxyRequest) -> OxyRequest:
+    oxy_request = await super()._pre_process(oxy_request)
+
+    # Load conversation history
+    if oxy_request.from_trace_id:
+        history = await self.load_history(oxy_request.from_trace_id)
+        oxy_request.shared_data["history"] = history
+
+    # Validate required fields
+    if "query" not in oxy_request.arguments:
+        raise ValueError("Missing required field: query")
+
+    return oxy_request
+```
+
+#### 2. `_execute(oxy_request)` → `OxyResponse`
+
+**Purpose**: Core business logic
+
+**Common Uses**:
+- Process user query
+- Call LLMs or tools
+- Coordinate sub-agents
+- Generate response
+
+**Example**:
+
+```python
+async def _execute(self, oxy_request: OxyRequest) -> OxyResponse:
+    messages = oxy_request.arguments["messages"]
+
+    # Call LLM
+    llm = oxy_request.get_oxy("default_llm")
+    response = await llm.call(messages=messages)
+
+    return OxyResponse(
+        output=response.output,
+        oxy_request=oxy_request
+    )
+```
+
+#### 3. `_post_process(oxy_response)` → `OxyResponse`
+
+**Purpose**: Modify or enrich the response
+
+**Common Uses**:
+- Format output
+- Add metadata
+- Update shared state
+- Log metrics
+
+**Example**:
+
+```python
+async def _post_process(self, oxy_response: OxyResponse) -> OxyResponse:
+    oxy_response = await super()._post_process(oxy_response)
+
+    # Add metadata
+    oxy_response.metadata = {
+        "agent": self.name,
+        "tokens": len(oxy_response.output.split()),
+        "timestamp": get_format_time()
+    }
+
+    # Update shared data for downstream agents
+    oxy_response.oxy_request.shared_data["last_agent"] = self.name
+
+    return oxy_response
+```
+
+### Data Persistence Hooks
+
+#### `_pre_save_data(oxy_request)`
+
+**Purpose**: Save initial trace before processing
+
+**What's Saved**:
+- Request ID and trace ID
+- Input arguments
+- Shared data and group data
+- Timestamp
+
+**Stored In**: Elasticsearch `{app_name}_trace` index
+
+#### `_post_save_data(oxy_response)`
+
+**Purpose**: Update trace with results
+
+**What's Saved**:
+- Output response
+- Execution status
+- Conversation history (optional)
+- Completion timestamp
+
+## State Management
+
+### State Transitions
+
+Components transition through states during execution:
+
+```
+CREATED
+  ↓ (start execution)
+RUNNING
+  ↓
+  ├─ (success) → COMPLETED
+  ├─ (error) → FAILED
+  ├─ (pause) → PAUSED
+  ├─ (skip) → SKIPPED
+  └─ (cancel) → CANCELED
+```
+
+### Tracking State
+
+Access component state through the request:
+
+```python
+async def _execute(self, oxy_request: OxyRequest) -> OxyResponse:
+    # Component is in RUNNING state here
+
+    try:
+        result = await self.process(oxy_request)
+        # Transitions to COMPLETED automatically
+        return OxyResponse(output=result, oxy_request=oxy_request)
+
+    except Exception as e:
+        # Transitions to FAILED automatically
+        logger.error(f"Execution failed: {e}")
+        raise
+```
+
+## Resource Management
+
+### Database Connections
+
+OxyGent manages database lifecycles automatically:
+
+```python
+# Databases are initialized in MAS.__aenter__
+async with MAS(oxy_space=oxy_space) as mas:
+    # Elasticsearch, Redis, Vearch are connected
+
+    # Use databases during execution
+    result = await mas.es_client.search(...)
+
+    # Databases are closed in MAS.__aexit__
+```
+
+### Background Tasks
+
+Manage long-running tasks properly:
+
+```python
+async def start_background_task(self):
+    """Start a background task tracked by MAS."""
+    task = asyncio.create_task(self.long_running_operation())
+    self.mas.background_tasks.add(task)
+    task.add_done_callback(self.mas.background_tasks.discard)
+```
+
+### MCP Server Lifecycle
+
+MCP servers are managed through the MAS:
+
+```python
+from oxygent.oxy.mcp_tools import StdioMCPClient
+
+mcp_client = StdioMCPClient(
+    name="mcp_filesystem",
+    command="npx",
+    args=["-y", "@modelcontextprotocol/server-filesystem", "/tmp"]
+)
+
+# Server starts when MAS initializes
+async with MAS(oxy_space=[mcp_client, ...]) as mas:
+    # Use MCP tools
+    result = await mas.call(...)
+
+    # Server stops when MAS exits
+```
+
+## Examples
+
+For practical examples and usage patterns, see:
+
+- [Basic Lifecycle](/examples/core-concepts/lifecycle-basics) - Understanding MAS lifecycle
+- [Custom Hooks](/examples/core-concepts/custom-hooks) - Implementing execution hooks
+- [Resource Management](/examples/core-concepts/resource-management) - Managing databases and connections
+- [State Tracking](/examples/core-concepts/state-tracking) - Monitoring component states
+
+See all examples in the [Examples Gallery](/examples).
+
+## Best Practices
+
+### 1. Always Use Context Managers
+
+```python
+# ✅ Good: Automatic cleanup
+async with MAS(oxy_space=oxy_space) as mas:
+    result = await mas.call(...)
+
+# ❌ Bad: Manual cleanup required
+mas = await MAS.create(oxy_space=oxy_space)
+result = await mas.call(...)
+await mas.cleanup()  # Easy to forget!
+```
+
+### 2. Call Parent Hooks
+
+```python
+# ✅ Good: Preserve parent behavior
+async def _pre_process(self, oxy_request: OxyRequest) -> OxyRequest:
+    oxy_request = await super()._pre_process(oxy_request)
+    # Add custom logic
+    return oxy_request
+
+# ❌ Bad: Skip parent processing
+async def _pre_process(self, oxy_request: OxyRequest) -> OxyRequest:
+    # Custom logic only
+    return oxy_request
+```
+
+### 3. Handle Errors Gracefully
+
+```python
+async def _execute(self, oxy_request: OxyRequest) -> OxyResponse:
+    try:
+        result = await self.risky_operation()
+        return OxyResponse(output=result, oxy_request=oxy_request)
+
+    except SpecificError as e:
+        logger.error(f"Known error: {e}")
+        # Return fallback response instead of crashing
+        return OxyResponse(
+            output="Operation failed, please try again",
+            oxy_request=oxy_request,
+            state=OxyState.FAILED
+        )
+
+    finally:
+        # Cleanup temporary resources
+        await self.cleanup_temp_files()
+```
+
+### 4. Track Background Tasks
+
+```python
+# ✅ Good: Register background tasks
+async def start_monitoring(self):
+    task = asyncio.create_task(self.monitor_loop())
+    self.mas.background_tasks.add(task)
+    task.add_done_callback(self.mas.background_tasks.discard)
+
+# ❌ Bad: Orphaned background tasks
+async def start_monitoring(self):
+    asyncio.create_task(self.monitor_loop())  # Not tracked!
+```
+
+## Related Links
+
+- [MAS (Multi-Agent System)](/docs/mas) - MAS architecture and APIs
+- [Four-Scope System](/docs/four-scope) - Understanding data scopes
+- [Configuration](/docs/configuration) - Global configuration options
+- [ReActAgent](/docs/agents-react) - Agent implementation example

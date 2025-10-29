@@ -1,0 +1,562 @@
+---
+title: Function Hub
+description: Convert Python functions into OxyGent tools using decorators
+icon: Wrench
+---
+
+## Overview
+
+**FunctionHub** is a decorator-based tool registry that converts regular Python functions into executable tools within the OxyGent system. It provides a simple, Pythonic interface for creating custom tools without needing to understand the underlying tool architecture. Functions can be synchronous or asynchronous, and FunctionHub automatically handles the conversion.
+
+### Key Features
+
+- **Decorator-Based**: Simple `@tool()` decorator for function registration
+- **Auto-Conversion**: Synchronous functions automatically wrapped as async
+- **Type Inspection**: Automatic schema extraction from function signatures and type hints
+- **Pydantic Integration**: Full support for Pydantic `Field()` descriptions
+- **Dynamic Registration**: Tools are created at runtime during MAS initialization
+- **Multiple Functions**: Register many related tools in a single hub
+
+### When to Use FunctionHub
+
+```
+┌─────────────────────────────────────────────────────┐
+│         FunctionHub vs. MCP Tools                   │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│  Use FunctionHub when:                              │
+│  ✓ Writing custom business logic                   │
+│  ✓ Integrating internal APIs                       │
+│  ✓ Quick prototyping and testing                   │
+│  ✓ Functions are simple and Python-native          │
+│  ✓ Need tight coupling with your code              │
+│                                                     │
+│  Use MCP Tools when:                                │
+│  ✓ Using external services (filesystem, search)    │
+│  ✓ Need cross-language support                     │
+│  ✓ Want to reuse existing MCP servers              │
+│  ✓ Need standardized protocols                     │
+│  ✓ Sharing tools across multiple projects          │
+└─────────────────────────────────────────────────────┘
+```
+
+## Quick Start
+
+### Basic Function Registration
+
+Register simple Python functions as tools:
+
+```python
+from oxygent import MAS, oxy
+from pydantic import Field
+
+# Create a FunctionHub instance
+math_tools = oxy.FunctionHub(name="math_tools")
+
+# Register functions using decorator
+@math_tools.tool(description="Calculate the sum of two numbers")
+def add(a: int = Field(description="First number"),
+        b: int = Field(description="Second number")):
+    return a + b
+
+@math_tools.tool(description="Calculate the product of two numbers")
+def multiply(a: int, b: int):
+    return a * b
+
+# Use in MAS
+oxy_space = [
+    oxy.HttpLLM(name="default_llm", ...),
+    math_tools,  # Add the hub to oxy_space
+    oxy.ReActAgent(
+        name="calculator",
+        tools=["math_tools"],  # Reference tools by hub name
+        llm_model="default_llm"
+    )
+]
+
+async def main():
+    async with MAS(oxy_space=oxy_space) as mas:
+        await mas.start_web_service(first_query="What is 5 + 3?")
+```
+
+### Async Functions
+
+Register asynchronous functions for I/O operations:
+
+```python
+import aiohttp
+from oxygent import oxy
+from pydantic import Field
+
+api_tools = oxy.FunctionHub(name="api_tools")
+
+@api_tools.tool(description="Fetch data from a URL")
+async def fetch_url(url: str = Field(description="The URL to fetch")):
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as response:
+            return await response.text()
+
+@api_tools.tool(description="Search for information online")
+async def search(query: str = Field(description="Search query")):
+    # Async implementation
+    results = await perform_search(query)
+    return results
+```
+
+### Multiple Related Tools
+
+Group related functions in a single hub:
+
+```python
+from oxygent import oxy
+from pydantic import Field
+import random
+import datetime
+
+utility_tools = oxy.FunctionHub(name="utility_tools")
+
+@utility_tools.tool(description="Get current timestamp")
+def get_timestamp():
+    return datetime.datetime.now().isoformat()
+
+@utility_tools.tool(description="Generate a random number")
+def random_number(min_val: int = 1, max_val: int = 100):
+    return random.randint(min_val, max_val)
+
+@utility_tools.tool(description="Format text to uppercase")
+def to_uppercase(text: str = Field(description="Text to convert")):
+    return text.upper()
+
+@utility_tools.tool(description="Count words in text")
+def word_count(text: str = Field(description="Text to analyze")):
+    return len(text.split())
+```
+
+## Configuration Options
+
+### Core Parameters
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `name` | `str` | **Yes** | - | Unique identifier for this FunctionHub (used by agents to reference tools) |
+| `desc` | `str` | No | `""` | Description of this tool collection |
+
+### Inherited Parameters
+
+FunctionHub inherits from BaseTool and supports these parameters:
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `is_permission_required` | `bool` | `True` | Whether agents need permission to call these tools |
+| `timeout` | `float` | `60` | Maximum execution time per tool in seconds |
+| `semaphore` | `int` | `16` | Maximum concurrent executions |
+| `retries` | `int` | `2` | Number of retry attempts on failure |
+| `delay` | `float` | `1.0` | Delay between retries in seconds |
+
+**Example with parameters:**
+```python
+tools = oxy.FunctionHub(
+    name="custom_tools",
+    desc="Collection of custom business logic tools",
+    timeout=30,
+    is_permission_required=True
+)
+```
+
+## Decorator API
+
+### @tool()
+
+Register a function as a tool in the hub.
+
+```python
+@function_hub.tool(description: str)
+def my_function(...):
+    ...
+```
+
+**Parameters:**
+- `description` (str): **Required** - Human-readable description of what the tool does. This is shown to LLMs when they choose tools.
+
+**Behavior:**
+- Automatically converts sync functions to async
+- Extracts parameter schema from function signature
+- Registers function with the hub's internal dictionary
+- Returns the async version of the function
+
+**Example:**
+```python
+@tools.tool(description="Send an email to a recipient")
+def send_email(to: str, subject: str, body: str):
+    # Implementation
+    return "Email sent"
+```
+
+## Function Signature Patterns
+
+### Basic Types
+
+Use Python type hints for automatic schema generation:
+
+```python
+@tools.tool(description="Example with basic types")
+def basic_example(
+    text: str,
+    number: int,
+    decimal: float,
+    flag: bool
+):
+    return f"{text}: {number}, {decimal}, {flag}"
+```
+
+### Pydantic Fields
+
+Use `Field()` for detailed parameter descriptions:
+
+```python
+from pydantic import Field
+
+@tools.tool(description="Example with Pydantic Fields")
+def detailed_example(
+    query: str = Field(description="The search query"),
+    max_results: int = Field(default=10, description="Maximum number of results"),
+    include_metadata: bool = Field(default=False, description="Include metadata")
+):
+    return perform_search(query, max_results, include_metadata)
+```
+
+### Optional Parameters
+
+Use default values for optional parameters:
+
+```python
+@tools.tool(description="Example with optional parameters")
+def optional_example(
+    required_param: str,                    # Required (no default)
+    optional_param: str = "default",        # Optional with default
+    optional_number: int = 42               # Optional with default
+):
+    return f"{required_param}, {optional_param}, {optional_number}"
+```
+
+### Complex Types
+
+Support for lists, dicts, and nested types:
+
+```python
+@tools.tool(description="Example with complex types")
+def complex_example(
+    items: list = Field(description="List of items to process"),
+    config: dict = Field(description="Configuration dictionary"),
+    tags: list[str] = Field(default=[], description="Optional tags")
+):
+    return process_items(items, config, tags)
+```
+
+### OxyRequest Access
+
+Access the full context by including `OxyRequest` parameter:
+
+```python
+from oxygent import OxyRequest
+
+@tools.tool(description="Example with context access")
+async def context_aware_tool(
+    oxy_request: OxyRequest,  # Automatically injected, not in schema
+    param1: str = Field(description="First parameter")
+):
+    # Access request context
+    query = oxy_request.get_query()
+    history = oxy_request.get_short_memory()
+    data = oxy_request.get_shared_data("key")
+
+    # Your logic
+    return f"Processed {param1} with context"
+```
+
+**Important:** `OxyRequest` parameter is **excluded** from the tool schema - LLMs don't see it.
+
+## Usage Patterns
+
+### File Operations
+
+Create file manipulation tools:
+
+```python
+import os
+import aiofiles
+from oxygent import oxy, OxyRequest
+from pydantic import Field
+
+file_tools = oxy.FunctionHub(name="file_tools")
+
+@file_tools.tool(description="Read content from a file")
+async def read_file(
+    file_path: str = Field(description="Path to the file")
+):
+    async with aiofiles.open(file_path, 'r') as f:
+        return await f.read()
+
+@file_tools.tool(description="Write content to a file")
+async def write_file(
+    file_path: str = Field(description="Path to the file"),
+    content: str = Field(description="Content to write")
+):
+    async with aiofiles.open(file_path, 'w') as f:
+        await f.write(content)
+    return f"Written to {file_path}"
+
+@file_tools.tool(description="List files in a directory")
+def list_files(
+    directory: str = Field(description="Directory path")
+):
+    return os.listdir(directory)
+```
+
+### API Integration
+
+Wrap external API calls:
+
+```python
+import aiohttp
+from oxygent import oxy
+from pydantic import Field
+
+api_tools = oxy.FunctionHub(name="weather_api")
+
+@api_tools.tool(description="Get weather for a city")
+async def get_weather(
+    city: str = Field(description="City name"),
+    units: str = Field(default="metric", description="Temperature units")
+):
+    api_key = os.getenv("WEATHER_API_KEY")
+    url = f"https://api.weather.com/data?q={city}&units={units}&key={api_key}"
+
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as response:
+            data = await response.json()
+            return f"Weather in {city}: {data['temp']}°C, {data['condition']}"
+```
+
+### Database Operations
+
+Create database query tools:
+
+```python
+import asyncpg
+from oxygent import oxy
+from pydantic import Field
+
+db_tools = oxy.FunctionHub(name="db_tools")
+
+@db_tools.tool(description="Query user information from database")
+async def get_user(
+    user_id: int = Field(description="User ID to query")
+):
+    conn = await asyncpg.connect(os.getenv("DATABASE_URL"))
+    try:
+        row = await conn.fetchrow("SELECT * FROM users WHERE id = $1", user_id)
+        return dict(row) if row else "User not found"
+    finally:
+        await conn.close()
+
+@db_tools.tool(description="Search users by name")
+async def search_users(
+    name: str = Field(description="Name to search for"),
+    limit: int = Field(default=10, description="Maximum results")
+):
+    conn = await asyncpg.connect(os.getenv("DATABASE_URL"))
+    try:
+        rows = await conn.fetch(
+            "SELECT * FROM users WHERE name LIKE $1 LIMIT $2",
+            f"%{name}%", limit
+        )
+        return [dict(row) for row in rows]
+    finally:
+        await conn.close()
+```
+
+### Business Logic
+
+Implement domain-specific operations:
+
+```python
+from oxygent import oxy
+from pydantic import Field
+
+business_tools = oxy.FunctionHub(name="order_tools")
+
+@business_tools.tool(description="Calculate order total with tax")
+def calculate_total(
+    subtotal: float = Field(description="Order subtotal"),
+    tax_rate: float = Field(default=0.08, description="Tax rate"),
+    discount: float = Field(default=0, description="Discount amount")
+):
+    tax = subtotal * tax_rate
+    total = subtotal + tax - discount
+    return {"subtotal": subtotal, "tax": tax, "discount": discount, "total": total}
+
+@business_tools.tool(description="Check if product is in stock")
+def check_stock(
+    product_id: str = Field(description="Product ID"),
+    quantity: int = Field(description="Quantity needed")
+):
+    # Your stock checking logic
+    available = get_stock_level(product_id)
+    return {
+        "product_id": product_id,
+        "requested": quantity,
+        "available": available,
+        "in_stock": available >= quantity
+    }
+```
+
+## Tool Lifecycle
+
+```
+┌─────────────────────────────────────────────────────┐
+│         FunctionHub Lifecycle                       │
+└─────────────────────────────────────────────────────┘
+                        │
+          1. Create FunctionHub instance
+                        │
+                        ▼
+          ┌───────────────────────────┐
+          │  fh = oxy.FunctionHub()   │
+          └───────────────────────────┘
+                        │
+          2. Register functions with @tool()
+                        │
+                        ▼
+          ┌───────────────────────────┐
+          │  @fh.tool(desc="...")     │
+          │  def my_func(...):        │
+          │      ...                  │
+          └───────────────────────────┘
+                        │
+          3. Add hub to oxy_space
+                        │
+                        ▼
+          ┌───────────────────────────┐
+          │  oxy_space = [fh, ...]    │
+          └───────────────────────────┘
+                        │
+          4. MAS init() converts to FunctionTools
+                        │
+                        ▼
+          ┌───────────────────────────┐
+          │  For each function:       │
+          │  - Create FunctionTool    │
+          │  - Extract schema         │
+          │  - Register with MAS      │
+          └───────────────────────────┘
+                        │
+          5. Agents can call individual tools
+                        │
+                        ▼
+          ┌───────────────────────────┐
+          │  Agent calls "my_func"    │
+          │  (not "math_tools")       │
+          └───────────────────────────┘
+```
+
+**Key Points:**
+- FunctionHub is a **factory** that creates FunctionTools during MAS initialization
+- Agents reference the **hub name** in their `tools` list
+- LLMs see and call **individual function names** (not the hub name)
+- Schema extraction happens automatically from type hints and Field()
+
+## Advanced Features
+
+### Error Handling
+
+Implement robust error handling in tools:
+
+```python
+@tools.tool(description="Safe division operation")
+def safe_divide(
+    a: float = Field(description="Numerator"),
+    b: float = Field(description="Denominator")
+):
+    try:
+        if b == 0:
+            return "Error: Division by zero"
+        return a / b
+    except Exception as e:
+        return f"Error: {str(e)}"
+```
+
+### Logging and Debugging
+
+Add logging to tools:
+
+```python
+import logging
+
+logger = logging.getLogger(__name__)
+
+@tools.tool(description="Tool with logging")
+async def logged_operation(
+    oxy_request: OxyRequest,
+    param: str = Field(description="Parameter")
+):
+    logger.info(
+        f"Tool called with param={param}",
+        extra={
+            "trace_id": oxy_request.current_trace_id,
+            "node_id": oxy_request.node_id
+        }
+    )
+
+    result = perform_operation(param)
+
+    logger.info(f"Tool completed with result={result}")
+    return result
+```
+
+### Context-Aware Tools
+
+Use OxyRequest for context-aware operations:
+
+```python
+@tools.tool(description="Personalized greeting")
+async def personalized_greeting(
+    oxy_request: OxyRequest,
+    name: str = Field(description="Person's name")
+):
+    # Access conversation history
+    history = oxy_request.get_short_memory()
+    conversation_count = len(history)
+
+    # Access shared data
+    user_preference = oxy_request.get_shared_data("greeting_style", "formal")
+
+    # Generate contextual response
+    if conversation_count > 10:
+        return f"We've been chatting a lot! Hi again, {name}!"
+    elif user_preference == "casual":
+        return f"Hey {name}!"
+    else:
+        return f"Hello, {name}. How may I assist you today?"
+```
+
+## API Reference
+
+For complete API documentation including all constructor parameters, methods, and detailed parameter descriptions, see:
+
+**[FunctionHub API Reference](/api-docs/tools-function-hub-api)** - Complete API documentation
+
+## Examples
+
+Explore practical implementations:
+
+- **[Basic FunctionHub](/examples/tools/demo_functionhub.py)** - Simple function registration and usage
+- **[Plan and Solve](/examples/flows/plan_and_solve_demo.py)** - Using FunctionHub in complex flows
+- **[Application Demo](/examples/application/demo.py)** - Practical application with multiple tools
+
+## Related Documentation
+
+- **[ReActAgent](/docs/agents-react)** - Using tools in reasoning agents
+- **[MCP Tools](/docs/tools-mcp)** - External tool integration via MCP
+- **[OxyRequest & Context](/docs/context)** - Accessing request context in tools
+- **[Configuration](/docs/configuration)** - Global tool configuration

@@ -1,0 +1,686 @@
+---
+title: OxyRequest & Context
+description: Understanding the OxyRequest API and context management in OxyGent
+icon: Network
+---
+
+## Overview
+
+**OxyRequest** is the core context object that flows through the entire OxyGent system. It serves as both a message envelope for agent-to-agent communication and a context manager providing access to memory, data scopes, and execution capabilities. Every agent, tool, and workflow receives an OxyRequest and uses it to interact with the rest of the system.
+
+### What is OxyRequest?
+
+OxyRequest encapsulates:
+- **Query & Memory**: Current query text and conversation history
+- **Data Scopes**: Four levels of data sharing (arguments, shared_data, group_data, global_data)
+- **Trace Information**: Conversation DAG structure and parent relationships
+- **Execution API**: Methods to call agents/tools and send messages
+- **Identity**: Unique IDs for tracking and resuming requests
+
+```
+┌─────────────────────────────────────────────────────┐
+│              OxyRequest Structure                   │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│  ┌─────────────────────────────────────────────┐  │
+│  │  Query & Memory API                         │  │
+│  │  • get_query() / set_query()                │  │
+│  │  • get_short_memory() / set_short_memory()  │  │
+│  └─────────────────────────────────────────────┘  │
+│                                                     │
+│  ┌─────────────────────────────────────────────┐  │
+│  │  Four-Scope Data System                     │  │
+│  │  • arguments (node scope)                   │  │
+│  │  • shared_data (request scope)              │  │
+│  │  • group_data (session scope)               │  │
+│  │  • global_data (MAS scope)                  │  │
+│  └─────────────────────────────────────────────┘  │
+│                                                     │
+│  ┌─────────────────────────────────────────────┐  │
+│  │  Execution API                              │  │
+│  │  • call() - Invoke agents/tools/LLMs        │  │
+│  │  • send_message() - Stream to user          │  │
+│  │  • break_task() - Cancel execution          │  │
+│  └─────────────────────────────────────────────┘  │
+│                                                     │
+│  ┌─────────────────────────────────────────────┐  │
+│  │  Identity & Tracing                         │  │
+│  │  • request_id, group_id                     │  │
+│  │  • current_trace_id, root_trace_ids         │  │
+│  │  • caller/callee, call_stack                │  │
+│  └─────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────┘
+```
+
+## Quick Start
+
+### Accessing Query and Memory
+
+The most common use case is accessing the user's query and conversation history:
+
+```python
+async def my_workflow(oxy_request: OxyRequest):
+    # Get the current query
+    query = oxy_request.get_query()
+    print(f"User asked: {query}")
+
+    # Get conversation history
+    history = oxy_request.get_short_memory()
+    print(f"Previous {len(history)} messages")
+
+    # Access master-level (user-level) context
+    master_query = oxy_request.get_query(master_level=True)
+    master_history = oxy_request.get_short_memory(master_level=True)
+
+    return f"Processed query: {query}"
+```
+
+### Calling Other Components
+
+Use `call()` to invoke agents, tools, and LLMs:
+
+```python
+async def orchestration_workflow(oxy_request: OxyRequest):
+    query = oxy_request.get_query()
+
+    # Call an agent
+    agent_response = await oxy_request.call(
+        callee="chat_agent",
+        arguments={"query": query}
+    )
+
+    # Call a tool
+    tool_response = await oxy_request.call(
+        callee="search_tool",
+        arguments={"query": query, "max_results": 5}
+    )
+
+    # Call an LLM directly
+    llm_response = await oxy_request.call(
+        callee="default_llm",
+        arguments={
+            "messages": [
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": query}
+            ],
+            "llm_params": {"temperature": 0.7}
+        }
+    )
+
+    return f"Combined results: {agent_response.output}, {tool_response.output}"
+```
+
+### Sending Messages
+
+Stream intermediate results to the user:
+
+```python
+async def long_running_workflow(oxy_request: OxyRequest):
+    # Step 1
+    await oxy_request.send_message({
+        "type": "status",
+        "content": "Analyzing your request..."
+    })
+
+    analysis = await oxy_request.call(
+        callee="analyzer_agent",
+        arguments={"query": oxy_request.get_query()}
+    )
+
+    # Step 2
+    await oxy_request.send_message({
+        "type": "progress",
+        "content": "Found 15 relevant results, processing..."
+    })
+
+    results = await oxy_request.call(
+        callee="processor_agent",
+        arguments={"data": analysis.output}
+    )
+
+    # Final result
+    return results.output
+```
+
+## Query API
+
+### get_query()
+
+Retrieve the query text for the current request.
+
+```python
+def get_query(self, master_level: bool = False) -> str
+```
+
+**Parameters:**
+- `master_level` (bool): If `True`, returns the master-level (original user) query; if `False`, returns the current node's query
+
+**Returns:** `str` - The query string, potentially with attachments as markdown links
+
+**Behavior:**
+- Attachments are automatically converted to markdown links (images prefixed with `!`)
+- Attachment paths are resolved to absolute file paths
+- Both `arguments["query"]` (local) and `shared_data["query"]` (master) are supported
+
+**Example:**
+```python
+async def query_example(oxy_request: OxyRequest):
+    # Get local query (for this agent)
+    local_query = oxy_request.get_query()
+
+    # Get original user query (from master agent)
+    user_query = oxy_request.get_query(master_level=True)
+
+    print(f"Local: {local_query}")
+    print(f"Master: {user_query}")
+```
+
+### set_query()
+
+Set the query text for downstream processing.
+
+```python
+def set_query(self, query: str, master_level: bool = False) -> None
+```
+
+**Parameters:**
+- `query` (str): The new query text
+- `master_level` (bool): If `True`, sets `shared_data["query"]`; if `False`, sets `arguments["query"]`
+
+**Example:**
+```python
+async def query_rewriter(oxy_request: OxyRequest):
+    original = oxy_request.get_query()
+
+    # Rewrite query for better results
+    improved = f"Detailed analysis of: {original}"
+    oxy_request.set_query(improved)
+
+    # Now call downstream agent with improved query
+    response = await oxy_request.call(
+        callee="search_agent",
+        arguments={}  # Will use the new query from context
+    )
+```
+
+## Memory API
+
+### get_short_memory()
+
+Retrieve the conversation history as a list of messages.
+
+```python
+def get_short_memory(self, master_level: bool = False) -> list[Message]
+```
+
+**Parameters:**
+- `master_level` (bool): If `True`, returns master-level (user-level) conversation history; if `False`, returns the current agent's history
+
+**Returns:** `list[Message]` - List of Message objects with `role` and `content` fields
+
+**Message Structure:**
+```python
+class Message:
+    role: Literal["system", "user", "assistant", "tool"]
+    content: Optional[str | list | dict]
+    tool_calls: Optional[list[ToolCall]]
+    name: Optional[str]
+    tool_call_id: Optional[str]
+```
+
+**Example:**
+```python
+async def context_aware_workflow(oxy_request: OxyRequest):
+    # Get local agent's history
+    local_history = oxy_request.get_short_memory()
+
+    # Get user-level history (master)
+    user_history = oxy_request.get_short_memory(master_level=True)
+
+    # Analyze conversation
+    if len(user_history) > 10:
+        return "We've been chatting a lot! Need a summary?"
+
+    # Check last message
+    if local_history:
+        last_msg = local_history[-1]
+        print(f"Last role: {last_msg.role}, content: {last_msg.content}")
+```
+
+### set_short_memory()
+
+Update the conversation history.
+
+```python
+def set_short_memory(self, short_memory: list[Message], master_level: bool = False) -> None
+```
+
+**Parameters:**
+- `short_memory` (list[Message]): New conversation history
+- `master_level` (bool): If `True`, updates master-level history; if `False`, updates local history
+
+### has_short_memory()
+
+Check if memory exists.
+
+```python
+def has_short_memory(self, master_level: bool = False) -> bool
+```
+
+**Returns:** `bool` - True if memory exists for the specified level
+
+## Data Scope API
+
+OxyGent provides a four-level data scoping system. For detailed information, see **[Four-Scope System](/docs/four-scope)**.
+
+### Arguments (Node Scope)
+
+Data specific to a single agent/tool execution:
+
+```python
+# Get
+value = oxy_request.get_arguments("key", default=None)
+all_args = oxy_request.get_arguments()  # Get all arguments
+
+# Set
+oxy_request.set_arguments("key", value)
+
+# Check
+if oxy_request.has_arguments("key"):
+    ...
+```
+
+### Shared Data (Request Scope)
+
+Data shared across all nodes in a single request trace:
+
+```python
+# Get
+value = oxy_request.get_shared_data("key", default=None)
+all_data = oxy_request.get_shared_data()
+
+# Set
+oxy_request.set_shared_data("intermediate_result", data)
+
+# Check
+if oxy_request.has_shared_data("key"):
+    ...
+```
+
+**Example - Passing data between agents:**
+```python
+async def step1_workflow(oxy_request: OxyRequest):
+    result = await expensive_computation()
+
+    # Save for downstream agents
+    oxy_request.set_shared_data("computation_result", result)
+
+    response = await oxy_request.call(
+        callee="step2_agent",
+        arguments={}
+    )
+    return response.output
+
+async def step2_workflow(oxy_request: OxyRequest):
+    # Reuse computation from step1
+    result = oxy_request.get_shared_data("computation_result")
+
+    return f"Processing: {result}"
+```
+
+### Group Data (Session Scope)
+
+Data persisted across multiple requests in a session group:
+
+```python
+# Get
+value = oxy_request.get_group_data("key", default=None)
+all_data = oxy_request.get_group_data()
+
+# Set
+oxy_request.set_group_data("user_preference", value)
+
+# Check
+if oxy_request.has_group_data("key"):
+    ...
+```
+
+**Example - Session state:**
+```python
+async def stateful_workflow(oxy_request: OxyRequest):
+    # Track conversation count
+    count = oxy_request.get_group_data("conversation_count", default=0)
+    count += 1
+    oxy_request.set_group_data("conversation_count", count)
+
+    # Remember user preferences
+    if "preference" in oxy_request.get_query():
+        pref = extract_preference(oxy_request.get_query())
+        oxy_request.set_group_data("user_style", pref)
+
+    style = oxy_request.get_group_data("user_style", default="formal")
+    return f"Response #{count} in {style} style"
+```
+
+### Global Data (MAS Scope)
+
+Data shared across the entire multi-agent system:
+
+```python
+# Get
+value = oxy_request.get_global_data("key", default=None)
+all_data = oxy_request.get_global_data()
+
+# Set
+oxy_request.set_global_data("system_config", value)
+
+# Check
+if oxy_request.has_global_data("key"):
+    ...
+```
+
+**Example - System-wide cache:**
+```python
+async def cached_workflow(oxy_request: OxyRequest):
+    query = oxy_request.get_query()
+    cache_key = f"cache_{hash(query)}"
+
+    # Check global cache
+    if oxy_request.has_global_data(cache_key):
+        return oxy_request.get_global_data(cache_key)
+
+    # Compute result
+    result = await expensive_operation(query)
+
+    # Cache for all agents
+    oxy_request.set_global_data(cache_key, result)
+
+    return result
+```
+
+## Execution API
+
+### call()
+
+Invoke another agent, tool, or LLM.
+
+```python
+async def call(self, **kwargs) -> OxyResponse
+```
+
+**Parameters:**
+- `callee` (str): Name of the component to call
+- `arguments` (dict): Arguments to pass
+- Other OxyRequest fields can be overridden (advanced usage)
+
+**Returns:** `OxyResponse` with `state` and `output` fields
+
+**Features:**
+- Automatic permission checking
+- Timeout protection
+- Trace DAG construction
+- Retry logic (configurable per component)
+
+**Example:**
+```python
+async def orchestration_example(oxy_request: OxyRequest):
+    # Call agent
+    agent_resp = await oxy_request.call(
+        callee="search_agent",
+        arguments={"query": "python async", "max_results": 5}
+    )
+
+    if agent_resp.state == OxyState.COMPLETED:
+        # Process results
+        return agent_resp.output
+    else:
+        # Handle error
+        return f"Error: {agent_resp.output}"
+```
+
+### send_message()
+
+Send intermediate messages to the user (streaming).
+
+```python
+async def send_message(self, message: dict) -> None
+```
+
+**Parameters:**
+- `message` (dict): Message dictionary with `type` and `content` (or other fields)
+
+**Use Cases:**
+- Progress updates in long-running workflows
+- Status notifications
+- Intermediate results
+- Debug information
+
+**Example:**
+```python
+async def multi_step_workflow(oxy_request: OxyRequest):
+    steps = ["analyze", "process", "summarize"]
+
+    for i, step in enumerate(steps):
+        await oxy_request.send_message({
+            "type": "progress",
+            "content": f"Step {i+1}/{len(steps)}: {step}..."
+        })
+
+        result = await oxy_request.call(
+            callee=f"{step}_agent",
+            arguments={"query": oxy_request.get_query()}
+        )
+
+    return "All steps completed!"
+```
+
+### break_task()
+
+Cancel the current task execution.
+
+```python
+async def break_task(self) -> None
+```
+
+**Behavior:**
+- Sends a close event message
+- Cancels the MAS task for this trace
+- Used for early termination
+
+**Example:**
+```python
+async def conditional_workflow(oxy_request: OxyRequest):
+    query = oxy_request.get_query()
+
+    if "cancel" in query.lower():
+        await oxy_request.send_message({
+            "type": "info",
+            "content": "Task cancelled by user"
+        })
+        await oxy_request.break_task()
+        return "Cancelled"
+
+    # Continue normal processing
+    ...
+```
+
+## Identity API
+
+### Request ID
+
+```python
+# Get
+request_id = oxy_request.get_request_id()
+
+# Set (rarely needed)
+oxy_request.set_request_id("custom_id")
+```
+
+**Purpose:** Client-side ID for tracing and resuming requests (22 characters by default)
+
+### Group ID
+
+```python
+# Get
+group_id = oxy_request.get_group_id()
+
+# Set
+oxy_request.set_group_id("session_123")
+```
+
+**Purpose:** Static group identifier for trace trees (session grouping)
+
+### Trace IDs
+
+```python
+# Current trace ID (this node)
+current_id = oxy_request.current_trace_id
+
+# Parent trace ID
+parent_id = oxy_request.from_trace_id
+
+# Root trace IDs (conversation hierarchy)
+roots = oxy_request.root_trace_ids
+```
+
+**Purpose:** Build conversation DAG and track execution flow
+
+## OxyResponse
+
+Every `call()` returns an OxyResponse:
+
+```python
+class OxyResponse:
+    state: OxyState                    # Execution state
+    output: Any                        # Result or error message
+    extra: dict                        # Metadata (tokens, latency, etc.)
+    oxy_request: Optional[OxyRequest]  # Echo of request (for logging)
+```
+
+### OxyState Enum
+
+```python
+class OxyState(str, Enum):
+    CREATED = "created"                # Initial state
+    RUNNING = "running"                # Executing
+    COMPLETED = "completed"            # Success
+    FAILED = "failed"                  # Error occurred
+    PAUSED = "paused"                  # Paused (for human-in-loop)
+    SKIPPED = "skipped"                # Permission denied
+    CANCELED = "canceled"              # Cancelled by user/system
+```
+
+### Handling Responses
+
+```python
+async def response_handling(oxy_request: OxyRequest):
+    response = await oxy_request.call(
+        callee="some_agent",
+        arguments={"query": "test"}
+    )
+
+    # Check state
+    if response.state == OxyState.COMPLETED:
+        return f"Success: {response.output}"
+    elif response.state == OxyState.FAILED:
+        return f"Error: {response.output}"
+    elif response.state == OxyState.SKIPPED:
+        return "Permission denied"
+    else:
+        return f"Unexpected state: {response.state}"
+```
+
+## Advanced Usage
+
+### Clone with Modifications
+
+Create a modified copy of OxyRequest:
+
+```python
+new_request = oxy_request.clone_with(
+    callee="new_agent",
+    arguments={"query": "modified query"}
+)
+# Original request is unchanged
+```
+
+### Access MAS Instance
+
+```python
+# Get MAS reference
+mas = oxy_request.mas
+
+# Check if component exists
+if oxy_request.has_oxy("some_agent"):
+    oxy = oxy_request.get_oxy("some_agent")
+```
+
+### Session Information
+
+```python
+# Get session name (caller__callee)
+session = oxy_request.session_name
+
+# Get caller/callee info
+caller = oxy_request.caller
+callee = oxy_request.callee
+caller_category = oxy_request.caller_category  # "user", "agent", etc.
+```
+
+## Context Flow Diagram
+
+```
+┌─────────────────────────────────────────────────────┐
+│           OxyRequest Flow Through System            │
+└─────────────────────────────────────────────────────┘
+                        │
+           User Query arrives as OxyRequest
+                        │
+                        ▼
+            ┌───────────────────────┐
+            │   Master Agent        │
+            │   (receives request)  │
+            └───────────────────────┘
+                        │
+          ┌─────────────┴─────────────┐
+          │                           │
+          ▼                           ▼
+   ┌─────────────┐           ┌─────────────┐
+   │ Sub-Agent 1 │           │ Sub-Agent 2 │
+   │ (cloned     │           │ (cloned     │
+   │  request)   │           │  request)   │
+   └─────────────┘           └─────────────┘
+          │                           │
+          │     shared_data flows     │
+          └─────────────┬─────────────┘
+                        │
+                        ▼
+            ┌───────────────────────┐
+            │   OxyResponse         │
+            │   (returns to master) │
+            └───────────────────────┘
+                        │
+                        ▼
+                 User receives result
+```
+
+**Key Points:**
+- Each `call()` creates a cloned OxyRequest with updated trace IDs
+- `shared_data` is a **shared reference** (not copied)
+- `group_data` persists across requests in the same session
+- Master-level methods access the original user's context
+
+## Examples
+
+Explore practical implementations:
+
+- **[Basic Workflow](/examples/agents/demo_workflow_agent.py)** - Using OxyRequest in workflows
+- **[Heterogeneous Agents](/examples/agents/demo_heterogeneous_agents.py)** - Context across different agent types
+- **[Plan and Solve](/examples/flows/plan_and_solve_demo.py)** - Complex multi-agent coordination
+
+## Related Documentation
+
+- **[Four-Scope System](/docs/four-scope)** - Detailed explanation of data scoping
+- **[WorkflowAgent](/docs/agents-workflow)** - Using OxyRequest in custom workflows
+- **[Lifecycle Management](/docs/lifecycle)** - Component execution lifecycle
+- **[MAS Architecture](/docs/mas)** - Multi-agent system structure

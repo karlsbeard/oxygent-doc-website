@@ -1,0 +1,384 @@
+---
+title: WorkflowAgent API Reference
+description: Complete API documentation for WorkflowAgent class
+icon: Code
+---
+
+## Class Definition
+
+```python
+from oxygent import oxy
+
+agent = oxy.WorkflowAgent(
+    name="workflow_agent",
+    func_workflow=my_workflow_function,
+    desc="Description of agent functionality",
+    llm_model="default_llm",
+    sub_agents=["agent1", "agent2"],
+    tools=["tool1", "tool2"],
+    is_master=False,
+    timeout=60,
+)
+```
+
+## Constructor Parameters
+
+### Required Parameters
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `name` | `str` | **Yes** | - | Unique identifier for this agent in the MAS system |
+| `func_workflow` | `Callable[[OxyRequest], Awaitable[Any]]` | **Yes** | `None` | Async function that implements the workflow logic. Receives OxyRequest and returns the output |
+
+### Core Configuration
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `desc` | `str` | `""` | Human-readable description shown when this agent is called as a tool |
+| `llm_model` | `str` | From `Config` | LLM model identifier for sub-agent calls (required if using sub_agents) |
+| `prompt` | `str` | From `Config` | System prompt template for agent behavior (inherited but less useful for WorkflowAgent) |
+| `additional_prompt` | `str` | `""` | Additional prompt text appended to the default prompt |
+
+### Agent Orchestration
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `sub_agents` | `list[str]` | `[]` | Names of sub-agents this workflow can delegate to |
+| `tools` | `list[str]` | `[]` | Names of tools available to this workflow (MCP tools, FunctionHubs, etc.) |
+| `except_tools` | `list[str]` | `[]` | Names of tools explicitly forbidden for this agent |
+| `is_master` | `bool` | `False` | Whether this agent is the master orchestrator for the MAS |
+
+### Memory & Context Management
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `short_memory_size` | `int` | From `Config` | Number of conversation turns to retain in short-term memory |
+| `is_retain_master_short_memory` | `bool` | `False` | Whether to retain master-level (user-level) memory context in workflows |
+| `is_attachment_processing_enabled` | `bool` | `True` | Whether to inject attachments into query text |
+| `is_multimodal_supported` | `bool` | `False` | Whether to support multimodal input (images, files, etc.) |
+
+### Tool Retrieval (Advanced)
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `is_sourcing_tools` | `bool` | `False` | Enable dynamic tool retrieval instead of static tool list |
+| `top_k_tools` | `int` | `10` | Maximum number of tools to retrieve when sourcing is enabled |
+| `is_retain_subagent_in_toolset` | `bool` | `False` | Keep sub-agents in toolset (ensures they're always available) |
+| `is_retrieve_even_if_tools_scarce` | `bool` | `True` | Perform retrieval even if agent has fewer than k tools |
+| `intent_understanding_agent` | `str` | `None` | Name of agent used for query rewriting during tool retrieval |
+
+### Execution Control
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `timeout` | `float` | `3600` | Maximum execution time in seconds (default: 1 hour) |
+| `semaphore` | `int` | `16` | Maximum number of concurrent executions allowed |
+| `retries` | `int` | `2` | Number of retry attempts on failure |
+| `delay` | `float` | `1.0` | Delay between retry attempts in seconds |
+| `team_size` | `int` | `1` | Number of parallel instances for team execution mode |
+
+### Messaging & Logging
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `is_send_tool_call` | `bool` | From `Config` | Whether to send tool call messages to the user |
+| `is_send_observation` | `bool` | From `Config` | Whether to send observation/result messages to the user |
+| `is_send_answer` | `bool` | From `Config` | Whether to send final answer messages to the user |
+| `is_detailed_tool_call` | `bool` | From `Config` | Whether to show detailed tool call information in logs |
+| `is_detailed_observation` | `bool` | From `Config` | Whether to show detailed observation information in logs |
+
+### Advanced Configuration
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `input_schema` | `dict[str, Any]` | From `Config` | Input schema definition for validation |
+| `is_permission_required` | `bool` | `True` | Whether this agent requires permission to execute |
+| `is_save_data` | `bool` | `True` | Whether to save execution traces to Elasticsearch |
+| `friendly_error_text` | `str` | `None` | User-friendly error message shown on failures |
+| `category` | `str` | `"agent"` | Category classification (automatically set) |
+
+### Function Hooks (Advanced)
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `func_process_input` | `Callable` | Identity | Async function to process input before execution |
+| `func_process_output` | `Callable` | Identity | Async function to process output after execution |
+| `func_format_input` | `Callable` | Identity | Async function to format input for callees |
+| `func_format_output` | `Callable` | Identity | Async function to format output for callers |
+| `func_interceptor` | `Callable` | `None` | Async function to intercept and modify execution |
+
+## Methods
+
+### _execute()
+
+Internal method that executes the workflow function. Not called directly by users.
+
+```python
+async def _execute(self, oxy_request: OxyRequest) -> OxyResponse
+```
+
+**Parameters:**
+- `oxy_request` (OxyRequest): The request object containing query, memory, and context
+
+**Returns:**
+- `OxyResponse`: Response object with `state=COMPLETED` and `output` from workflow
+
+**Implementation:**
+```python
+return OxyResponse(
+    state=OxyState.COMPLETED,
+    output=await self.func_workflow(oxy_request)
+)
+```
+
+## Workflow Function Signature
+
+The `func_workflow` parameter must be an async function with this signature:
+
+```python
+async def workflow_function(oxy_request: OxyRequest) -> Any:
+    # Your workflow logic here
+    return result
+```
+
+### OxyRequest API
+
+The `OxyRequest` object provides these methods for use within workflows:
+
+#### Memory Access
+
+```python
+# Get local agent's short-term memory
+local_memory = oxy_request.get_short_memory()
+
+# Get master agent's short-term memory (user-level history)
+master_memory = oxy_request.get_short_memory(master_level=True)
+```
+
+**Return Type:** `list[Message]` - List of conversation messages
+
+#### Query Access
+
+```python
+# Get current query
+query = oxy_request.get_query()
+
+# Get master-level query (original user query)
+master_query = oxy_request.get_query(master_level=True)
+```
+
+**Return Type:** `str` - The query string
+
+#### Calling Components
+
+```python
+# Call a sub-agent
+response = await oxy_request.call(
+    callee="agent_name",
+    arguments={"query": "What is..."}
+)
+
+# Call a tool
+response = await oxy_request.call(
+    callee="tool_name",
+    arguments={"param1": "value1"}
+)
+
+# Call an LLM directly
+response = await oxy_request.call(
+    callee="llm_name",
+    arguments={
+        "messages": [
+            {"role": "system", "content": "You are..."},
+            {"role": "user", "content": "Hello"}
+        ],
+        "llm_params": {"temperature": 0.7}
+    }
+)
+```
+
+**Parameters:**
+- `callee` (str): Name of the agent, tool, or LLM to call
+- `arguments` (dict): Arguments to pass to the callee
+
+**Return Type:** `OxyResponse` - Response object with `.output` field
+
+#### Sending Messages
+
+```python
+# Send intermediate messages to the user
+await oxy_request.send_message({
+    "type": "status",
+    "content": "Processing step 2 of 5..."
+})
+```
+
+**Parameters:**
+- `message` (dict): Message dictionary with `type` and `content` fields
+
+## Usage Examples
+
+### Basic Workflow
+
+```python
+async def simple_workflow(oxy_request: OxyRequest):
+    query = oxy_request.get_query()
+    response = await oxy_request.call(
+        callee="time_tools",
+        arguments={"timezone": "UTC"}
+    )
+    return f"Time: {response.output}"
+
+agent = oxy.WorkflowAgent(
+    name="time_agent",
+    desc="Query current time",
+    func_workflow=simple_workflow,
+    tools=["time_tools"]
+)
+```
+
+### Multi-Step Workflow
+
+```python
+async def complex_workflow(oxy_request: OxyRequest):
+    # Step 1: Get context
+    history = oxy_request.get_short_memory()
+    query = oxy_request.get_query()
+
+    # Step 2: Call agent
+    await oxy_request.send_message({"type": "status", "content": "Analyzing..."})
+    agent_result = await oxy_request.call(
+        callee="chat_agent",
+        arguments={"query": query}
+    )
+
+    # Step 3: Call LLM for analysis
+    llm_result = await oxy_request.call(
+        callee="default_llm",
+        arguments={
+            "messages": [
+                {"role": "user", "content": f"Summarize: {agent_result.output}"}
+            ]
+        }
+    )
+
+    # Step 4: Call tool
+    tool_result = await oxy_request.call(
+        callee="save_to_file",
+        arguments={"content": llm_result.output}
+    )
+
+    return f"Saved: {tool_result.output}"
+
+agent = oxy.WorkflowAgent(
+    name="master_workflow",
+    is_master=True,
+    func_workflow=complex_workflow,
+    sub_agents=["chat_agent"],
+    tools=["save_to_file"],
+    llm_model="default_llm",
+    timeout=120
+)
+```
+
+### Conditional Workflow
+
+```python
+async def conditional_workflow(oxy_request: OxyRequest):
+    query = oxy_request.get_query()
+
+    # Branch based on query content
+    if "urgent" in query.lower():
+        response = await oxy_request.call(
+            callee="priority_agent",
+            arguments={"query": query, "priority": "high"}
+        )
+    else:
+        response = await oxy_request.call(
+            callee="standard_agent",
+            arguments={"query": query}
+        )
+
+    return response.output
+
+agent = oxy.WorkflowAgent(
+    name="router_agent",
+    func_workflow=conditional_workflow,
+    sub_agents=["priority_agent", "standard_agent"]
+)
+```
+
+### Workflow with Memory
+
+```python
+async def memory_workflow(oxy_request: OxyRequest):
+    # Access both local and master memory
+    local_history = oxy_request.get_short_memory()
+    master_history = oxy_request.get_short_memory(master_level=True)
+
+    # Use context for decision making
+    if len(master_history) > 5:
+        return "You've been chatting a lot! Need a summary?"
+
+    query = oxy_request.get_query()
+    response = await oxy_request.call(
+        callee="chat_agent",
+        arguments={"query": query}
+    )
+
+    return response.output
+
+agent = oxy.WorkflowAgent(
+    name="context_aware_agent",
+    func_workflow=memory_workflow,
+    sub_agents=["chat_agent"],
+    is_retain_master_short_memory=True,
+    short_memory_size=10
+)
+```
+
+## Type Definitions
+
+### OxyRequest
+
+```python
+class OxyRequest:
+    arguments: dict                    # Node-level arguments
+    shared_data: dict                  # Request-level shared data
+    group_data: dict                   # Session group data
+    caller_category: str               # Category of caller ("user", "agent", etc.)
+    from_trace_id: str                 # Parent trace ID
+    root_trace_ids: list[str]          # Hierarchy of trace IDs
+
+    def get_short_memory(self, master_level: bool = False) -> list[Message]
+    def get_query(self, master_level: bool = False) -> str
+    async def call(self, callee: str, arguments: dict) -> OxyResponse
+    async def send_message(self, message: dict) -> None
+```
+
+### OxyResponse
+
+```python
+class OxyResponse:
+    state: OxyState                    # COMPLETED, ERROR, etc.
+    output: Any                        # Result from workflow execution
+    error_msg: str                     # Error message if state is ERROR
+```
+
+### OxyState
+
+```python
+class OxyState(str, Enum):
+    COMPLETED = "completed"            # Successful completion
+    ERROR = "error"                    # Execution error
+    REJECT = "reject"                  # Permission rejected
+    TIMEOUT = "timeout"                # Execution timeout
+```
+
+## Related Documentation
+
+- **[WorkflowAgent Guide](/docs/agents-workflow)** - Main documentation and usage patterns
+- **[ReActAgent API](/api-docs/agents-react-api)** - API for reasoning and acting agent
+- **[OxyRequest & Context](/docs/context)** - Detailed context API documentation
+- **[Four-Scope System](/docs/four-scope)** - Understanding data scoping
+- **[Configuration](/docs/configuration)** - Global configuration options

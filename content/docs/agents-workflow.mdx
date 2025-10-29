@@ -1,0 +1,346 @@
+---
+title: Workflow Agent
+description: Execute custom workflow functions with full programmatic control in OxyGent
+icon: Workflow
+---
+
+## Overview
+
+**WorkflowAgent** is a specialized agent that executes custom workflow functions, providing full programmatic control over agent behavior. Unlike ReAct or Chat agents that rely on LLM reasoning, WorkflowAgent allows you to define explicit logic flows using Python code while seamlessly integrating with other agents, tools, and LLMs.
+
+### Key Features
+
+- **Custom Logic Flow**: Define explicit control flow using Python async functions
+- **OxyRequest API**: Full access to memory, queries, messages, and agent calls
+- **Seamless Integration**: Call other agents, tools, and LLMs from within workflows
+- **Master Agent Support**: Can orchestrate multiple sub-agents as a master agent
+- **Memory Access**: Access both local and master-level memory contexts
+- **Flexible Composition**: Combine deterministic logic with AI capabilities
+
+### Use Cases
+
+```
+┌─────────────────────────────────────────────────────┐
+│           WorkflowAgent Use Cases                   │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│  ┌──────────────────┐  ┌──────────────────┐       │
+│  │  Complex Logic   │  │  Multi-step      │       │
+│  │  Orchestration   │  │  Pipelines       │       │
+│  └──────────────────┘  └──────────────────┘       │
+│                                                     │
+│  ┌──────────────────┐  ┌──────────────────┐       │
+│  │  Data Processing │  │  Agent           │       │
+│  │  Workflows       │  │  Coordination    │       │
+│  └──────────────────┘  └──────────────────┘       │
+│                                                     │
+│  ┌──────────────────┐  ┌──────────────────┐       │
+│  │  Conditional     │  │  Hybrid AI +     │       │
+│  │  Branching       │  │  Deterministic   │       │
+│  └──────────────────┘  └──────────────────┘       │
+└─────────────────────────────────────────────────────┘
+```
+
+## Quick Start
+
+### Basic Workflow
+
+Create a simple WorkflowAgent that calls other components:
+
+```python
+import os
+from oxygent import MAS, OxyRequest, oxy
+
+async def simple_workflow(oxy_request: OxyRequest):
+    # Get the user's query
+    query = oxy_request.get_query()
+
+    # Call a tool
+    response = await oxy_request.call(
+        callee="time_tools",
+        arguments={"timezone": "Asia/Shanghai"}
+    )
+
+    return f"Current time: {response.output}"
+
+oxy_space = [
+    oxy.HttpLLM(
+        name="default_llm",
+        api_key=os.getenv("DEFAULT_LLM_API_KEY"),
+        base_url=os.getenv("DEFAULT_LLM_BASE_URL"),
+        model_name=os.getenv("DEFAULT_LLM_MODEL_NAME"),
+    ),
+    oxy.StdioMCPClient(
+        name="time_tools",
+        params={
+            "command": "uvx",
+            "args": ["mcp-server-time", "--local-timezone=Asia/Shanghai"],
+        },
+    ),
+    oxy.WorkflowAgent(
+        name="time_agent",
+        desc="A tool for time queries",
+        tools=["time_tools"],
+        func_workflow=simple_workflow,
+    ),
+]
+
+async def main():
+    async with MAS(oxy_space=oxy_space) as mas:
+        await mas.start_web_service(
+            first_query="What time is it?"
+        )
+
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(main())
+```
+
+### Advanced Workflow with Multiple Calls
+
+Create a workflow that orchestrates multiple agents and LLMs:
+
+```python
+async def complex_workflow(oxy_request: OxyRequest):
+    # Access memory context
+    history = oxy_request.get_short_memory()
+    master_history = oxy_request.get_short_memory(master_level=True)
+
+    # Get queries at different levels
+    current_query = oxy_request.get_query()
+    master_query = oxy_request.get_query(master_level=True)
+
+    # Send intermediate messages
+    await oxy_request.send_message({
+        "type": "status",
+        "content": "Processing your request..."
+    })
+
+    # Call an agent
+    agent_response = await oxy_request.call(
+        callee="chat_agent",
+        arguments={"query": current_query}
+    )
+
+    # Call an LLM directly
+    llm_response = await oxy_request.call(
+        callee="default_llm",
+        arguments={
+            "messages": [
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": f"Analyze: {agent_response.output}"}
+            ],
+            "llm_params": {"temperature": 0.2}
+        }
+    )
+
+    # Call a tool
+    tool_response = await oxy_request.call(
+        callee="calc_pi",
+        arguments={"prec": 10}
+    )
+
+    return f"Results: Agent: {agent_response.output}, LLM: {llm_response.output}, Tool: {tool_response.output}"
+
+oxy_space = [
+    # LLM configuration
+    oxy.HttpLLM(name="default_llm", ...),
+
+    # Tools
+    oxy.StdioMCPClient(name="math_tools", ...),
+
+    # Sub-agents
+    oxy.ChatAgent(name="chat_agent", llm_model="default_llm"),
+
+    # Master WorkflowAgent
+    oxy.WorkflowAgent(
+        name="master_agent",
+        is_master=True,
+        sub_agents=["chat_agent"],
+        tools=["math_tools"],
+        func_workflow=complex_workflow,
+        llm_model="default_llm",
+    ),
+]
+```
+
+### Workflow with Conditional Logic
+
+Implement branching logic based on runtime conditions:
+
+```python
+async def conditional_workflow(oxy_request: OxyRequest):
+    query = oxy_request.get_query()
+
+    # Extract information using regex
+    import re
+    numbers = re.findall(r'\d+', query)
+
+    if numbers:
+        # Path 1: Process numeric request
+        n = numbers[-1]
+        response = await oxy_request.call(
+            callee="calc_pi",
+            arguments={"prec": n}
+        )
+        return f"Pi to {n} places: {response.output}"
+    else:
+        # Path 2: Default response
+        return "Please specify how many decimal places you need."
+
+oxy_space = [
+    oxy.HttpLLM(name="default_llm", ...),
+    oxy.StdioMCPClient(name="math_tools", ...),
+    oxy.WorkflowAgent(
+        name="pi_agent",
+        tools=["math_tools"],
+        func_workflow=conditional_workflow,
+    ),
+]
+```
+
+## Configuration Options
+
+### Core Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `name` | `str` | Yes | Unique identifier for the agent |
+| `func_workflow` | `Callable` | Yes | Async function that implements the workflow logic |
+| `desc` | `str` | No | Description used when this agent is called as a tool |
+| `llm_model` | `str` | No | LLM model identifier for sub-agent calls |
+
+### Agent Orchestration
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `sub_agents` | `list[str]` | `[]` | List of sub-agent names this workflow can call |
+| `tools` | `list[str]` | `[]` | List of tool names available to this workflow |
+| `is_master` | `bool` | `False` | Whether this agent is the master orchestrator |
+
+### Memory & Context
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `is_retain_master_short_memory` | `bool` | `False` | Retain master-level memory context |
+
+### Execution Control
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `timeout` | `int` | `60` | Maximum execution time in seconds |
+
+## OxyRequest API
+
+WorkflowAgent functions receive an `OxyRequest` object with these key methods:
+
+### Memory Access
+
+```python
+# Get current agent's memory
+local_memory = oxy_request.get_short_memory()
+
+# Get master agent's memory
+master_memory = oxy_request.get_short_memory(master_level=True)
+```
+
+### Query Access
+
+```python
+# Get current query
+query = oxy_request.get_query()
+
+# Get master-level query
+master_query = oxy_request.get_query(master_level=True)
+```
+
+### Calling Components
+
+```python
+# Call an agent
+response = await oxy_request.call(
+    callee="agent_name",
+    arguments={"query": "..."}
+)
+
+# Call a tool
+response = await oxy_request.call(
+    callee="tool_name",
+    arguments={"param": "value"}
+)
+
+# Call an LLM
+response = await oxy_request.call(
+    callee="llm_name",
+    arguments={
+        "messages": [...],
+        "llm_params": {"temperature": 0.7}
+    }
+)
+```
+
+### Sending Messages
+
+```python
+# Send intermediate messages to the user
+await oxy_request.send_message({
+    "type": "status",
+    "content": "Processing step 2 of 5..."
+})
+```
+
+## Workflow Execution Flow
+
+```
+┌─────────────────────────────────────────────────────┐
+│         WorkflowAgent Execution Flow                │
+└─────────────────────────────────────────────────────┘
+                        │
+                        ▼
+            ┌───────────────────────┐
+            │   Receive OxyRequest  │
+            └───────────────────────┘
+                        │
+                        ▼
+            ┌───────────────────────┐
+            │  Execute func_workflow│
+            └───────────────────────┘
+                        │
+           ┌────────────┴────────────┐
+           │                         │
+           ▼                         ▼
+   ┌─────────────┐         ┌─────────────────┐
+   │ Access      │         │ Call Components │
+   │ Memory/Query│         │ (Agents/Tools)  │
+   └─────────────┘         └─────────────────┘
+           │                         │
+           └────────────┬────────────┘
+                        │
+                        ▼
+            ┌───────────────────────┐
+            │   Return OxyResponse  │
+            │   (state=COMPLETED)   │
+            └───────────────────────┘
+```
+
+## API Reference
+
+For complete API documentation including all constructor parameters, methods, and detailed parameter descriptions, see:
+
+**[WorkflowAgent API Reference](/api-docs/agents-workflow-api)** - Complete API documentation
+
+## Examples
+
+Explore practical implementations:
+
+- **[Basic Workflow](/examples/agents/demo_workflow_agent.py)** - Simple workflow with tool calls
+- **[Heterogeneous Agents](/examples/agents/demo_heterogeneous_agents.py)** - Mixing WorkflowAgent with other agent types
+- **[Plan and Solve](/examples/flows/plan_and_solve_demo.py)** - Using WorkflowAgent in complex flows
+
+## Related Documentation
+
+- **[ReActAgent](/docs/agents-react)** - LLM-driven reasoning and acting agent
+- **[ChatAgent](/docs/agents-chat)** - Conversational AI agent
+- **[OxyRequest & Context](/docs/context)** - Understanding the request context API
+- **[Four-Scope System](/docs/four-scope)** - Data scoping and context management
+- **[Lifecycle Management](/docs/lifecycle)** - Component lifecycle and hooks

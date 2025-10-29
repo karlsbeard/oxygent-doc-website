@@ -1,0 +1,134 @@
+---
+title: ReActAgent API Reference
+description: Complete API reference for ReActAgent constructor parameters and methods
+icon: Code
+---
+
+# ReActAgent API Reference
+
+Complete API documentation for the ReActAgent class.
+
+## Constructor Parameters
+
+### Core Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `name` | str | Required | Unique identifier for the agent |
+| `is_master` | bool | False | Whether this is the entry point agent |
+| `llm_model` | str | Required | Name of LLM component to use |
+| `tools` | list[str] | [] | List of tool names |
+| `sub_agents` | list[str] | [] | List of sub-agent names |
+
+### Execution Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `max_react_rounds` | int | 16 | Maximum reasoning-acting iterations |
+
+### Memory Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `is_discard_react_memory` | bool | True | Discard detailed ReAct memory |
+| `short_memory_size` | int | 10 | Number of historical conversations to keep |
+| `memory_max_tokens` | int | 8000 | Maximum tokens for memory storage |
+| `weight_short_memory` | int | 5 | Weight for short-term memory in scoring |
+| `weight_react_memory` | int | 1 | Weight for ReAct memory in scoring |
+
+## Parameter Details
+
+### `name`
+- **Type**: `str`
+- **Required**: Yes
+- **Description**: A unique identifier for the agent within the MAS (Multi-Agent System). This name is used when calling the agent via `mas.call(callee="agent_name")`.
+
+### `is_master`
+- **Type**: `bool`
+- **Default**: `False`
+- **Description**: Indicates whether this agent is the entry point for the multi-agent system. Only one agent should be marked as master in a MAS.
+
+### `llm_model`
+- **Type**: `str`
+- **Required**: Yes
+- **Description**: Name reference to an LLM component registered in the same MAS. This LLM will be used for all reasoning steps in the ReAct loop.
+
+### `tools`
+- **Type**: `list[str]`
+- **Default**: `[]`
+- **Description**: List of tool names that the agent can invoke. Tools must be registered in the same MAS instance.
+
+### `sub_agents`
+- **Type**: `list[str]`
+- **Default**: `[]`
+- **Description**: List of sub-agent names that this agent can delegate tasks to. Sub-agents must be registered in the same MAS instance.
+
+### `max_react_rounds`
+- **Type**: `int`
+- **Default**: `16`
+- **Description**: Maximum number of reasoning-acting iterations before the agent uses fallback mechanisms. Each round consists of one reasoning step and one or more tool executions.
+
+**Usage Guidelines**:
+- Simple tasks: 3-5 rounds
+- Multi-step tasks: 10-20 rounds
+- Complex reasoning chains: 20-30 rounds
+
+### `is_discard_react_memory`
+- **Type**: `bool`
+- **Default**: `True`
+- **Description**: Controls memory retention strategy:
+  - `True`: Keep only final question-answer pairs (cleaner history)
+  - `False`: Retain full ReAct reasoning traces with weighted scoring
+
+### `short_memory_size`
+- **Type**: `int`
+- **Default**: `10`
+- **Description**: Number of recent conversation turns to keep in short-term memory.
+
+### `memory_max_tokens`
+- **Type**: `int`
+- **Default**: `8000`
+- **Description**: Maximum token limit for the memory system. When exceeded, older memories are pruned based on weighted scoring.
+
+### `weight_short_memory`
+- **Type**: `int`
+- **Default**: `5`
+- **Description**: Relative importance weight for short-term memory when `is_discard_react_memory=False`. Higher values give more importance to recent conversations.
+
+### `weight_react_memory`
+- **Type**: `int`
+- **Default**: `1`
+- **Description**: Relative importance weight for ReAct intermediate steps when `is_discard_react_memory=False`.
+
+## Methods
+
+### `call()`
+
+Execute the agent with given input.
+
+**Parameters**:
+- `messages` (list): List of message dictionaries with `role` and `content` fields
+- Additional LLM parameters can be passed through
+
+**Returns**: AgentResult object containing:
+- `output`: Final agent response
+- `messages`: Full conversation history
+- `metadata`: Execution metadata (rounds used, tool calls, etc.)
+
+**Example**:
+```python
+result = await mas.call(
+    callee="agent_name",
+    arguments={
+        "messages": [
+            {"role": "user", "content": "Your query here"}
+        ]
+    }
+)
+```
+
+## Related Documentation
+
+- [ReActAgent Overview](/docs/agents-react) - Usage guide and examples
+- [ChatAgent API](/docs/agents-chat) - API reference for ChatAgent
+- [Tools API](/docs/tools-function-hub) - Available tools documentation

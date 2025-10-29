@@ -1,0 +1,420 @@
+---
+title: Four-Scope System
+description: Understanding OxyGent's hierarchical data scoping system for managing context and state across agents
+icon: Layers
+---
+
+# Four-Scope System
+
+OxyGent implements a sophisticated **four-scope system** for managing data, context, and state across different levels of the multi-agent system. This hierarchical scoping enables precise control over data visibility, lifetime, and sharing patterns between agents.
+
+## Overview
+
+The four-scope system provides isolated yet interconnected data spaces that govern how information flows through your multi-agent system:
+
+1. **Node Scope** (`arguments`) - Data specific to a single agent/tool invocation
+2. **Request Scope** (`shared_data`) - Data shared within a single execution chain
+3. **Session Group Scope** (`group_data`) - Data persisted across multiple conversations
+4. **Global Scope** (`mas`) - System-wide registry and configuration
+
+### Key Features
+
+- **Hierarchical Data Management**: Clear boundaries for data visibility and lifetime
+- **Automatic Propagation**: Data flows naturally through nested agent calls
+- **Memory Isolation**: Prevents unintended state leakage between sessions
+- **Flexible Sharing**: Share context where needed without polluting global state
+- **Persistent State**: Maintain conversation history across multiple interactions
+
+### When to Use Each Scope
+
+| Scope | Use Case | Lifetime | Visibility |
+|-------|----------|----------|------------|
+| **Node Scope** | Tool parameters, local variables | Single invocation | Current node only |
+| **Request Scope** | Shared context in call chain | Single request | Current chain |
+| **Session Group Scope** | Conversation history | Multiple requests | Same session group |
+| **Global Scope** | Agent registry, configuration | Application lifetime | Entire MAS |
+
+## Quick Start
+
+### Understanding Scopes Through Example
+
+```python
+import asyncio
+from oxygent import MAS, oxy
+from oxygent.utils.env_utils import get_env_var
+
+oxy_space = [
+    oxy.HttpLLM(
+        name="default_llm",
+        api_key=get_env_var("DEFAULT_LLM_API_KEY"),
+        base_url=get_env_var("DEFAULT_LLM_BASE_URL"),
+        model_name=get_env_var("DEFAULT_LLM_MODEL_NAME"),
+    ),
+    oxy.ReActAgent(
+        name="assistant",
+        is_master=True,
+        llm_model="default_llm",
+    ),
+]
+
+async def main():
+    async with MAS(oxy_space=oxy_space) as mas:
+        # Node Scope: arguments specific to this call
+        # Request Scope: shared_data for this execution chain
+        # Session Group Scope: group_data for conversation history
+        result = await mas.call(
+            callee="assistant",
+            arguments={  # Node Scope
+                "messages": [{"role": "user", "content": "Hello"}],
+                "temperature": 0.7
+            },
+            # Optional: Pass shared data for request scope
+            shared_data={"user_id": "12345"},  # Request Scope
+            # Optional: Pass group data for session scope
+            group_data={"preferences": {"language": "en"}}  # Session Group Scope
+        )
+        print(result.output)
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+### Accessing Scopes in Custom Agents
+
+When creating custom agents or tools, you can access all scopes through `OxyRequest`:
+
+```python
+from oxygent.oxy import LocalAgent
+from oxygent.schemas import OxyRequest, OxyResponse
+
+class MyCustomAgent(LocalAgent):
+    async def _execute(self, oxy_request: OxyRequest) -> OxyResponse:
+        # Access Node Scope
+        user_message = oxy_request.arguments.get("messages", [])
+
+        # Access Request Scope (shared within this call chain)
+        user_id = oxy_request.shared_data.get("user_id")
+
+        # Access Session Group Scope (persistent across requests)
+        preferences = oxy_request.group_data.get("preferences", {})
+
+        # Access Global Scope (MAS registry)
+        llm = oxy_request.get_oxy("default_llm")
+
+        # Your agent logic here
+        response = await llm.call(...)
+
+        # Optionally update shared/group data for downstream agents
+        oxy_request.shared_data["processed_by"] = self.name
+        oxy_request.group_data["last_interaction"] = "2025-10-29"
+
+        return OxyResponse(output=response)
+```
+
+## Understanding the Four Scopes
+
+### 1. Node Scope (`arguments`)
+
+**Purpose**: Isolated data for a single agent or tool invocation.
+
+**Characteristics**:
+- Passed explicitly to each agent/tool call
+- Not automatically shared with sub-agents
+- Cleaned up after invocation completes
+- Ideal for: Input parameters, local variables, node-specific configuration
+
+**Example Use Cases**:
+- LLM parameters (temperature, max_tokens)
+- Tool-specific arguments (search query, file path)
+- User messages for a single interaction
+- Configuration overrides for this invocation only
+
+```python
+# Each call has its own arguments scope
+result1 = await mas.call(
+    callee="agent",
+    arguments={"query": "What is Python?"}  # Scope 1
+)
+
+result2 = await mas.call(
+    callee="agent",
+    arguments={"query": "What is Java?"}  # Scope 2 (completely separate)
+)
+```
+
+### 2. Request Scope (`shared_data`)
+
+**Purpose**: Share context within a single execution chain (request and all nested calls).
+
+**Characteristics**:
+- Automatically propagated to all sub-agents in the call chain
+- Lifetime: Duration of the root request
+- Shared by reference (mutations are visible to parent and siblings)
+- Ideal for: User context, request metadata, temporary shared state
+
+**Example Use Cases**:
+- User authentication info (user_id, permissions)
+- Request tracing data (correlation_id, timestamp)
+- Intermediate results to share between agents
+- Context accumulated during execution
+
+**Propagation Example**:
+
+```python
+async def main():
+    async with MAS(oxy_space=oxy_space) as mas:
+        result = await mas.call(
+            callee="master_agent",
+            arguments={"query": "Process user request"},
+            shared_data={"user_id": "12345", "role": "admin"}
+        )
+        # shared_data is automatically available to master_agent
+        # and ALL sub-agents it calls (file_agent, math_agent, etc.)
+```
+
+**Execution Flow**:
+
+```
+User Request
+    ↓ (shared_data: {"user_id": "12345"})
+Master Agent
+    ↓ (inherited shared_data)
+    ├─→ File Agent (can read/write shared_data)
+    └─→ Math Agent (can read/write shared_data)
+```
+
+### 3. Session Group Scope (`group_data`)
+
+**Purpose**: Persistent data across multiple requests in the same conversation session.
+
+**Characteristics**:
+- Survives across multiple `mas.call()` invocations
+- Stored in database (Elasticsearch/Redis) if configured
+- Retrieved using `group_id` or `from_trace_id`
+- Ideal for: Conversation history, user preferences, accumulated context
+
+**Example Use Cases**:
+- Multi-turn conversation context
+- User preferences and settings
+- Accumulated knowledge from previous interactions
+- Session-specific state (shopping cart, form progress)
+
+**Conversation Continuity Example**:
+
+```python
+async def multi_turn_conversation():
+    async with MAS(oxy_space=oxy_space) as mas:
+        # First turn: Initialize session
+        result1 = await mas.call(
+            callee="assistant",
+            arguments={"messages": [{"role": "user", "content": "My name is Alice"}]},
+            group_data={"conversation_topic": "introduction"}
+        )
+
+        # Get trace_id for session continuity
+        trace_id_1 = result1.current_trace_id
+
+        # Second turn: Continue same session
+        result2 = await mas.call(
+            callee="assistant",
+            arguments={"messages": [{"role": "user", "content": "What's my name?"}]},
+            from_trace_id=trace_id_1  # Links to previous conversation
+        )
+        # Agent can access group_data from previous turn
+        # Result: "Your name is Alice"
+```
+
+### 4. Global Scope (`mas`)
+
+**Purpose**: System-wide registry of agents, tools, and configuration.
+
+**Characteristics**:
+- Single instance per MAS application
+- Contains all registered Oxy components (agents, tools, LLMs)
+- Configuration and service registry
+- Lifetime: Entire application runtime
+- Ideal for: Component lookup, global configuration, shared services
+
+**Example Use Cases**:
+- Looking up agents/tools by name
+- Accessing global configuration (Config class)
+- Shared services (database connections, HTTP clients)
+- System-wide state management
+
+**Component Access Example**:
+
+```python
+class MyAgent(LocalAgent):
+    async def _execute(self, oxy_request: OxyRequest) -> OxyResponse:
+        # Access global MAS instance
+        mas = oxy_request.mas
+
+        # Look up other components
+        llm = oxy_request.get_oxy("default_llm")
+        calculator = oxy_request.get_oxy("calculator_tool")
+
+        # Check if component exists
+        if oxy_request.has_oxy("specialized_tool"):
+            tool = oxy_request.get_oxy("specialized_tool")
+            result = await tool.execute(...)
+
+        return OxyResponse(output=result)
+```
+
+## Scope Lifecycle and Relationships
+
+### Data Flow Hierarchy
+
+```
+┌─────────────────────────────────────────┐
+│    Global Scope (MAS)                   │  Lifetime: Application
+│    • Agent Registry                     │
+│    • Configuration                      │
+│    • Shared Services                    │
+└─────────────────────────────────────────┘
+              ↓ (context)
+┌─────────────────────────────────────────┐
+│    Session Group Scope (group_data)     │  Lifetime: Multiple Requests
+│    • Conversation History               │
+│    • User Preferences                   │
+│    • Accumulated Context                │
+└─────────────────────────────────────────┘
+              ↓ (inheritance)
+┌─────────────────────────────────────────┐
+│    Request Scope (shared_data)          │  Lifetime: Single Request Chain
+│    • User Context                       │
+│    • Request Metadata                   │
+│    • Temporary Shared State             │
+└─────────────────────────────────────────┘
+              ↓ (propagation)
+┌─────────────────────────────────────────┐
+│    Node Scope (arguments)               │  Lifetime: Single Invocation
+│    • Input Parameters                   │
+│    • Local Variables                    │
+│    • Node-specific Config               │
+└─────────────────────────────────────────┘
+```
+
+### Scope Visibility Matrix
+
+| Scope | Visible To | Mutable By | Persisted |
+|-------|-----------|------------|-----------|
+| **Node** | Current node only | Current node | No |
+| **Request** | All nodes in call chain | All nodes in chain | No |
+| **Session Group** | All requests in session | Any request | Yes (if DB configured) |
+| **Global** | All nodes | Configuration only | Yes |
+
+## Configuration Options
+
+### Controlling Scope Behavior
+
+```python
+from oxygent import Config
+
+# Configure session persistence
+Config.set_es_enabled(True)  # Enable Elasticsearch for group_data persistence
+Config.set_redis_enabled(True)  # Enable Redis for caching
+
+# Configure data retention
+Config.set_es_schema_group_data({
+    "type": "object",
+    "properties": {
+        "preferences": {"type": "object"},
+        "history": {"type": "text"}
+    }
+})
+```
+
+### Memory Management
+
+Control how scopes handle memory in agents:
+
+```python
+oxy.ReActAgent(
+    name="assistant",
+    short_memory_size=10,  # Keep last 10 interactions in memory
+    is_discard_react_memory=True,  # Clean up intermediate reasoning
+    memory_max_tokens=8000  # Token limit for context
+)
+```
+
+## Examples
+
+For practical examples and usage patterns, see:
+
+- [Basic Scope Usage](/examples/core-concepts/scope-basics) - Understanding each scope
+- [Multi-turn Conversations](/examples/core-concepts/multi-turn-scope) - Using group_data for continuity
+- [Shared Context Patterns](/examples/core-concepts/shared-context) - Passing data in request chains
+- [Custom Agent Scopes](/examples/core-concepts/custom-agent-scopes) - Accessing scopes in custom agents
+
+See all examples in the [Examples Gallery](/examples).
+
+## Best Practices
+
+### 1. Choose the Right Scope
+
+- **Don't**: Put everything in `shared_data`
+- **Do**: Use the narrowest scope that serves your purpose
+- **Node Scope**: When data is only relevant to one agent
+- **Request Scope**: When data needs to flow through a call chain
+- **Session Group Scope**: When data must persist across conversations
+- **Global Scope**: Only for truly global resources
+
+### 2. Avoid Scope Pollution
+
+```python
+# ❌ Bad: Polluting shared_data with node-specific data
+oxy_request.shared_data["llm_temperature"] = 0.7
+oxy_request.shared_data["file_path"] = "/tmp/file.txt"
+oxy_request.shared_data["tool_config"] = {...}
+
+# ✅ Good: Keep node-specific data in arguments
+arguments = {
+    "llm_temperature": 0.7,
+    "file_path": "/tmp/file.txt",
+    "tool_config": {...}
+}
+```
+
+### 3. Clean Up Sensitive Data
+
+```python
+# Clean up sensitive data after use
+async def process_payment(oxy_request: OxyRequest):
+    credit_card = oxy_request.arguments.get("credit_card")
+    # Process payment...
+
+    # Clean up sensitive data
+    if "credit_card" in oxy_request.arguments:
+        del oxy_request.arguments["credit_card"]
+    if "credit_card" in oxy_request.shared_data:
+        del oxy_request.shared_data["credit_card"]
+```
+
+### 4. Document Scope Dependencies
+
+```python
+class MyAgent(LocalAgent):
+    """
+    Custom agent for processing user requests.
+
+    Required Arguments (Node Scope):
+        - query (str): User query
+        - max_results (int, optional): Maximum results
+
+    Required Shared Data (Request Scope):
+        - user_id (str): User identifier for auth
+
+    Optional Group Data (Session Scope):
+        - preferences (dict): User preferences
+    """
+    async def _execute(self, oxy_request: OxyRequest) -> OxyResponse:
+        # Implementation...
+```
+
+## Related Links
+
+- [Context System](/docs/context) - Detailed context management
+- [MAS (Multi-Agent System)](/docs/mas) - MAS architecture and APIs
+- [Lifecycle](/docs/lifecycle) - Agent lifecycle and state management
+- [Configuration](/docs/configuration) - Global configuration options

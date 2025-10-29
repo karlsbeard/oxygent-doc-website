@@ -1,0 +1,292 @@
+---
+title: Visualization
+description: Interactive web interface and flow chart generation for visualizing multi-agent system execution
+icon: Eye
+---
+
+# Visualization
+
+OxyGent provides powerful visualization capabilities that help developers understand, debug, and monitor multi-agent system execution in real-time through an interactive web interface and automated flow chart generation.
+
+## Overview
+
+The visualization system in OxyGent enables you to:
+
+- **Real-time Monitoring**: Track agent execution, message flow, and system state through an interactive web interface
+- **Organization Tree Visualization**: View the hierarchical structure of agents, tools, and their relationships
+- **Flow Chart Generation**: Automatically generate visual flowcharts of agent workflows and decision processes
+- **Timeline Control**: Step through execution history with playback controls for debugging
+- **Conversation History**: Review complete interaction logs with context and state information
+
+### Key Features
+
+1. **Interactive Web Interface**: Built-in web server with a rich UI for monitoring and interaction
+2. **Agent Organization Display**: Hierarchical visualization of your multi-agent system structure
+3. **Automated Flow Diagram**: LLM-powered generation of Mermaid flowcharts from text descriptions
+4. **Execution Timeline**: Navigate through system execution history step-by-step
+5. **File Management**: Upload and manage conversation histories for analysis
+
+### When to Use Visualization
+
+- **Development & Debugging**: Understand complex agent interactions and identify issues
+- **System Monitoring**: Track agent execution in real-time during testing or production
+- **Documentation**: Generate visual diagrams for technical documentation
+- **Analysis**: Review historical executions to optimize agent performance
+- **Demonstration**: Showcase multi-agent system capabilities to stakeholders
+
+## Quick Start
+
+### Basic Web Interface
+
+Start the web visualization interface with your MAS:
+
+```python
+import asyncio
+from oxygent import MAS, oxy
+from oxygent.utils.env_utils import get_env_var
+
+oxy_space = [
+    oxy.HttpLLM(
+        name="default_llm",
+        api_key=get_env_var("DEFAULT_LLM_API_KEY"),
+        base_url=get_env_var("DEFAULT_LLM_BASE_URL"),
+        model_name=get_env_var("DEFAULT_LLM_MODEL_NAME"),
+    ),
+    oxy.ReActAgent(
+        name="assistant",
+        is_master=True,
+        llm_model="default_llm",
+    ),
+]
+
+async def main():
+    async with MAS(oxy_space=oxy_space) as mas:
+        # Start web service with visualization
+        await mas.start_web_service(
+            first_query="Hello! Please introduce yourself.",
+            welcome_message="Welcome to OxyGent Visualization",
+            host="127.0.0.1",
+            port=8000
+        )
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+Access the web interface at `http://127.0.0.1:8000`
+
+### Flow Chart Generation
+
+Generate visual flowcharts automatically using the flow chart tools:
+
+```python
+from oxygent import MAS, oxy
+from oxygent.chart import flow_image_gen_tools
+from oxygent.utils.env_utils import get_env_var
+
+oxy_space = [
+    oxy.HttpLLM(
+        name="default_llm",
+        api_key=get_env_var("DEFAULT_LLM_API_KEY"),
+        base_url=get_env_var("DEFAULT_LLM_BASE_URL"),
+        model_name=get_env_var("DEFAULT_LLM_MODEL_NAME"),
+    ),
+    flow_image_gen_tools,  # Add flow chart generation tools
+    oxy.ReActAgent(
+        name="assistant",
+        is_master=True,
+        llm_model="default_llm",
+        tools=["flow_image_gen_tools"]
+    ),
+]
+
+async def main():
+    async with MAS(oxy_space=oxy_space) as mas:
+        # Generate flowchart from description
+        result = await mas.call(
+            callee="assistant",
+            arguments={
+                "messages": [{
+                    "role": "user",
+                    "content": "Create a flowchart showing the user registration process"
+                }]
+            }
+        )
+        print(result.output)
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+## Configuration Options
+
+### Web Service Configuration
+
+Configure the web visualization interface through `start_web_service()`:
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `first_query` | str | None | Initial query to display in the interface |
+| `welcome_message` | str | Config.welcome_message | Welcome message shown to users |
+| `host` | str | Config.web_host | Host address for the web server |
+| `port` | int | Config.web_port | Port number for the web server |
+
+### Flow Chart Configuration
+
+Flow chart generation uses environment variables for LLM configuration:
+
+```bash
+# .env file
+OPENAI_BASE_URL="your_base_url"
+OPENAI_API_KEY="your_api_key"
+OPENAI_MODEL_NAME="your_model_name"
+```
+
+**Configuration Options**:
+- **API Endpoint**: Configure LLM endpoint for flowchart generation
+- **Output Path**: Specify custom output directory for generated charts
+- **Auto-open**: Charts automatically open in default browser
+
+## Understanding Visualization Architecture
+
+### Web Interface Components
+
+```
+┌─────────────────────────────────────────┐
+│         OxyGent Web Interface           │
+├─────────────────────────────────────────┤
+│                                         │
+│  ┌───────────┐  ┌──────────────────┐  │
+│  │  Header   │  │  Timeline        │  │
+│  │  Controls │  │  Controls        │  │
+│  └───────────┘  └──────────────────┘  │
+│                                         │
+│  ┌─────────────┐  ┌────────────────┐  │
+│  │ Organization│  │  Chat          │  │
+│  │ Tree View   │  │  Interface     │  │
+│  │             │  │                │  │
+│  │  Agent 1    │  │  User: Query   │  │
+│  │   ├─Tool 1  │  │  Agent: Reply  │  │
+│  │   └─Tool 2  │  │  ...           │  │
+│  │  Agent 2    │  │                │  │
+│  └─────────────┘  └────────────────┘  │
+│                                         │
+└─────────────────────────────────────────┘
+```
+
+### Flow Chart Generation Process
+
+```
+User Description
+    ↓
+┌─────────────────────────┐
+│  LLM Processing         │
+│  (Text → Mermaid Code)  │
+└─────────────────────────┘
+    ↓
+┌─────────────────────────┐
+│  HTML Generation        │
+│  (Embed Mermaid Code)   │
+└─────────────────────────┘
+    ↓
+┌─────────────────────────┐
+│  Browser Display        │
+│  (Auto-open + Render)   │
+└─────────────────────────┘
+    ↓
+Interactive Flowchart
+```
+
+## Web Interface Features
+
+### Organization Tree View
+
+The organization tree displays:
+- **Master Agent**: Top-level entry point
+- **Sub-agents**: Hierarchical agent relationships
+- **Tools**: Available tools for each agent
+- **Paths**: Navigation through the agent hierarchy
+
+**API Endpoint**: `GET /get_organization`
+
+Returns JSON with agent structure and relationships.
+
+### Timeline Controls
+
+Navigate through execution history:
+- **Play/Pause**: Auto-advance through steps
+- **Step Forward/Backward**: Manual navigation
+- **Jump to Start/End**: Quick navigation
+- **Step Counter**: Current position in timeline
+
+### Chat Interface
+
+- **Real-time Updates**: SSE (Server-Sent Events) for streaming responses
+- **History Display**: Complete conversation log with timestamps
+- **File Upload**: Upload conversation histories for replay
+- **Markdown Support**: Rich text formatting in messages
+
+## Flow Chart Generation
+
+### Automatic Generation
+
+The `flow_image_gen_tools` uses LLM to convert natural language descriptions into Mermaid flowcharts:
+
+**Supported Features**:
+- Multiple node types (boxes, diamonds, rounded corners)
+- Conditional branching with labeled connections
+- Automatic styling (colors, borders)
+- Custom output paths with timestamps
+
+### Chart Types
+
+Generated charts support:
+- **Process Flows**: Sequential step-by-step workflows
+- **Decision Trees**: Branching logic with conditions
+- **State Diagrams**: System state transitions
+- **Organizational Charts**: Hierarchical structures
+
+## Examples
+
+For practical examples and usage patterns, see:
+
+- [Web Service Example](/examples/advanced/web-visualization) - Complete web interface setup
+- [Flow Chart Generation](/examples/advanced/flowchart-generation) - Automated diagram creation
+- [Debugging with Visualization](/examples/advanced/debugging-visualization) - Using timeline for debugging
+- [Organization Tree Analysis](/examples/advanced/organization-analysis) - Analyzing agent structures
+
+See all examples in the [Examples Gallery](/examples).
+
+## Advanced Features
+
+### SSE Event Streaming
+
+The web interface uses Server-Sent Events for real-time updates:
+
+**Endpoint**: `/sse/chat`
+
+**Event Types**:
+- `data`: Message content chunks
+- `close`: Conversation completion signal
+
+### Custom Styling
+
+Flowcharts support custom Mermaid styling:
+- Node colors and borders
+- Connection line styles
+- Font sizes and families
+- Layout direction (TD, LR, etc.)
+
+### File Management
+
+Upload and manage conversation histories:
+- **JSON Format**: Export/import conversation logs
+- **History Replay**: Load and visualize past executions
+- **Analysis**: Review agent decisions and tool usage
+
+## Related Links
+
+- [MAS (Multi-Agent System)](/docs/mas) - Web service API details
+- [Configuration](/docs/configuration) - Global configuration options
+- [Quick Start](/docs/quick-start) - Getting started guide
+- [ReActAgent](/docs/agents-react) - Agent execution visualization

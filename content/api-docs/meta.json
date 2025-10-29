@@ -1,0 +1,17 @@
+{
+  "title": "Documentation",
+  "pages": [
+    "index",
+    "---Getting Started---",
+    "quick-start",
+    "---Core Concepts---",
+    "mas",
+    "---Agents---",
+    "agents-react-api",
+
+    "---Flows---",
+
+    "---LLMs---",
+    "llms-openai"
+  ]
+}

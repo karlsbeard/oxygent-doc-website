@@ -1,0 +1,550 @@
+---
+title: FunctionHub API Reference
+description: Complete API documentation for FunctionHub class
+icon: Code
+---
+
+## Class Definition
+
+```python
+from oxygent import oxy
+
+# Create a FunctionHub instance
+tools = oxy.FunctionHub(
+    name="my_tools",
+    desc="Collection of custom tools",
+    timeout=60,
+    is_permission_required=True
+)
+
+# Register functions using decorator
+@tools.tool(description="Tool description")
+def my_function(param: str):
+    return result
+```
+
+## Constructor Parameters
+
+### Required Parameters
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `name` | `str` | **Yes** | - | Unique identifier for this FunctionHub. Agents reference this name in their `tools` list |
+
+### Core Configuration
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `desc` | `str` | `""` | Human-readable description of this tool collection |
+| `category` | `str` | `"tool"` | Category classification (automatically set) |
+
+### Execution Control
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `timeout` | `float` | `60` | Maximum execution time per tool in seconds (default: 1 minute) |
+| `semaphore` | `int` | `16` | Maximum number of concurrent tool executions |
+| `retries` | `int` | `2` | Number of retry attempts on failure |
+| `delay` | `float` | `1.0` | Delay between retry attempts in seconds |
+
+### Permission & Security
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `is_permission_required` | `bool` | `True` | Whether agents need permission to call tools from this hub |
+| `is_save_data` | `bool` | `True` | Whether to save execution traces to Elasticsearch |
+
+### Internal Attributes (Read-Only)
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `func_dict` | `dict` | Internal registry mapping function names to (description, async_func) tuples |
+
+## Methods
+
+### tool()
+
+Decorator for registering functions as tools in the hub.
+
+```python
+@function_hub.tool(description: str)
+def my_function(...):
+    ...
+```
+
+**Parameters:**
+- `description` (str): **Required** - Human-readable description of the tool's functionality. This is shown to LLMs when selecting tools.
+
+**Returns:** Decorator function that registers and returns the async version of the decorated function
+
+**Behavior:**
+1. Checks if function is already async
+2. If sync, wraps it in an async function
+3. Registers `(description, async_func)` tuple in `func_dict` with function name as key
+4. Returns the async version of the function
+
+**Example:**
+```python
+tools = oxy.FunctionHub(name="math_tools")
+
+@tools.tool(description="Add two numbers")
+def add(a: int, b: int):
+    return a + b
+
+# Internally stored as:
+# tools.func_dict["add"] = ("Add two numbers", async_add_wrapper)
+```
+
+### init()
+
+Internal initialization method called by MAS. Not called directly by users.
+
+```python
+async def init(self)
+```
+
+**Behavior:**
+1. Calls `super().init()` for base initialization
+2. Iterates through `func_dict`
+3. For each function, creates a `FunctionTool` instance
+4. Registers each `FunctionTool` with the MAS
+
+**Example of what happens internally:**
+```python
+# Before init:
+hub.func_dict = {
+    "add": ("Add two numbers", async_add_func),
+    "multiply": ("Multiply two numbers", async_multiply_func)
+}
+
+# After init (inside MAS):
+mas.oxy_name_to_oxy = {
+    "math_tools": hub,           # The hub itself
+    "add": FunctionTool(...),    # Individual tool
+    "multiply": FunctionTool(...) # Individual tool
+}
+```
+
+## Function Signature Patterns
+
+### Parameter Type Annotations
+
+FunctionHub extracts schemas from function signatures:
+
+```python
+@tools.tool(description="Example function")
+def example(
+    # Basic types
+    text: str,                      # Required string parameter
+    number: int,                    # Required integer parameter
+    decimal: float,                 # Required float parameter
+    flag: bool,                     # Required boolean parameter
+
+    # Optional with defaults
+    optional_str: str = "default",  # Optional with default value
+    optional_int: int = 42,         # Optional with default value
+
+    # Pydantic Fields (recommended)
+    detailed: str = Field(description="Detailed parameter description"),
+    with_default: int = Field(default=10, description="Parameter with default"),
+
+    # Complex types
+    items: list = Field(description="List of items"),
+    config: dict = Field(description="Configuration dictionary"),
+    tags: list[str] = Field(default=[], description="List of strings"),
+
+    # Context access (not shown to LLM)
+    oxy_request: OxyRequest = None  # Automatically injected if present
+):
+    return result
+```
+
+### Schema Extraction Rules
+
+| Pattern | Required | Type | Description |
+|---------|----------|------|-------------|
+| `param: str` | Yes | `str` | Required parameter, no description |
+| `param: str = "default"` | No | `str` | Optional with default value |
+| `param: str = Field(description="...")` | Yes | `str` | Required with description |
+| `param: str = Field(default="...", description="...")` | No | `str` | Optional with description |
+| `param: list` | Yes | `array` | Required list |
+| `param: dict` | Yes | `object` | Required dictionary |
+| `oxy_request: OxyRequest` | Excluded | - | Context parameter (not in schema) |
+
+### Return Values
+
+Functions can return any JSON-serializable type:
+
+```python
+@tools.tool(description="Returns a string")
+def string_result():
+    return "Hello, World!"
+
+@tools.tool(description="Returns a number")
+def number_result():
+    return 42
+
+@tools.tool(description="Returns a list")
+def list_result():
+    return [1, 2, 3, 4, 5]
+
+@tools.tool(description="Returns a dict")
+def dict_result():
+    return {"key": "value", "count": 10}
+
+@tools.tool(description="Returns complex object")
+def complex_result():
+    return {
+        "status": "success",
+        "data": [1, 2, 3],
+        "metadata": {"timestamp": "2024-01-01"}
+    }
+```
+
+## Generated FunctionTool Attributes
+
+When FunctionHub creates FunctionTool instances during `init()`, each tool has:
+
+| Attribute | Type | Source | Description |
+|-----------|------|--------|-------------|
+| `name` | `str` | Function name | Function's `__name__` attribute |
+| `desc` | `str` | Decorator arg | Description passed to `@tool()` |
+| `func_process` | `Callable` | Function | The async function to execute |
+| `input_schema` | `dict` | Auto-extracted | Schema with `properties` and `required` fields |
+| `desc_for_llm` | `str` | Auto-generated | Formatted description shown to LLMs |
+| `timeout` | `float` | Hub config | Inherited from FunctionHub |
+| `is_permission_required` | `bool` | Hub config | Inherited from FunctionHub |
+| `needs_oxy_request` | `bool` | Auto-detected | True if function has `OxyRequest` parameter |
+
+**Example of generated schema:**
+```python
+@tools.tool(description="Add two numbers")
+def add(
+    a: int = Field(description="First number"),
+    b: int = Field(description="Second number")
+):
+    return a + b
+
+# Generated FunctionTool has:
+{
+    "name": "add",
+    "desc": "Add two numbers",
+    "input_schema": {
+        "properties": {
+            "a": {"type": "int", "description": "First number"},
+            "b": {"type": "int", "description": "Second number"}
+        },
+        "required": ["a", "b"]
+    }
+}
+```
+
+## OxyRequest Integration
+
+### Accessing Context
+
+Functions can receive `OxyRequest` to access execution context:
+
+```python
+from oxygent import OxyRequest
+
+@tools.tool(description="Context-aware tool")
+async def context_tool(
+    oxy_request: OxyRequest,  # Automatically injected
+    param: str = Field(description="Parameter")
+):
+    # Access query and memory
+    query = oxy_request.get_query()
+    history = oxy_request.get_short_memory()
+
+    # Access data scopes
+    arguments = oxy_request.get_arguments()
+    shared = oxy_request.get_shared_data("key")
+    group = oxy_request.get_group_data("key")
+    global_data = oxy_request.get_global_data("key")
+
+    # Call other components
+    response = await oxy_request.call(
+        callee="other_agent",
+        arguments={"query": param}
+    )
+
+    # Send messages
+    await oxy_request.send_message({
+        "type": "status",
+        "content": "Processing..."
+    })
+
+    return result
+```
+
+**Key Points:**
+- `OxyRequest` parameter **must** be named exactly `oxy_request`
+- It is **automatically excluded** from the tool schema
+- LLMs don't see this parameter and don't need to provide it
+- It's automatically injected by the framework
+
+### Signature Detection
+
+```python
+# WITHOUT OxyRequest
+@tools.tool(description="Simple tool")
+def simple(param: str):
+    return param.upper()
+
+# Schema: {"properties": {"param": {...}}, "required": ["param"]}
+# needs_oxy_request: False
+
+# WITH OxyRequest
+@tools.tool(description="Context-aware tool")
+async def aware(oxy_request: OxyRequest, param: str):
+    query = oxy_request.get_query()
+    return f"{query}: {param}"
+
+# Schema: {"properties": {"param": {...}}, "required": ["param"]}
+# needs_oxy_request: True
+# (OxyRequest excluded from schema)
+```
+
+## Async vs Sync Functions
+
+### Automatic Conversion
+
+FunctionHub automatically wraps sync functions:
+
+```python
+# Synchronous function
+@tools.tool(description="Sync function")
+def sync_func(param: str):
+    # Regular synchronous code
+    result = expensive_computation(param)
+    return result
+
+# Internally converted to:
+# async def sync_func_wrapper(*args, **kwargs):
+#     return sync_func(*args, **kwargs)
+```
+
+**Note:** Sync functions block the event loop. Use async for I/O operations.
+
+### Async Functions
+
+Use async for I/O-bound operations:
+
+```python
+import aiohttp
+
+@tools.tool(description="Async function")
+async def async_func(url: str):
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as response:
+            return await response.text()
+
+# Already async, no wrapping needed
+```
+
+### Best Practices
+
+| Operation Type | Use Sync | Use Async |
+|----------------|----------|-----------|
+| Pure computation | ✓ | ✗ |
+| Mathematical operations | ✓ | ✗ |
+| String manipulation | ✓ | ✗ |
+| HTTP requests | ✗ | ✓ |
+| Database queries | ✗ | ✓ |
+| File I/O | ✗ | ✓ |
+| Sleep/delays | ✗ | ✓ (use asyncio.sleep) |
+
+## Usage Examples
+
+### Basic Example
+
+```python
+from oxygent import MAS, oxy
+from pydantic import Field
+
+# Create hub
+math_tools = oxy.FunctionHub(name="math_tools")
+
+# Register functions
+@math_tools.tool(description="Add two numbers")
+def add(a: int, b: int):
+    return a + b
+
+@math_tools.tool(description="Subtract two numbers")
+def subtract(a: int, b: int):
+    return a - b
+
+# Use in MAS
+oxy_space = [
+    oxy.HttpLLM(name="gpt4", ...),
+    math_tools,
+    oxy.ReActAgent(
+        name="calculator",
+        tools=["math_tools"],  # Reference hub name
+        llm_model="gpt4"
+    )
+]
+
+async def main():
+    async with MAS(oxy_space=oxy_space) as mas:
+        await mas.start_web_service(first_query="What is 10 + 5?")
+```
+
+### Multiple Hubs
+
+```python
+# Create multiple hubs for organization
+math_tools = oxy.FunctionHub(name="math_tools")
+text_tools = oxy.FunctionHub(name="text_tools")
+api_tools = oxy.FunctionHub(name="api_tools")
+
+# Register math functions
+@math_tools.tool(description="Calculate factorial")
+def factorial(n: int):
+    return math.factorial(n)
+
+# Register text functions
+@text_tools.tool(description="Uppercase text")
+def upper(text: str):
+    return text.upper()
+
+# Register API functions
+@api_tools.tool(description="Fetch URL")
+async def fetch(url: str):
+    # Implementation
+    return content
+
+# Use in MAS
+oxy_space = [
+    oxy.HttpLLM(name="gpt4", ...),
+    math_tools,
+    text_tools,
+    api_tools,
+
+    # Agent with math tools only
+    oxy.ReActAgent(
+        name="math_agent",
+        tools=["math_tools"],
+        llm_model="gpt4"
+    ),
+
+    # Agent with all tools
+    oxy.ReActAgent(
+        name="general_agent",
+        tools=["math_tools", "text_tools", "api_tools"],
+        llm_model="gpt4"
+    )
+]
+```
+
+### With Pydantic Fields
+
+```python
+from pydantic import Field
+
+tools = oxy.FunctionHub(name="detailed_tools")
+
+@tools.tool(description="Search for information")
+async def search(
+    query: str = Field(description="The search query"),
+    max_results: int = Field(default=10, description="Maximum number of results to return"),
+    include_snippets: bool = Field(default=True, description="Whether to include result snippets")
+):
+    results = await perform_search(query, max_results, include_snippets)
+    return results
+
+# Generated schema includes all Field descriptions
+# LLM sees detailed parameter information
+```
+
+### With OxyRequest
+
+```python
+from oxygent import OxyRequest
+
+tools = oxy.FunctionHub(name="context_tools")
+
+@tools.tool(description="Save data to user session")
+async def save_to_session(
+    oxy_request: OxyRequest,
+    key: str = Field(description="Key to store data under"),
+    value: str = Field(description="Value to store")
+):
+    # Store in session (group_data)
+    oxy_request.set_group_data(key, value)
+
+    # Also store in request (shared_data)
+    oxy_request.set_shared_data(f"temp_{key}", value)
+
+    return f"Saved {key} = {value}"
+
+@tools.tool(description="Retrieve data from user session")
+async def get_from_session(
+    oxy_request: OxyRequest,
+    key: str = Field(description="Key to retrieve")
+):
+    value = oxy_request.get_group_data(key)
+    return f"{key} = {value}" if value else f"{key} not found"
+```
+
+### With Custom Configuration
+
+```python
+# Hub with custom settings
+tools = oxy.FunctionHub(
+    name="custom_tools",
+    desc="Tools with custom configuration",
+    timeout=30,              # 30 second timeout per tool
+    is_permission_required=False,  # No permission needed
+    retries=5,               # Retry 5 times on failure
+    delay=2.0                # 2 second delay between retries
+)
+
+@tools.tool(description="May fail sometimes")
+async def flaky_operation(param: str):
+    # This will automatically retry up to 5 times
+    result = await unreliable_api_call(param)
+    return result
+```
+
+## Error Handling
+
+### Tool Execution Errors
+
+Errors in tool functions are caught and returned as `OxyState.FAILED`:
+
+```python
+@tools.tool(description="May raise errors")
+def risky_operation(param: str):
+    if not param:
+        raise ValueError("Parameter cannot be empty")
+    return process(param)
+
+# When called with empty string:
+# - Exception is caught
+# - Returns OxyResponse(state=FAILED, output="Error: ValueError: ...")
+# - Automatically retries based on hub's retry settings
+```
+
+### Schema Validation Errors
+
+Invalid function signatures are detected during initialization:
+
+```python
+@tools.tool(description="Invalid signature")
+def bad_function(**kwargs):  # **kwargs not supported
+    return "result"
+
+# Error during MAS.init():
+# - Cannot extract parameter schema
+# - May raise exception or warning
+```
+
+## Related Documentation
+
+- **[FunctionHub Guide](/docs/tools-function-hub)** - Main documentation and usage patterns
+- **[ReActAgent](/docs/agents-react)** - Using tools in reasoning agents
+- **[MCP Tools](/docs/tools-mcp)** - External tool integration
+- **[OxyRequest & Context](/docs/context)** - Detailed context API documentation
+- **[Configuration](/docs/configuration)** - Global tool configuration

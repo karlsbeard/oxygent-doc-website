@@ -1,0 +1,602 @@
+---
+title: Configuration
+description: Global configuration system for customizing OxyGent behavior, logging, databases, and agent defaults
+icon: Settings
+---
+
+# Configuration
+
+OxyGent provides a comprehensive global configuration system through the `Config` class, allowing you to customize application behavior, logging, database connections, and default agent settings without modifying code.
+
+## Overview
+
+The configuration system is organized into modules, each controlling a specific aspect of the OxyGent framework:
+
+- **Application**: App name, version, and metadata
+- **Logging**: Log levels, colors, output formats
+- **LLM**: Default LLM parameters
+- **Cache**: File system caching
+- **Message**: Message display and filtering
+- **Databases**: Elasticsearch, Redis, Vearch connections
+- **Server**: Web service host and port
+- **Agent**: Default agent parameters
+- **Tool**: Tool and MCP client settings
+
+### Key Features
+
+- **Modular Configuration**: Organized by functional areas
+- **Environment Support**: Multiple environments (dev, prod, test)
+- **Environment Variables**: Dynamic values using `${VAR}` syntax
+- **JSON Configuration**: External config files for complex setups
+- **Runtime Updates**: Change configuration during execution
+- **Type Safety**: Getter/setter methods with validation
+
+### Configuration Priorities
+
+OxyGent applies configuration in this order (later overrides earlier):
+
+1. **Default Config**: Built-in defaults in `Config` class
+2. **JSON Config** (default): `config.json` → `default` section
+3. **JSON Config** (environment): `config.json` → specific environment
+4. **Runtime Settings**: Programmatic `Config.set_*()` calls
+5. **Agent-specific**: Per-agent constructor parameters
+
+## Quick Start
+
+### Basic Configuration
+
+```python
+from oxygent import Config
+
+# Set application name
+Config.set_app_name("my_oxygent_app")
+
+# Configure logging
+Config.set_log_level_terminal("DEBUG")
+Config.set_log_path("./logs/app.log")
+
+# Set default LLM model name
+Config.set_agent_llm_model("gpt-4")
+
+# Configure cache directory
+Config.set_cache_save_dir("./cache")
+
+# Now create your MAS
+from oxygent import MAS, oxy
+
+async def main():
+    async with MAS(oxy_space=[...]) as mas:
+        # Configuration is applied globally
+        result = await mas.call(...)
+```
+
+### Using JSON Configuration
+
+Create a `config.json` file:
+
+```json
+{
+  "default": {
+    "app": {
+      "name": "my_app",
+      "version": "1.0.0"
+    },
+    "log": {
+      "level_root": "INFO",
+      "level_terminal": "DEBUG",
+      "path": "./logs/app.log"
+    },
+    "server": {
+      "host": "0.0.0.0",
+      "port": 8080,
+      "auto_open_webpage": true
+    },
+    "agent": {
+      "llm_model": "default_llm",
+      "short_memory_size": 10
+    }
+  },
+  "production": {
+    "log": {
+      "level_root": "WARNING",
+      "level_terminal": "WARNING"
+    },
+    "server": {
+      "auto_open_webpage": false
+    }
+  }
+}
+```
+
+Load the configuration:
+
+```python
+from oxygent import Config
+
+# Load default environment
+Config.load_from_json("./config.json")
+
+# Or load specific environment
+Config.load_from_json("./config.json", env="production")
+
+# Or use environment variable: APP_ENV=production
+import os
+os.environ["APP_ENV"] = "production"
+Config.load_from_json("./config.json")
+```
+
+### Environment Variable Substitution
+
+Use `${VAR}` syntax in JSON config:
+
+```json
+{
+  "default": {
+    "llm": {
+      "base_url": "${OPENAI_BASE_URL}",
+      "api_key": "${OPENAI_API_KEY}"
+    },
+    "log": {
+      "path": "${LOG_DIR}/app.log"
+    }
+  }
+}
+```
+
+Set environment variables:
+
+```bash
+export OPENAI_BASE_URL="https://api.openai.com"
+export OPENAI_API_KEY="sk-..."
+export LOG_DIR="/var/log/oxygent"
+```
+
+## Configuration Modules
+
+### Application Configuration
+
+Control application metadata and identification.
+
+| Method | Description | Default |
+|--------|-------------|---------|
+| `set_app_name(name)` | Set application name | `"app"` |
+| `get_app_name()` | Get application name | - |
+| `set_app_version(version)` | Set application version | `"1.0.0"` |
+| `get_app_version()` | Get application version | - |
+
+**Example**:
+
+```python
+from oxygent import Config
+
+Config.set_app_name("customer_service_bot")
+Config.set_app_version("2.1.0")
+
+app_name = Config.get_app_name()  # "customer_service_bot"
+```
+
+### Logging Configuration
+
+Customize logging behavior, output formats, and colors.
+
+#### Log Levels
+
+| Method | Description | Default |
+|--------|-------------|---------|
+| `set_log_level_root(level)` | Set root logger level | `"INFO"` |
+| `set_log_level_terminal(level)` | Set terminal output level | `"INFO"` |
+| `set_log_level_file(level)` | Set file output level | `"INFO"` |
+| `set_log_path(path)` | Set log file path | `"./cache_dir/app.log"` |
+
+**Valid Levels**: `"DEBUG"`, `"INFO"`, `"WARNING"`, `"ERROR"`, `"CRITICAL"`
+
+**Example**:
+
+```python
+Config.set_log_level_terminal("DEBUG")  # Show all logs in terminal
+Config.set_log_level_file("WARNING")    # Only warnings+ in file
+Config.set_log_path("/var/log/oxygent/app.log")
+```
+
+#### Log Colors and Formatting
+
+| Method | Description | Default |
+|--------|-------------|---------|
+| `set_log_color_tool_call(color)` | Color for tool calls | `"YELLOW"` |
+| `set_log_color_observation(color)` | Color for observations | `"CYAN"` |
+| `set_log_is_bright(is_bright)` | Use bright colors | `False` |
+| `set_log_only_message_color(only)` | Color messages only | `True` |
+| `set_log_is_detailed_tool_call(detailed)` | Show full tool calls | `True` |
+| `set_log_is_detailed_observation(detailed)` | Show full observations | `True` |
+
+**Available Colors**: `"BLACK"`, `"RED"`, `"GREEN"`, `"YELLOW"`, `"BLUE"`, `"MAGENTA"`, `"CYAN"`, `"WHITE"`
+
+**Example**:
+
+```python
+# Customize log appearance
+Config.set_log_color_tool_call("GREEN")
+Config.set_log_color_observation("BLUE")
+Config.set_log_is_bright(True)
+
+# Simplify logs in production
+Config.set_log_is_detailed_tool_call(False)
+Config.set_log_is_detailed_observation(False)
+```
+
+### LLM Configuration
+
+Set default parameters for LLM components.
+
+| Method | Description | Default |
+|--------|-------------|---------|
+| `set_llm_config(config)` | Set entire LLM config | See below |
+| `get_llm_config()` | Get LLM config dict | - |
+
+**Default LLM Config**:
+
+```python
+{
+    "cls": "oxygent.llms.OllamaLLM",
+    "base_url": "http://localhost:11434",
+    "temperature": 0.1,
+    "max_tokens": 4096,
+    "top_p": 1
+}
+```
+
+**Note**: Individual LLM instances can override these defaults.
+
+### Cache Configuration
+
+Configure file system caching.
+
+| Method | Description | Default |
+|--------|-------------|---------|
+| `set_cache_save_dir(dir)` | Set cache directory | `"./cache_dir"` |
+| `get_cache_save_dir()` | Get cache directory (creates if missing) | - |
+
+**Example**:
+
+```python
+Config.set_cache_save_dir("/tmp/oxygent_cache")
+cache_dir = Config.get_cache_save_dir()  # Creates dir if needed
+```
+
+### Message Configuration
+
+Control which message types are displayed or sent.
+
+| Method | Description | Default |
+|--------|-------------|---------|
+| `set_message_is_send_tool_call(send)` | Send tool call messages | `True` |
+| `set_message_is_send_observation(send)` | Send observation messages | `True` |
+| `set_message_is_send_think(send)` | Send thinking messages | `True` |
+| `set_message_is_send_answer(send)` | Send answer messages | `True` |
+| `set_message_is_stored(stored)` | Store messages in DB | `False` |
+| `set_message_is_show_in_terminal(show)` | Show in terminal | `False` |
+| `set_message_is_send_full_arguments(send)` | Send full tool arguments | `False` |
+
+**Example**:
+
+```python
+# Minimal output mode (answers only)
+Config.set_message_is_send_tool_call(False)
+Config.set_message_is_send_observation(False)
+Config.set_message_is_send_think(False)
+
+# Debug mode (show everything)
+Config.set_message_is_send_full_arguments(True)
+Config.set_message_is_show_in_terminal(True)
+```
+
+### Database Configuration
+
+Configure Elasticsearch, Redis, and Vearch connections.
+
+#### Elasticsearch
+
+| Method | Description |
+|--------|-------------|
+| `set_es_enabled(enabled)` | Enable/disable Elasticsearch |
+| `set_es_config(config)` | Set ES connection config |
+| `get_es_config()` | Get ES config |
+| `set_es_schema_shared_data(schema)` | Set shared_data schema |
+| `set_es_schema_group_data(schema)` | Set group_data schema |
+| `set_es_settings(settings)` | Set index settings |
+
+**Example**:
+
+```python
+Config.set_es_enabled(True)
+Config.set_es_config({
+    "hosts": ["http://localhost:9200"],
+    "username": "elastic",
+    "password": "changeme"
+})
+
+# Define schema for structured data
+Config.set_es_schema_shared_data({
+    "type": "object",
+    "properties": {
+        "user_id": {"type": "keyword"},
+        "session_id": {"type": "keyword"},
+        "metadata": {"type": "text"}
+    }
+})
+```
+
+#### Redis
+
+| Method | Description |
+|--------|-------------|
+| `set_redis_enabled(enabled)` | Enable/disable Redis |
+| `set_redis_config(config)` | Set Redis connection config |
+| `get_redis_config()` | Get Redis config |
+| `set_redis_param(param, value)` | Set Redis parameters |
+
+**Example**:
+
+```python
+Config.set_redis_enabled(True)
+Config.set_redis_config({
+    "host": "localhost",
+    "port": 6379,
+    "password": "redis_password"
+})
+
+# Set Redis parameters
+Config.set_redis_param("expire_time", 86400)  # 24 hours
+Config.set_redis_param("max_size", 2048)
+```
+
+#### Vearch (Vector DB)
+
+| Method | Description |
+|--------|-------------|
+| `set_vearch_enabled(enabled)` | Enable/disable Vearch |
+| `set_vearch_config(config)` | Set Vearch connection config |
+| `get_vearch_config()` | Get Vearch config |
+
+### Server Configuration
+
+Configure the web service interface.
+
+| Method | Description | Default |
+|--------|-------------|---------|
+| `set_web_host(host)` | Set web server host | `"127.0.0.1"` |
+| `get_web_host()` | Get web server host | - |
+| `set_web_port(port)` | Set web server port | `8080` |
+| `get_web_port()` | Get web server port | - |
+| `set_web_auto_open(auto)` | Auto-open browser | `True` |
+| `get_web_auto_open()` | Get auto-open setting | - |
+
+**Example**:
+
+```python
+# Production server config
+Config.set_web_host("0.0.0.0")  # Listen on all interfaces
+Config.set_web_port(8000)
+Config.set_web_auto_open(False)  # Don't open browser
+
+# Development config
+Config.set_web_host("127.0.0.1")  # Localhost only
+Config.set_web_port(8080)
+Config.set_web_auto_open(True)
+```
+
+### Agent Configuration
+
+Set default parameters for all agents.
+
+| Method | Description | Default |
+|--------|-------------|---------|
+| `set_agent_prompt(prompt)` | Set default system prompt | `""` |
+| `get_agent_prompt()` | Get default prompt | - |
+| `set_agent_llm_model(model)` | Set default LLM model name | `"default_llm"` |
+| `get_agent_llm_model()` | Get default model name | - |
+| `set_agent_input_schema(schema)` | Set input schema | See below |
+| `get_agent_input_schema()` | Get input schema | - |
+| `set_agent_short_memory_size(size)` | Set default memory size | `10` |
+| `get_agent_short_memory_size()` | Get memory size | - |
+| `set_agent_welcome_message(msg)` | Set welcome message | See below |
+| `get_agent_welcome_message()` | Get welcome message | - |
+
+**Default Values**:
+
+```python
+{
+    "prompt": "",
+    "llm_model": "default_llm",
+    "input_schema": {
+        "properties": {"query": {"description": "Query question"}},
+        "required": ["query"]
+    },
+    "short_memory_size": 10,
+    "welcome_message": "Hi, I'm OxyGent. How can I assist you?"
+}
+```
+
+**Example**:
+
+```python
+Config.set_agent_llm_model("gpt-4")
+Config.set_agent_short_memory_size(20)
+Config.set_agent_welcome_message("Welcome! I'm your AI assistant.")
+```
+
+### Tool Configuration
+
+Configure tool and MCP client behavior.
+
+| Method | Description | Default |
+|--------|-------------|---------|
+| `set_tool_mcp_is_keep_alive(keep)` | Keep MCP connections alive | `True` |
+| `get_tool_mcp_is_keep_alive()` | Get keep-alive setting | - |
+| `set_tool_is_concurrent_init(concurrent)` | Initialize tools concurrently | `True` |
+| `get_tool_is_concurrent_init()` | Get concurrent init setting | - |
+
+**Example**:
+
+```python
+# Keep MCP servers running between calls
+Config.set_tool_mcp_is_keep_alive(True)
+
+# Initialize all tools in parallel for faster startup
+Config.set_tool_is_concurrent_init(True)
+```
+
+## Configuration Patterns
+
+### Environment-Specific Configuration
+
+```python
+import os
+from oxygent import Config
+
+# Determine environment
+env = os.environ.get("APP_ENV", "development")
+
+if env == "production":
+    Config.set_log_level_terminal("WARNING")
+    Config.set_web_auto_open(False)
+    Config.set_es_enabled(True)
+elif env == "development":
+    Config.set_log_level_terminal("DEBUG")
+    Config.set_web_auto_open(True)
+    Config.set_es_enabled(False)  # Use local files in dev
+```
+
+### Configuration Factory Function
+
+```python
+def configure_oxygent(env="production"):
+    """Configure OxyGent for specific environment."""
+    Config.set_app_name("my_app")
+
+    if env == "production":
+        Config.set_log_level_root("INFO")
+        Config.set_log_level_terminal("WARNING")
+        Config.set_web_host("0.0.0.0")
+        Config.set_web_port(8000)
+        Config.set_web_auto_open(False)
+
+        # Enable databases
+        Config.set_es_enabled(True)
+        Config.set_redis_enabled(True)
+
+    elif env == "development":
+        Config.set_log_level_root("DEBUG")
+        Config.set_log_level_terminal("DEBUG")
+        Config.set_web_host("127.0.0.1")
+        Config.set_web_port(8080)
+        Config.set_web_auto_open(True)
+
+        # Disable databases for local dev
+        Config.set_es_enabled(False)
+        Config.set_redis_enabled(False)
+
+# Use it
+configure_oxygent("production")
+```
+
+### Dynamic Configuration Updates
+
+```python
+from oxygent import Config, MAS
+
+async def main():
+    # Initial config
+    Config.set_log_level_terminal("INFO")
+
+    async with MAS(oxy_space=oxy_space) as mas:
+        result1 = await mas.call(...)
+
+        # Update config during runtime
+        Config.set_log_level_terminal("DEBUG")
+
+        result2 = await mas.call(...)  # Now with DEBUG logging
+```
+
+## Examples
+
+For practical examples and usage patterns, see:
+
+- [Basic Configuration](/examples/core-concepts/config-basics) - Setting up configuration
+- [Environment Management](/examples/core-concepts/config-environments) - Multi-environment config
+- [JSON Configuration](/examples/core-concepts/config-json) - Using config files
+- [Database Configuration](/examples/core-concepts/config-databases) - Setting up databases
+
+See all examples in the [Examples Gallery](/examples).
+
+## Best Practices
+
+### 1. Configure Before MAS Creation
+
+```python
+# ✅ Good: Configure before creating MAS
+Config.set_app_name("my_app")
+Config.set_log_level_terminal("DEBUG")
+
+async with MAS(oxy_space=oxy_space) as mas:
+    # Config is applied
+
+# ❌ Bad: Configuring after MAS creation may not work
+async with MAS(oxy_space=oxy_space) as mas:
+    Config.set_app_name("my_app")  # Too late for some settings
+```
+
+### 2. Use Environment Variables for Secrets
+
+```python
+# ❌ Bad: Hardcoded credentials
+Config.set_es_config({
+    "hosts": ["http://localhost:9200"],
+    "password": "my_secret_password"  # Don't do this!
+})
+
+# ✅ Good: Use environment variables
+import os
+Config.set_es_config({
+    "hosts": [os.getenv("ES_HOST", "http://localhost:9200")],
+    "password": os.getenv("ES_PASSWORD")
+})
+```
+
+### 3. Document Your Configuration
+
+```python
+def configure_app():
+    """
+    Configure OxyGent application.
+
+    Required Environment Variables:
+        - DEFAULT_LLM_API_KEY: API key for LLM service
+        - ES_PASSWORD: Elasticsearch password (production only)
+
+    Configuration:
+        - Logging: DEBUG in dev, WARNING in prod
+        - Web Server: Port 8080 (dev), 8000 (prod)
+        - Databases: Disabled in dev, enabled in prod
+    """
+    env = os.getenv("APP_ENV", "development")
+    # ... configuration code
+```
+
+### 4. Use JSON for Complex Configurations
+
+```python
+# For simple setups: Use code
+Config.set_log_level_terminal("DEBUG")
+Config.set_app_name("simple_app")
+
+# For complex setups: Use JSON
+Config.load_from_json("./config.json", env="production")
+```
+
+## Related Links
+
+- [Four-Scope System](/docs/four-scope) - Understanding data scopes
+- [Lifecycle](/docs/lifecycle) - Component lifecycle and initialization
+- [Visualization](/docs/visualization) - Web interface configuration
+- [MAS (Multi-Agent System)](/docs/mas) - MAS configuration options

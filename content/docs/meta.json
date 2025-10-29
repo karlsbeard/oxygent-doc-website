@@ -6,9 +6,15 @@
     "quick-start",
     "---Core Concepts---",
     "mas",
+    "visualization",
+    "four-scope",
+    "lifecycle",
+    "configuration",
+    "context",
     "---Agents---",
     "agents-chat",
     "agents-react",
+    "agents-workflow",
     "agents-parallel",
     "agents-rag",
     "agents-sse-agent",
@@ -17,6 +23,9 @@
     "flows-plan-and-solve",
     "flows-reflexion",
     "---LLMs---",
-    "llms-openai"
+    "llms-http",
+    "llms-openai",
+    "---Tools---",
+    "tools-function-hub"
   ]
 }

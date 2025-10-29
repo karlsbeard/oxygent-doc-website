@@ -1,0 +1,478 @@
+---
+title: HTTP LLM
+description: HTTP-based Large Language Model integration for OpenAI-compatible APIs
+icon: Cloud
+---
+
+## Overview
+
+**HttpLLM** is the primary LLM integration in OxyGent that connects to remote language model APIs over HTTP. It provides a unified interface for OpenAI-compatible APIs, including OpenAI, Gemini, Ollama, and other compatible services. HttpLLM handles authentication, request formatting, response parsing, and streaming support automatically.
+
+### Key Features
+
+- **Multi-Provider Support**: Works with OpenAI, Gemini, Ollama, and any OpenAI-compatible API
+- **Streaming**: Real-time token streaming for responsive user experiences
+- **Multimodal**: Support for images, videos, and documents (when model supports it)
+- **Auto-Detection**: Automatically formats requests based on endpoint URL
+- **Flexible Headers**: Static, dynamic, and function-based header configuration
+- **Error Handling**: User-friendly error messages with automatic retry logic
+
+### Supported Providers
+
+```
+┌─────────────────────────────────────────────────────┐
+│           HttpLLM Provider Support                  │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│  ┌──────────────────┐  ┌──────────────────┐       │
+│  │  OpenAI          │  │  Gemini          │       │
+│  │  GPT-4, GPT-3.5  │  │  Gemini Pro      │       │
+│  │  GPT-4o          │  │  Gemini Flash    │       │
+│  └──────────────────┘  └──────────────────┘       │
+│                                                     │
+│  ┌──────────────────┐  ┌──────────────────┐       │
+│  │  Ollama          │  │  Azure OpenAI    │       │
+│  │  Local models    │  │  Enterprise      │       │
+│  └──────────────────┘  └──────────────────┘       │
+│                                                     │
+│  ┌──────────────────┐  ┌──────────────────┐       │
+│  │  Claude (via     │  │  Any OpenAI      │       │
+│  │  compatible API) │  │  Compatible API  │       │
+│  └──────────────────┘  └──────────────────┘       │
+└─────────────────────────────────────────────────────┘
+```
+
+## Quick Start
+
+### Basic Configuration
+
+Connect to OpenAI-compatible APIs:
+
+```python
+import os
+from oxygent import MAS, oxy
+
+oxy_space = [
+    # OpenAI
+    oxy.HttpLLM(
+        name="gpt4",
+        api_key=os.getenv("OPENAI_API_KEY"),
+        base_url="https://api.openai.com/v1",
+        model_name="gpt-4o",
+    ),
+
+    # Use in agent
+    oxy.ChatAgent(
+        name="assistant",
+        llm_model="gpt4",
+    ),
+]
+
+async def main():
+    async with MAS(oxy_space=oxy_space) as mas:
+        await mas.start_web_service(
+            first_query="Hello! How can you help me?"
+        )
+
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(main())
+```
+
+### Multiple LLM Providers
+
+Configure multiple LLM providers in the same system:
+
+```python
+oxy_space = [
+    # OpenAI GPT-4
+    oxy.HttpLLM(
+        name="gpt4",
+        api_key=os.getenv("OPENAI_API_KEY"),
+        base_url="https://api.openai.com/v1",
+        model_name="gpt-4o",
+    ),
+
+    # Google Gemini
+    oxy.HttpLLM(
+        name="gemini",
+        api_key=os.getenv("GEMINI_API_KEY"),
+        base_url="https://generativelanguage.googleapis.com/v1beta",
+        model_name="gemini-2.0-flash-exp",
+    ),
+
+    # Local Ollama
+    oxy.HttpLLM(
+        name="local_llama",
+        api_key=None,  # Ollama doesn't need API key
+        base_url="http://localhost:11434",
+        model_name="llama3.2",
+    ),
+
+    # Different agents use different models
+    oxy.ChatAgent(name="fast_agent", llm_model="gemini"),
+    oxy.ReActAgent(name="smart_agent", llm_model="gpt4"),
+    oxy.ChatAgent(name="local_agent", llm_model="local_llama"),
+]
+```
+
+### Direct LLM Calls
+
+Call LLMs directly from workflows:
+
+```python
+async def my_workflow(oxy_request: OxyRequest):
+    # Call LLM directly
+    response = await oxy_request.call(
+        callee="gpt4",
+        arguments={
+            "messages": [
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": "Explain quantum computing in simple terms."}
+            ],
+            "llm_params": {
+                "temperature": 0.7,
+                "max_tokens": 500
+            }
+        }
+    )
+
+    return response.output
+
+oxy_space = [
+    oxy.HttpLLM(name="gpt4", ...),
+    oxy.WorkflowAgent(
+        name="workflow_agent",
+        func_workflow=my_workflow
+    )
+]
+```
+
+## Configuration Options
+
+### Core Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `name` | `str` | **Yes** | Unique identifier for this LLM |
+| `api_key` | `str` | **Conditional** | API key for authentication (not needed for Ollama) |
+| `base_url` | `str` | **Yes** | Base URL of the API endpoint |
+| `model_name` | `str` | **Yes** | Model identifier (e.g., "gpt-4o", "gemini-pro") |
+
+### LLM Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `llm_params` | `dict` | `{}` | Default parameters passed to the LLM (temperature, max_tokens, etc.) |
+| `timeout` | `float` | `300` | Maximum execution time in seconds (5 minutes) |
+
+### Multimodal Support
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `is_multimodal_supported` | `bool` | `False` | Enable image/video input support |
+| `is_convert_url_to_base64` | `bool` | `False` | Convert media URLs to base64 (for APIs that don't support URLs) |
+| `max_image_pixels` | `int` | `10000000` | Maximum image size in pixels |
+| `max_video_size` | `int` | `12582912` | Maximum video size in bytes (12MB) |
+| `max_file_size_bytes` | `int` | `2097152` | Maximum file size for base64 (2MB) |
+
+### Headers Configuration
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `headers` | `dict \| Callable` | `{}` | Static headers or function returning headers |
+
+### Messaging & Error Handling
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `is_send_think` | `bool` | From `Config` | Send thinking process messages to frontend |
+| `friendly_error_text` | `str` | `"Sorry..."` | User-friendly error message on failures |
+
+## Provider-Specific Configuration
+
+### OpenAI
+
+```python
+oxy.HttpLLM(
+    name="openai_gpt4",
+    api_key=os.getenv("OPENAI_API_KEY"),
+    base_url="https://api.openai.com/v1",
+    model_name="gpt-4o",
+    llm_params={
+        "temperature": 0.7,
+        "max_tokens": 2000,
+        "top_p": 1.0,
+        "frequency_penalty": 0.0,
+        "presence_penalty": 0.0
+    }
+)
+```
+
+**Endpoint:** Auto-appends `/chat/completions` if not present
+
+### Google Gemini
+
+```python
+oxy.HttpLLM(
+    name="gemini",
+    api_key=os.getenv("GEMINI_API_KEY"),
+    base_url="https://generativelanguage.googleapis.com/v1beta",
+    model_name="gemini-2.0-flash-exp",
+    llm_params={
+        "temperature": 0.9,
+        "topP": 1.0,
+        "topK": 32
+    }
+)
+```
+
+**Endpoint:** Auto-appends `/models/{model_name}:generateContent`
+**Auth:** Uses `X-goog-api-key` header instead of `Authorization`
+
+### Ollama
+
+```python
+oxy.HttpLLM(
+    name="ollama_llama",
+    api_key=None,  # No API key needed
+    base_url="http://localhost:11434",
+    model_name="llama3.2",
+    llm_params={
+        "temperature": 0.8,
+        "num_predict": 1000
+    }
+)
+```
+
+**Endpoint:** Auto-appends `/api/chat`
+**Auth:** No authentication required
+
+### Azure OpenAI
+
+```python
+oxy.HttpLLM(
+    name="azure_gpt4",
+    api_key=os.getenv("AZURE_OPENAI_API_KEY"),
+    base_url=os.getenv("AZURE_OPENAI_ENDPOINT"),  # e.g., https://your-resource.openai.azure.com/openai/deployments/your-deployment
+    model_name=os.getenv("AZURE_OPENAI_DEPLOYMENT"),
+    llm_params={
+        "temperature": 0.7
+    }
+)
+```
+
+## Advanced Features
+
+### Streaming Support
+
+Enable real-time token streaming:
+
+```python
+async def streaming_workflow(oxy_request: OxyRequest):
+    response = await oxy_request.call(
+        callee="gpt4",
+        arguments={
+            "messages": [
+                {"role": "user", "content": "Write a long story about dragons."}
+            ],
+            "stream": True  # Enable streaming
+        }
+    )
+    return response.output
+
+oxy_space = [
+    oxy.HttpLLM(name="gpt4", ...),
+    oxy.WorkflowAgent(
+        name="streaming_agent",
+        func_workflow=streaming_workflow
+    )
+]
+```
+
+**Behavior:**
+- Tokens are streamed to the user as they arrive
+- Messages are sent with `{"type": "stream", "content": {"delta": "..."}}`
+- Final response contains the complete text
+
+### Dynamic Headers
+
+Configure headers that change per request:
+
+```python
+def get_headers(oxy_request: OxyRequest) -> dict:
+    # Access request context
+    user_id = oxy_request.get_shared_data("user_id", "anonymous")
+
+    return {
+        "X-User-ID": user_id,
+        "X-Session-ID": oxy_request.get_group_id(),
+        "X-Trace-ID": oxy_request.current_trace_id
+    }
+
+oxy.HttpLLM(
+    name="contextual_llm",
+    api_key=os.getenv("API_KEY"),
+    base_url="https://api.example.com",
+    model_name="gpt-4",
+    headers=get_headers  # Function instead of dict
+)
+```
+
+### Multimodal Input
+
+Process images and videos (for vision-enabled models):
+
+```python
+oxy.HttpLLM(
+    name="gpt4_vision",
+    api_key=os.getenv("OPENAI_API_KEY"),
+    base_url="https://api.openai.com/v1",
+    model_name="gpt-4o",
+    is_multimodal_supported=True,
+    is_convert_url_to_base64=False  # Use URLs directly
+)
+
+# In workflow or agent
+response = await oxy_request.call(
+    callee="gpt4_vision",
+    arguments={
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "What's in this image?"},
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": "https://example.com/image.jpg"
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+)
+```
+
+### Custom LLM Parameters
+
+Override default parameters per call:
+
+```python
+# Set defaults
+llm = oxy.HttpLLM(
+    name="gpt4",
+    api_key=os.getenv("OPENAI_API_KEY"),
+    base_url="https://api.openai.com/v1",
+    model_name="gpt-4o",
+    llm_params={
+        "temperature": 0.7,
+        "max_tokens": 1000
+    }
+)
+
+# Override in specific calls
+response = await oxy_request.call(
+    callee="gpt4",
+    arguments={
+        "messages": [...],
+        "temperature": 0.2,      # Override default
+        "max_tokens": 500,       # Override default
+        "top_p": 0.9,            # Additional parameter
+        "response_format": {"type": "json_object"}  # New parameter
+    }
+)
+```
+
+### Think Message Extraction
+
+Enable reasoning transparency:
+
+```python
+oxy.HttpLLM(
+    name="reasoning_llm",
+    api_key=os.getenv("OPENAI_API_KEY"),
+    base_url="https://api.openai.com/v1",
+    model_name="gpt-4o",
+    is_send_think=True  # Extract and send <think> tags
+)
+
+# LLM response: "<think>Let me analyze...</think>The answer is 42."
+# User receives:
+# - Think message: "Let me analyze..."
+# - Final answer: "The answer is 42."
+```
+
+## URL Auto-Detection
+
+HttpLLM automatically detects and formats endpoints:
+
+```
+Provider   | Base URL Contains            | Auto-Appended Path
+-----------|------------------------------|-------------------
+OpenAI     | api.openai.com              | /chat/completions
+Gemini     | generativelanguage.google   | /models/{model}:generateContent
+Ollama     | (has api_key=None)          | /api/chat
+Azure      | openai.azure.com            | (none - use full URL)
+Other      | (any other)                 | /chat/completions
+```
+
+**Example:**
+```python
+# Input
+base_url = "https://api.openai.com/v1"
+
+# Actual request URL
+# https://api.openai.com/v1/chat/completions
+```
+
+## Error Handling
+
+HttpLLM provides comprehensive error handling:
+
+```python
+oxy.HttpLLM(
+    name="resilient_llm",
+    api_key=os.getenv("API_KEY"),
+    base_url="https://api.example.com",
+    model_name="gpt-4",
+    timeout=120,  # 2 minute timeout
+    retries=3,    # Retry 3 times on failure
+    delay=2.0,    # 2 second delay between retries
+    friendly_error_text="The AI is temporarily unavailable. Please try again."
+)
+```
+
+**Error Types Handled:**
+- Network timeouts
+- API errors (rate limits, invalid keys)
+- Malformed responses
+- Connection failures
+
+**User Experience:**
+- Technical errors are hidden from users
+- Friendly error messages are shown instead
+- Automatic retries reduce transient failures
+
+## API Reference
+
+For complete API documentation including all constructor parameters, methods, and detailed parameter descriptions, see:
+
+**[HttpLLM API Reference](/api-docs/llms-http-api)** - Complete API documentation
+
+## Examples
+
+Explore practical implementations:
+
+- **[Basic LLM Usage](/examples/agents/demo_workflow_agent.py)** - Direct LLM calls in workflows
+- **[Multi-Provider Setup](/examples/agents/demo_heterogeneous_agents.py)** - Multiple LLMs in one system
+- **[Custom Headers](/examples/tools/demo_mcp_with_headers.py)** - Dynamic header configuration
+
+## Related Documentation
+
+- **[ChatAgent](/docs/agents-chat)** - Conversational agent using LLMs
+- **[ReActAgent](/docs/agents-react)** - Reasoning agent using LLMs
+- **[WorkflowAgent](/docs/agents-workflow)** - Direct LLM calls from workflows
+- **[Configuration](/docs/configuration)** - Global LLM configuration
+- **[OxyRequest & Context](/docs/context)** - Understanding the call API

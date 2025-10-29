@@ -240,18 +240,9 @@ main_agent = oxy.ReActAgent(
 
 ## API Reference
 
-### Constructor Parameters
+For complete API documentation including all constructor parameters, methods, and detailed parameter descriptions, see:
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `name` | str | Required | Unique identifier for the agent |
-| `is_master` | bool | False | Whether this is the entry point agent |
-| `llm_model` | str | Required | Name of LLM component to use |
-| `tools` | list[str] | [] | List of tool names |
-| `sub_agents` | list[str] | [] | List of sub-agent names |
-| `max_react_rounds` | int | 16 | Maximum reasoning-acting iterations |
-| `is_discard_react_memory` | bool | True | Discard detailed ReAct memory |
-| `short_memory_size` | int | 10 | Number of historical conversations to keep |
+**[ReActAgent API Reference](/api-docs/agents-react-api)** - Complete API documentation
 
 ## Multimodal Support
 
