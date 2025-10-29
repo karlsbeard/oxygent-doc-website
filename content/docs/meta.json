@@ -26,6 +26,10 @@
     "llms-http",
     "llms-openai",
     "---Tools---",
-    "tools-function-hub"
+    "tools-function-hub",
+    "tools-mcp-stdio",
+    "tools-mcp-sse",
+    "tools-mcp-streamable",
+    "tools-mcp-comparison"
   ]
 }

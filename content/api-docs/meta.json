@@ -1,17 +1,16 @@
 {
-  "title": "Documentation",
+  "title": "API Reference",
   "pages": [
-    "index",
-    "---Getting Started---",
-    "quick-start",
-    "---Core Concepts---",
-    "mas",
     "---Agents---",
     "agents-react-api",
-
-    "---Flows---",
-
+    "agents-workflow-api",
     "---LLMs---",
-    "llms-openai"
+    "llms-http-api",
+    "llms-openai",
+    "---Tools---",
+    "tools-function-hub-api",
+    "tools-mcp-stdio-api",
+    "tools-mcp-sse-api",
+    "tools-mcp-streamable-api"
   ]
 }

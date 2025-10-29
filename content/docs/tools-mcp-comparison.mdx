@@ -1,0 +1,514 @@
+---
+title: MCP Client Comparison
+description: Compare different MCP clients and choose the right one for your use case
+icon: GitCompare
+---
+
+# MCP Client Comparison Guide
+
+This guide helps you choose the right MCP (Model Context Protocol) client for your specific use case by comparing the three available implementations in OxyGent.
+
+## Quick Decision Tree
+
+```
+┌─────────────────────────────────────────────────────────┐
+│         Which MCP Client Should I Use?                  │
+└─────────────────────────────────────────────────────────┘
+                        │
+                        ▼
+          ┌─────────────────────────┐
+          │  Is the MCP server      │
+          │  running locally?       │
+          └─────────────────────────┘
+                 │            │
+              YES│            │NO
+                 │            │
+                 ▼            ▼
+    ┌──────────────────┐  ┌──────────────────────┐
+    │ StdioMCPClient   │  │ Need bidirectional   │
+    │                  │  │ streaming?           │
+    └──────────────────┘  └──────────────────────┘
+         (BEST)                  │            │
+                              YES│            │NO
+                                 │            │
+                                 ▼            ▼
+                    ┌──────────────────┐  ┌──────────────────┐
+                    │StreamableMCPClient│  │  SSEMCPClient    │
+                    │                  │  │                  │
+                    └──────────────────┘  └──────────────────┘
+                        (ADVANCED)            (STANDARD)
+```
+
+## Overview Comparison
+
+| Feature | StdioMCPClient | SSEMCPClient | StreamableMCPClient |
+|---------|----------------|--------------|---------------------|
+| **Transport** | stdio (pipes) | HTTP SSE | HTTP Streamable |
+| **Direction** | Bidirectional | Unidirectional (S→C) | Bidirectional |
+| **Location** | Local only | Remote | Remote |
+| **Latency** | ⚡ Very Low | 🚀 Low | 🚀 Low |
+| **Complexity** | ⭐ Simple | ⭐⭐ Moderate | ⭐⭐⭐ Advanced |
+| **Auth** | N/A | ✅ Headers | ✅ Headers |
+| **Best For** | Local tools | Remote streaming | Complex streaming |
+
+## Detailed Comparison
+
+### Transport & Communication
+
+| Aspect | StdioMCPClient | SSEMCPClient | StreamableMCPClient |
+|--------|----------------|--------------|---------------------|
+| **Protocol** | stdin/stdout | HTTP SSE | HTTP Streamable |
+| **Direction** | Full duplex | Server→Client only | Full duplex |
+| **Connection** | Process pipes | HTTP GET (persistent) | HTTP POST/streaming |
+| **Overhead** | Minimal | Low | Moderate |
+| **Network** | Not required | Required | Required |
+
+### Use Cases
+
+#### StdioMCPClient
+
+**✅ Best For:**
+- Local MCP servers (Node.js, Python, etc.)
+- Development and testing
+- NPX-based MCP packages
+- Command-line tools with MCP interface
+- Single-machine deployments
+- Lowest latency requirements
+
+**❌ Not Suitable For:**
+- Remote MCP servers
+- Web-based deployments
+- Services requiring authentication
+- Multi-machine architectures
+
+**Example Use Cases:**
+```python
+# Local filesystem tools
+oxy.StdioMCPClient(
+    name="filesystem",
+    params={
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-filesystem", "/workspace"]
+    }
+)
+
+# Custom local Python server
+oxy.StdioMCPClient(
+    name="local_tools",
+    params={
+        "command": "uv",
+        "args": ["--directory", "./mcp_servers", "run", "my_server.py"]
+    }
+)
+```
+
+#### SSEMCPClient
+
+**✅ Best For:**
+- Remote MCP servers over HTTP
+- Real-time unidirectional streaming
+- Simple authentication (headers)
+- Cloud-hosted MCP services
+- Web application integrations
+- Scalable multi-client setups
+
+**❌ Not Suitable For:**
+- Local-only tools
+- Complex bidirectional streaming
+- Use cases requiring client→server streaming
+
+**Example Use Cases:**
+```python
+# Remote API with authentication
+oxy.SSEMCPClient(
+    name="remote_api",
+    sse_url="https://api.example.com/mcp/sse",
+    headers={"Authorization": f"Bearer {token}"}
+)
+
+# Real-time data streaming
+oxy.SSEMCPClient(
+    name="live_data",
+    sse_url="https://streaming.example.com/sse",
+    is_keep_alive=True
+)
+```
+
+#### StreamableMCPClient
+
+**✅ Best For:**
+- Advanced bidirectional HTTP streaming
+- Complex request/response patterns
+- Long-running streaming operations
+- Enterprise HTTP requirements
+- Services with HTTP proxies
+- Advanced connection management
+
+**❌ Not Suitable For:**
+- Simple streaming (use SSE instead)
+- Local tools (use Stdio instead)
+- Low-latency critical applications
+
+**Example Use Cases:**
+```python
+# Complex streaming analytics
+oxy.StreamableMCPClient(
+    name="analytics",
+    server_url="https://analytics.example.com/mcp",
+    headers={"Authorization": f"Bearer {token}"}
+)
+
+# Bidirectional data processing
+oxy.StreamableMCPClient(
+    name="processing",
+    server_url="https://process.example.com/mcp",
+    is_keep_alive=True
+)
+```
+
+### Performance Characteristics
+
+| Metric | StdioMCPClient | SSEMCPClient | StreamableMCPClient |
+|--------|----------------|--------------|---------------------|
+| **Latency** | `<1ms` (local) | 10-50ms (network) | 10-50ms (network) |
+| **Throughput** | Very High | High | High |
+| **CPU Usage** | Low | Low | Low-Moderate |
+| **Memory** | Minimal | Low | Moderate |
+| **Startup Time** | Fast (process spawn) | Fast (HTTP connect) | Fast (HTTP connect) |
+| **Connection Overhead** | Minimal | Moderate | Moderate |
+
+### Configuration Comparison
+
+#### Basic Setup
+
+**StdioMCPClient:**
+```python
+oxy.StdioMCPClient(
+    name="local_server",
+    params={
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"],
+        "env": {}  # Optional environment variables
+    }
+)
+```
+
+**SSEMCPClient:**
+```python
+oxy.SSEMCPClient(
+    name="remote_server",
+    sse_url="http://localhost:9000/sse",
+    headers={},  # Optional HTTP headers
+    middlewares=[]  # Optional middlewares
+)
+```
+
+**StreamableMCPClient:**
+```python
+oxy.StreamableMCPClient(
+    name="streaming_server",
+    server_url="http://localhost:8000/mcp",
+    headers={},  # Optional HTTP headers
+    middlewares=[]  # Optional middlewares
+)
+```
+
+#### With Authentication
+
+**StdioMCPClient:**
+```python
+# Authentication via environment variables
+oxy.StdioMCPClient(
+    name="local_server",
+    params={
+        "command": "python",
+        "args": ["./server.py"],
+        "env": {
+            "API_KEY": os.getenv("MY_API_KEY")
+        }
+    }
+)
+```
+
+**SSEMCPClient:**
+```python
+# Authentication via HTTP headers
+oxy.SSEMCPClient(
+    name="remote_server",
+    sse_url="https://api.example.com/sse",
+    headers={
+        "Authorization": f"Bearer {os.getenv('TOKEN')}"
+    }
+)
+```
+
+**StreamableMCPClient:**
+```python
+# Authentication via HTTP headers
+oxy.StreamableMCPClient(
+    name="streaming_server",
+    server_url="https://api.example.com/mcp",
+    headers={
+        "Authorization": f"Bearer {os.getenv('TOKEN')}"
+    }
+)
+```
+
+### Feature Matrix
+
+| Feature | StdioMCPClient | SSEMCPClient | StreamableMCPClient |
+|---------|:--------------:|:------------:|:-------------------:|
+| **Local Process** | ✅ | ❌ | ❌ |
+| **Remote HTTP** | ❌ | ✅ | ✅ |
+| **Authentication** | Env vars | ✅ Headers | ✅ Headers |
+| **Dynamic Headers** | ❌ | ✅ | ✅ |
+| **Inherit Headers** | ❌ | ✅ | ✅ |
+| **Middlewares** | ❌ | ✅ | ✅ |
+| **Keep-Alive** | ✅ | ✅ | ✅ |
+| **Bidirectional** | ✅ | ❌ | ✅ |
+| **NPX Support** | ✅ | ❌ | ❌ |
+| **Directory Validation** | ✅ | ❌ | ❌ |
+| **Connection Pooling** | ❌ | Limited | ✅ |
+
+## Common Scenarios
+
+### Scenario 1: Local Development
+
+**Recommendation:** StdioMCPClient
+
+**Why:**
+- Fastest latency (no network)
+- Simple setup
+- Easy debugging (process logs)
+- Works offline
+
+**Example:**
+```python
+oxy_space = [
+    oxy.HttpLLM(name="llm", ...),
+    oxy.StdioMCPClient(
+        name="dev_tools",
+        params={
+            "command": "npx",
+            "args": ["-y", "@modelcontextprotocol/server-filesystem", "./workspace"]
+        }
+    ),
+    oxy.ReActAgent(name="agent", llm_model="llm", tools=["dev_tools"])
+]
+```
+
+### Scenario 2: Production Web Service
+
+**Recommendation:** SSEMCPClient or StreamableMCPClient
+
+**Why:**
+- Remote access required
+- Authentication needed
+- Scalable architecture
+- Multiple clients
+
+**Example (SSE for simple streaming):**
+```python
+oxy_space = [
+    oxy.HttpLLM(name="llm", ...),
+    oxy.SSEMCPClient(
+        name="prod_tools",
+        sse_url="https://api.example.com/mcp/sse",
+        headers={"Authorization": f"Bearer {token}"},
+        is_keep_alive=True
+    ),
+    oxy.ReActAgent(name="agent", llm_model="llm", tools=["prod_tools"])
+]
+```
+
+**Example (Streamable for complex streaming):**
+```python
+oxy_space = [
+    oxy.HttpLLM(name="llm", ...),
+    oxy.StreamableMCPClient(
+        name="prod_streaming",
+        server_url="https://api.example.com/mcp",
+        headers={"Authorization": f"Bearer {token}"},
+        is_keep_alive=True
+    ),
+    oxy.ReActAgent(name="agent", llm_model="llm", tools=["prod_streaming"])
+]
+```
+
+### Scenario 3: Multi-Environment Setup
+
+**Recommendation:** Mix of all clients
+
+**Why:**
+- Different environments have different needs
+- Local tools for dev
+- Remote APIs for production
+
+**Example:**
+```python
+oxy_space = [
+    oxy.HttpLLM(name="llm", ...),
+
+    # Local tools (fastest)
+    oxy.StdioMCPClient(
+        name="local_fs",
+        params={"command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem", "."]}
+    ),
+
+    # Remote API (SSE)
+    oxy.SSEMCPClient(
+        name="remote_api",
+        sse_url="https://api.example.com/sse",
+        headers={"Authorization": f"Bearer {token}"}
+    ),
+
+    # Streaming service (Streamable)
+    oxy.StreamableMCPClient(
+        name="streaming_service",
+        server_url="https://stream.example.com/mcp",
+        headers={"Authorization": f"Bearer {token}"}
+    ),
+
+    oxy.ReActAgent(
+        name="agent",
+        llm_model="llm",
+        tools=["local_fs", "remote_api", "streaming_service"]
+    )
+]
+```
+
+### Scenario 4: Dynamic Authentication
+
+**Recommendation:** SSEMCPClient or StreamableMCPClient with `is_dynamic_headers=True`
+
+**Why:**
+- Per-request authentication
+- User-specific tokens
+- Request-level headers
+
+**Example:**
+```python
+oxy.SSEMCPClient(
+    name="dynamic_auth",
+    sse_url="https://api.example.com/sse",
+    headers={"X-Service-Key": "base-key"},
+    is_dynamic_headers=True,
+    is_inherit_headers=True,
+    is_keep_alive=False  # Required
+)
+
+# Later, provide user-specific token
+await mas.call(
+    callee="agent",
+    arguments={
+        "messages": [...],
+        "headers": {"Authorization": f"Bearer {user_token}"}
+    }
+)
+```
+
+## Migration Guide
+
+### From Stdio to SSE
+
+**Before (Local):**
+```python
+oxy.StdioMCPClient(
+    name="tools",
+    params={
+        "command": "python",
+        "args": ["./mcp_server.py"]
+    }
+)
+```
+
+**After (Remote):**
+```python
+# Start server separately: python mcp_server_sse.py
+oxy.SSEMCPClient(
+    name="tools",
+    sse_url="http://localhost:9000/sse"
+)
+```
+
+### From SSE to Streamable
+
+**Before (SSE):**
+```python
+oxy.SSEMCPClient(
+    name="tools",
+    sse_url="https://api.example.com/sse",
+    headers={"Authorization": f"Bearer {token}"}
+)
+```
+
+**After (Streamable):**
+```python
+oxy.StreamableMCPClient(
+    name="tools",
+    server_url="https://api.example.com/mcp",  # Note: different endpoint
+    headers={"Authorization": f"Bearer {token}"}
+)
+```
+
+## Best Practices
+
+### For StdioMCPClient
+
+1. **Use absolute paths** for directory-based commands
+2. **Set environment variables** for configuration
+3. **Handle process cleanup** properly
+4. **Monitor process logs** for debugging
+
+### For SSEMCPClient
+
+1. **Use `is_keep_alive=True`** for production
+2. **Add retry logic** for network failures
+3. **Monitor connection health**
+4. **Use dynamic headers** only when necessary
+
+### For StreamableMCPClient
+
+1. **Optimize for your workload** (persistent vs transient)
+2. **Tune concurrency** via `semaphore`
+3. **Set appropriate timeouts** for long streams
+4. **Use middlewares** for monitoring
+
+## Troubleshooting
+
+### StdioMCPClient Issues
+
+**Process won't start:**
+- Check command is in PATH
+- Verify file permissions
+- Check directory exists
+
+**Tools not discovered:**
+- Verify MCP server implements protocol correctly
+- Check server logs for errors
+
+### SSEMCPClient Issues
+
+**Connection refused:**
+- Verify server is running
+- Check URL and port
+- Test with curl/browser
+
+**Authentication failed:**
+- Verify token is valid
+- Check header format
+
+### StreamableMCPClient Issues
+
+**Streaming timeout:**
+- Increase `timeout` parameter
+- Check network latency
+- Optimize server response
+
+## Related Documentation
+
+- **[StdioMCPClient](/docs/tools-mcp-stdio)** - Local process MCP client
+- **[SSEMCPClient](/docs/tools-mcp-sse)** - HTTP SSE-based MCP client
+- **[StreamableMCPClient](/docs/tools-mcp-streamable)** - HTTP streamable MCP client
+- **[FunctionHub](/docs/tools-function-hub)** - Python-native tool approach
+- **[ReActAgent](/docs/agents-react)** - Using tools in agents

@@ -1,0 +1,509 @@
+---
+title: StdioMCPClient
+description: Local process MCP client using standard I/O communication
+icon: Terminal
+---
+
+# StdioMCPClient
+
+The **StdioMCPClient** implements MCP (Model Context Protocol) communication over standard input/output streams, enabling seamless integration with local MCP server processes.
+
+## Overview
+
+StdioMCPClient is designed for integrating local MCP servers that run as separate processes. It spawns and manages external processes (such as Node.js scripts, Python servers, or other executables) that implement the MCP protocol, establishing bidirectional communication through standard I/O streams.
+
+### Key Features
+
+- **Process Management**: Automatically spawns and manages MCP server processes
+- **Stdio Transport**: Reliable communication through stdin/stdout pipes
+- **Tool Discovery**: Automatic discovery and registration of server tools
+- **NPX Integration**: Built-in support for Node.js package executors
+- **Directory Validation**: Ensures required directories and files exist before startup
+- **Resource Cleanup**: Proper process termination and resource management
+
+### When to Use StdioMCPClient
+
+```
+┌─────────────────────────────────────────────────────┐
+│         StdioMCPClient Use Cases                    │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│  ✓ Local MCP servers (Node.js, Python, etc.)       │
+│  ✓ Command-line tools with MCP interface           │
+│  ✓ Development and testing environments            │
+│  ✓ Single-machine deployments                      │
+│  ✓ Low-latency local process communication         │
+│  ✓ Using npx/npm packaged MCP servers              │
+│                                                     │
+│  Use SSEMCPClient for:                              │
+│  → Remote MCP servers over HTTP                     │
+│  → Real-time streaming responses                    │
+│                                                     │
+│  Use StreamableMCPClient for:                       │
+│  → Bidirectional HTTP streaming                     │
+│  → Advanced HTTP-based MCP communication            │
+└─────────────────────────────────────────────────────┘
+```
+
+## Quick Start
+
+### Basic Usage with NPX
+
+Running a Node.js MCP server using npx:
+
+```python
+import asyncio
+import os
+from oxygent import MAS, oxy
+
+oxy_space = [
+    oxy.HttpLLM(
+        name="default_llm",
+        api_key=os.getenv("DEFAULT_LLM_API_KEY"),
+        base_url=os.getenv("DEFAULT_LLM_BASE_URL"),
+        model_name=os.getenv("DEFAULT_LLM_MODEL_NAME"),
+        llm_params={"temperature": 0.1},
+    ),
+    oxy.StdioMCPClient(
+        name="filesystem_tools",
+        params={
+            "command": "npx",
+            "args": ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"],
+            "env": {}
+        }
+    ),
+    oxy.ReActAgent(
+        name="file_assistant",
+        is_master=True,
+        llm_model="default_llm",
+        tools=["filesystem_tools"]
+    ),
+]
+
+async def main():
+    async with MAS(oxy_space=oxy_space) as mas:
+        result = await mas.call(
+            callee="file_assistant",
+            arguments={
+                "messages": [
+                    {"role": "user", "content": "List files in /tmp directory"}
+                ]
+            }
+        )
+        print(result.output)
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+### Local Python MCP Server
+
+Running a custom Python MCP server:
+
+```python
+from oxygent import MAS, oxy
+import os
+
+oxy_space = [
+    oxy.HttpLLM(name="default_llm", ...),
+    oxy.StdioMCPClient(
+        name="custom_tools",
+        params={
+            "command": "uv",
+            "args": ["--directory", "./mcp_servers", "run", "custom_server.py"],
+            "env": {}
+        }
+    ),
+    oxy.ReActAgent(
+        name="agent",
+        is_master=True,
+        llm_model="default_llm",
+        tools=["custom_tools"]
+    ),
+]
+
+async def main():
+    async with MAS(oxy_space=oxy_space) as mas:
+        await mas.start_web_service(first_query="Hello!")
+
+asyncio.run(main())
+```
+
+### Multiple MCP Servers
+
+Managing multiple local MCP servers:
+
+```python
+oxy_space = [
+    oxy.HttpLLM(name="default_llm", ...),
+
+    # Filesystem tools
+    oxy.StdioMCPClient(
+        name="filesystem_tools",
+        params={
+            "command": "npx",
+            "args": ["-y", "@modelcontextprotocol/server-filesystem", "/workspace"],
+        }
+    ),
+
+    # Git tools
+    oxy.StdioMCPClient(
+        name="git_tools",
+        params={
+            "command": "npx",
+            "args": ["-y", "@modelcontextprotocol/server-git"],
+        }
+    ),
+
+    # Custom local tools
+    oxy.StdioMCPClient(
+        name="custom_tools",
+        params={
+            "command": "python",
+            "args": ["./servers/my_mcp_server.py"],
+        }
+    ),
+
+    oxy.ReActAgent(
+        name="dev_assistant",
+        is_master=True,
+        llm_model="default_llm",
+        tools=["filesystem_tools", "git_tools", "custom_tools"]
+    ),
+]
+```
+
+## Configuration Options
+
+### Required Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `name` | `str` | **Yes** | Unique identifier for this MCP client |
+| `params` | `dict` | **Yes** | Configuration dictionary for process and command |
+
+### params Dictionary
+
+The `params` dictionary configures the MCP server process:
+
+| Key | Type | Required | Description |
+|-----|------|----------|-------------|
+| `command` | `str` | **Yes** | Command to execute (e.g., "npx", "python", "node") |
+| `args` | `list[str]` | **Yes** | Command-line arguments as list of strings |
+| `env` | `dict[str, str]` | No | Additional environment variables (merges with `os.environ`) |
+
+**Example:**
+```python
+oxy.StdioMCPClient(
+    name="my_server",
+    params={
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/dir"],
+        "env": {
+            "DEBUG": "true",
+            "API_KEY": "your-key"
+        }
+    }
+)
+```
+
+### Inherited Parameters
+
+StdioMCPClient inherits from BaseMCPClient with these options:
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `headers` | `dict[str, str]` | `{}` | HTTP headers (not typically used for stdio) |
+| `is_dynamic_headers` | `bool` | `False` | Enable dynamic header updates |
+| `is_inherit_headers` | `bool` | `False` | Inherit headers from request context |
+| `is_keep_alive` | `bool` | Config default | Keep connection alive between calls |
+
+## Understanding StdioMCP Flow
+
+```
+┌─────────────────────────────────────────────────────────┐
+│            StdioMCPClient Lifecycle                     │
+└─────────────────────────────────────────────────────────┘
+                        │
+          1. Initialization Phase
+                        │
+                        ▼
+          ┌───────────────────────────┐
+          │  Validate command path    │
+          │  (resolve npx if needed)  │
+          └───────────────────────────┘
+                        │
+                        ▼
+          ┌───────────────────────────┐
+          │  Check directory exists   │
+          │  Create if needed         │
+          └───────────────────────────┘
+                        │
+          2. Process Spawn
+                        │
+                        ▼
+          ┌───────────────────────────┐
+          │  Spawn external process   │
+          │  command + args + env     │
+          └───────────────────────────┘
+                        │
+                        ▼
+          ┌───────────────────────────┐
+          │  Setup stdio transport    │
+          │  stdin ←→ stdout pipes    │
+          └───────────────────────────┘
+                        │
+          3. MCP Session
+                        │
+                        ▼
+          ┌───────────────────────────┐
+          │  Create ClientSession     │
+          │  Initialize MCP protocol  │
+          └───────────────────────────┘
+                        │
+          4. Tool Discovery
+                        │
+                        ▼
+          ┌───────────────────────────┐
+          │  list_tools() via MCP     │
+          │  Register MCPTool wrapper │
+          └───────────────────────────┘
+                        │
+          5. Tool Execution
+                        │
+                        ▼
+          ┌───────────────────────────┐
+          │  Agent calls tool         │
+          │  → send to stdio          │
+          │  ← receive from stdout    │
+          └───────────────────────────┘
+                        │
+          6. Cleanup
+                        │
+                        ▼
+          ┌───────────────────────────┐
+          │  Close session            │
+          │  Terminate process        │
+          │  Release resources        │
+          └───────────────────────────┘
+```
+
+## Command Patterns
+
+### NPX Commands
+
+Using Node Package eXecute for npm packages:
+
+```python
+# Standard NPX usage
+oxy.StdioMCPClient(
+    name="server",
+    params={
+        "command": "npx",
+        "args": [
+            "-y",  # Automatically accept installation
+            "@modelcontextprotocol/server-filesystem",
+            "/workspace"
+        ]
+    }
+)
+
+# With specific version
+oxy.StdioMCPClient(
+    name="server",
+    params={
+        "command": "npx",
+        "args": [
+            "-y",
+            "@modelcontextprotocol/server-filesystem@1.2.3",
+            "/workspace"
+        ]
+    }
+)
+```
+
+### Directory-Based Commands
+
+Running MCP servers from a specific directory:
+
+```python
+oxy.StdioMCPClient(
+    name="local_server",
+    params={
+        "command": "uv",  # or "python", "node", etc.
+        "args": [
+            "--directory", "./mcp_servers",  # Change to this directory
+            "run", "my_server.py"            # Execute this file
+        ]
+    }
+)
+```
+
+**Directory validation:**
+- The path in `--directory` must exist
+- The file specified in `run` must exist in that directory
+- Otherwise `FileNotFoundError` is raised
+
+### Python MCP Servers
+
+```python
+# Using Python directly
+oxy.StdioMCPClient(
+    name="python_server",
+    params={
+        "command": "python",
+        "args": ["./servers/my_mcp_server.py"]
+    }
+)
+
+# Using uv (fast Python package manager)
+oxy.StdioMCPClient(
+    name="uv_server",
+    params={
+        "command": "uv",
+        "args": ["run", "./servers/my_mcp_server.py"]
+    }
+)
+```
+
+### Custom Environment Variables
+
+Pass environment variables to the server process:
+
+```python
+oxy.StdioMCPClient(
+    name="server_with_env",
+    params={
+        "command": "npx",
+        "args": ["-y", "@my-org/mcp-server"],
+        "env": {
+            "DEBUG": "true",
+            "API_KEY": os.getenv("MY_API_KEY"),
+            "LOG_LEVEL": "info",
+            "CUSTOM_VAR": "value"
+        }
+    }
+)
+```
+
+**Note:** Environment variables are merged with `os.environ`, so the server has access to both system environment and custom variables.
+
+## Advanced Features
+
+### Automatic Directory Creation
+
+StdioMCPClient automatically creates required directories for filesystem servers:
+
+```python
+oxy.StdioMCPClient(
+    name="filesystem",
+    params={
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/new/dir"]
+    }
+)
+# If /path/to/new/dir doesn't exist, it will be created
+```
+
+### Error Handling
+
+Built-in validation and error handling:
+
+```python
+try:
+    oxy_space = [
+        oxy.StdioMCPClient(
+            name="invalid_server",
+            params={
+                "command": "npx",
+                "args": ["--directory", "./nonexistent", "run", "server.py"]
+            }
+        )
+    ]
+    async with MAS(oxy_space=oxy_space) as mas:
+        # This will raise FileNotFoundError during initialization
+        await mas.call(...)
+except FileNotFoundError as e:
+    print(f"Server validation error: {e}")
+```
+
+### Connection Management
+
+Control connection lifecycle:
+
+```python
+# Keep connection alive (default)
+oxy.StdioMCPClient(
+    name="persistent_server",
+    is_keep_alive=True,  # Process stays alive between calls
+    ...
+)
+
+# Create new connection per call
+oxy.StdioMCPClient(
+    name="transient_server",
+    is_keep_alive=False,  # Process spawned for each call
+    ...
+)
+```
+
+## API Reference
+
+For complete API documentation including all constructor parameters, methods, and implementation details, see:
+
+**[StdioMCPClient API Reference](/api-docs/tools-mcp-stdio-api)** - Complete API documentation
+
+## Examples
+
+Explore practical implementations:
+
+- **[Local MCP Tools](/examples/06_local-mcp-tools)** - Using local MCP server with stdio transport
+- **[FunctionHub Tools](/examples/05_functionhub-tools)** - Comparison with FunctionHub approach
+
+See all examples in the [Examples Gallery](/examples).
+
+## Troubleshooting
+
+### Common Issues
+
+**Command Not Found:**
+```python
+# Problem: "npx" not found
+# Solution: Ensure Node.js is installed and in PATH
+oxy.StdioMCPClient(
+    params={
+        "command": shutil.which("npx") or "npx",  # Resolve full path
+        ...
+    }
+)
+```
+
+**File Not Found:**
+```python
+# Problem: Server file doesn't exist
+# Solution: Check file path and directory
+params={
+    "command": "uv",
+    "args": ["--directory", "./mcp_servers", "run", "server.py"]
+}
+# Ensure ./mcp_servers/server.py exists
+```
+
+**Process Timeout:**
+```python
+# Problem: Server takes too long to start
+# Solution: Increase timeout in BaseTool parameters
+oxy.StdioMCPClient(
+    name="slow_server",
+    timeout=120,  # 2 minutes
+    ...
+)
+```
+
+## Related Documentation
+
+- **[SSEMCPClient](/docs/tools-mcp-sse)** - HTTP SSE-based MCP client
+- **[StreamableMCPClient](/docs/tools-mcp-streamable)** - HTTP streamable MCP client
+- **[MCP Comparison Guide](/docs/tools-mcp-comparison)** - Compare different MCP clients
+- **[FunctionHub](/docs/tools-function-hub)** - Alternative Python-native tool approach
+- **[ReActAgent](/docs/agents-react)** - Using MCP tools in agents
