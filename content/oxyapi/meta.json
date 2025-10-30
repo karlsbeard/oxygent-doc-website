@@ -1,12 +1,17 @@
 {
   "title": "API Reference",
   "pages": [
+    "index",
     "---Agents---",
     "agents-react-api",
     "agents-workflow-api",
+    "---Flows---",
+    "flows-workflow-api",
+    "flows-parallel-api",
+    "flows-plan-and-solve-api",
+    "flows-reflexion-api",
     "---LLMs---",
     "llms-http-api",
-    "llms-openai",
     "---Tools---",
     "tools-function-hub-api",
     "tools-mcp-stdio-api",

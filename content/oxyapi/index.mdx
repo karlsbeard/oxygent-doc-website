@@ -1,0 +1,65 @@
+---
+title: API Reference
+description: Complete API documentation for OxyGent framework
+icon: Code
+---
+
+# API Reference
+
+欢迎使用 OxyGent API 参考文档。这里提供了 OxyGent 框架所有组件的详细 API 文档。
+
+## 智能体 (Agents)
+
+智能体是 OxyGent 框架中的核心组件，负责执行具体的任务和决策。
+
+- **[ReactAgent API](agents-react-api)** - 基于 ReAct 模式的智能体 API 文档
+- **[WorkflowAgent API](agents-workflow-api)** - 工作流智能体 API 文档
+
+## 流程 (Flows)
+
+流程组件定义了智能体的执行逻辑和决策流程。
+
+- **[WorkflowFlow API](flows-workflow-api)** - 工作流流程 API 文档
+- **[ParallelFlow API](flows-parallel-api)** - 并行流程 API 文档
+- **[PlanAndSolveFlow API](flows-plan-and-solve-api)** - 计划求解流程 API 文档
+- **[ReflexionFlow API](flows-reflexion-api)** - 反思流程 API 文档
+
+## 大语言模型 (LLMs)
+
+大语言模型组件提供了与各种 LLM 服务的集成接口。
+
+- **[HttpLLM API](llms-http-api)** - HTTP 大语言模型 API 文档
+
+## 工具 (Tools)
+
+工具组件为智能体提供了与外部系统交互的能力。
+
+- **[FunctionHub API](tools-function-hub-api)** - 函数中心 API 文档
+- **[MCP STDIO API](tools-mcp-stdio-api)** - MCP 标准输入输出工具 API 文档
+- **[MCP SSE API](tools-mcp-sse-api)** - MCP 服务器发送事件工具 API 文档
+- **[MCP Streamable API](tools-mcp-streamable-api)** - MCP 流式工具 API 文档
+
+## 快速开始
+
+如果您是第一次使用 OxyGent API，建议从以下步骤开始：
+
+1. 查看 [ReactAgent API](agents-react-api) 了解基本的智能体使用方法
+2. 学习 [HttpLLM API](llms-http-api) 了解如何配置大语言模型
+3. 探索 [FunctionHub API](tools-function-hub-api) 了解工具系统的使用
+
+## API 约定
+
+所有 OxyGent API 都遵循以下约定：
+
+- **异步操作**：大部分 API 方法都是异步的，需要使用 `await` 关键字
+- **类型安全**：所有 API 都提供了完整的类型注解
+- **错误处理**：API 方法会抛出具体的异常类型，便于错误处理
+- **配置灵活**：支持多种配置方式，包括参数传递、配置文件等
+
+## 获取帮助
+
+如果您在使用 API 过程中遇到问题，可以：
+
+1. 查看具体组件的 API 文档
+2. 参考代码示例和最佳实践
+3. 查看错误处理和故障排除部分

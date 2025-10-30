@@ -37,14 +37,6 @@ export default async function Layout({ params, children }: IProps) {
   //   iconClassName: 'bg-gradient-to-br from-purple-500 to-purple-600',
   // }]
 
-  // const ecosystemLinks = [{
-  //   text: '🔧 开发工具',
-  //   url: `/${lang}/ecosystem`,
-  // }, {
-  //   text: '📚 资源中心',
-  //   url: `/${lang}/ecosystem/resources`,
-  // }]
-
   const links: LinkItemType[] = [
     {
       type: 'custom',
@@ -81,32 +73,9 @@ export default async function Layout({ params, children }: IProps) {
         </NavbarMenu>
       ),
     },
-    // {
-    //   type: 'custom',
-    //   on: 'nav',
-    //   children: (
-    //     <NavbarMenu>
-    //       <NavbarMenuTrigger asChild>
-    //         <button className="cursor-pointer" type="button">
-    //           {customTranslations[currentLang]['ecosystem.title']}
-    //         </button>
-    //       </NavbarMenuTrigger>
-    //       <NavbarMenuContent className="text-sm">
-    //         {ecosystemLinks.map(link => (
-    //           <NavbarMenuLink
-    //             key={link.url}
-    //             href={link.url}
-    //           >
-    //             <span className="relative">{link.text}</span>
-    //           </NavbarMenuLink>
-    //         ))}
-    //       </NavbarMenuContent>
-    //     </NavbarMenu>
-    //   ),
-    // },
     {
-      text: customTranslations[currentLang]['api.title'],
-      url: `/${lang}/api-docs`,
+      text: customTranslations[currentLang]['oxyapi.title'],
+      url: `/${lang}/oxyapi`,
     },
     {
       text: customTranslations[currentLang]['examples.title'],

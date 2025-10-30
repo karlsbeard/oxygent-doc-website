@@ -1,0 +1,537 @@
+---
+title: Reflexion API Reference
+description: Complete API reference for Reflexion flow constructor parameters and self-evaluation methods
+icon: Code
+---
+
+# Reflexion API Reference
+
+Complete API documentation for the Reflexion and MathReflexion flow classes.
+
+## Class Overview
+
+```python
+from oxygent.oxy.flows import Reflexion, Math Reflexion
+
+# Basic Reflexion
+reflexion_flow = Reflexion(
+    name="quality_improver",
+    desc="Iteratively improves answer quality through self-evaluation",
+    worker_agent="worker_agent",
+    reflexion_agent="reflexion_agent",
+    max_reflexion_rounds=3
+)
+
+# Math-specialized Reflexion
+math_flow = MathReflexion(
+    name="math_solver",
+    desc="Specialized reflexion for mathematical problems",
+    max_reflexion_rounds=3
+)
+```
+
+## Constructor Parameters
+
+### Core Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `name` | str | Required | Unique identifier for the reflexion flow |
+| `worker_agent` | str | "worker_agent" | Name of the worker agent that generates answers |
+| `reflexion_agent` | str | "reflexion_agent" | Name of the agent that evaluates answers |
+| `max_reflexion_rounds` | int | 3 | Maximum number of improvement iterations |
+
+### Parsing Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `func_parse_worker_response` | Callable | None | Custom worker response parser |
+| `func_parse_reflexion_response` | Callable | None | Custom reflexion response parser |
+| `pydantic_parser_reflexion` | PydanticOutputParser | ReflectionEvaluation parser | Structured evaluation parser |
+
+### Template Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `evaluation_template` | str | Default template | Template for evaluation prompts |
+| `improvement_template` | str | Default template | Template for improvement prompts |
+
+### Optional Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `desc` | str | "" | Description of the flow's purpose |
+| `timeout` | int | 100 | Maximum execution time in seconds |
+| `llm_model` | str | "default_llm" | LLM model for fallback operations |
+| `is_permission_required` | bool | False | Whether permission is required |
+| `is_master` | bool | False | Whether this is the master entry point |
+
+## Parameter Details
+
+### `worker_agent`
+- **Type**: `str`
+- **Default**: `"worker_agent"`
+- **Description**: Name of the agent that generates answers to be evaluated.
+
+**Requirements:**
+- Must be registered in the same MAS
+- Should produce meaningful answers
+- Can be any agent type (ChatAgent, ReActAgent, etc.)
+
+**Example:**
+```python
+Reflexion(
+    name="improver",
+    worker_agent="content_writer",  # Custom worker
+    reflexion_agent="quality_checker"
+)
+```
+
+### `reflexion_agent`
+- **Type**: `str`
+- **Default**: `"reflexion_agent"`
+- **Description**: Name of the agent that evaluates answer quality and provides improvement suggestions.
+
+**Requirements:**
+- Must be registered in the same MAS
+- Should understand evaluation criteria
+- Should provide constructive feedback
+
+**Example:**
+```python
+Reflexion(
+    name="improver",
+    worker_agent="writer",
+    reflexion_agent="editor_agent"  # Custom evaluator
+)
+```
+
+### `max_reflexion_rounds`
+- **Type**: `int`
+- **Default**: `3`
+- **Description**: Maximum number of improvement iterations before returning final answer.
+
+**Usage Guidelines:**
+- Quick improvements: 1-2 rounds
+- Standard quality: 3-5 rounds
+- High precision: 5-10 rounds
+
+**Example:**
+```python
+Reflexion(
+    name="high_quality",
+    max_reflexion_rounds=5,  # More iterations for quality
+    ...
+)
+```
+
+### `evaluation_template`
+- **Type**: `str`
+- **Default**: Quality evaluation template
+- **Description**: Template string for evaluation prompts. Variables: `{query}`, `{answer}`
+
+**Default Template:**
+```python
+"""Please evaluate the quality of the following answer:
+
+Original Question: {query}
+
+Answer: {answer}
+
+Please evaluate based on these criteria:
+1. Accuracy: Is the information correct and factual?
+2. Completeness: Does it fully address the user's question?
+3. Clarity: Is it well-structured and easy to understand?
+4. Relevance: Does it stay focused on the user's needs?
+5. Helpfulness: Does it provide practical value to the user?
+
+Return your evaluation in the following format:
+- is_satisfactory: true/false
+- evaluation_reason: [Detailed explanation]
+- improvement_suggestions: [Specific recommendations if unsatisfactory]"""
+```
+
+**Custom Example:**
+```python
+custom_template = """Evaluate this technical answer:
+
+Question: {query}
+Answer: {answer}
+
+Check:
+1. Technical accuracy
+2. Code correctness
+3. Best practices followed
+
+Format:
+- is_satisfactory: true/false
+- evaluation_reason: [Why?]
+- improvement_suggestions: [How to improve?]"""
+
+Reflexion(
+    name="tech_reviewer",
+    evaluation_template=custom_template,
+    ...
+)
+```
+
+### `improvement_template`
+- **Type**: `str`
+- **Default**: Improvement prompt template
+- **Description**: Template for improvement prompts. Variables: `{original_query}`, `{improvement_suggestions}`, `{previous_answer}`
+
+**Default Template:**
+```python
+"""{original_query}
+
+Please improve your previous answer based on the following feedback:
+{improvement_suggestions}
+
+Previous answer: {previous_answer}"""
+```
+
+**Custom Example:**
+```python
+Reflexion(
+    name="improver",
+    improvement_template="""Original task: {original_query}
+
+Your previous attempt needs improvement:
+{previous_answer}
+
+Feedback: {improvement_suggestions}
+
+Please provide an improved version.""",
+    ...
+)
+```
+
+### `pydantic_parser_reflexion`
+- **Type**: `PydanticOutputParser`
+- **Default**: `PydanticOutputParser(output_cls=ReflectionEvaluation)`
+- **Description**: Parser for structured evaluation results.
+
+**Default ReflectionEvaluation Model:**
+```python
+class ReflectionEvaluation(BaseModel):
+    is_satisfactory: bool = Field(description="Whether the answer is satisfactory")
+    evaluation_reason: str = Field(description="Detailed explanation of the evaluation")
+    improvement_suggestions: str = Field(
+        default="", description="Specific improvement suggestions if unsatisfactory"
+    )
+```
+
+## ReflectionEvaluation Model
+
+### Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `is_satisfactory` | bool | Yes | Whether the answer meets quality standards |
+| `evaluation_reason` | str | Yes | Detailed explanation of the evaluation |
+| `improvement_suggestions` | str | No | Specific recommendations for improvement |
+
+**Example:**
+```python
+evaluation = ReflectionEvaluation(
+    is_satisfactory=False,
+    evaluation_reason="Answer lacks specific examples and technical details",
+    improvement_suggestions="Add code examples and explain the technical trade-offs"
+)
+```
+
+## Methods
+
+### `_execute(oxy_request: OxyRequest) -> OxyResponse`
+
+**Internal method** - Orchestrates the reflexion workflow.
+
+**Execution Flow:**
+1. **Initial Answer**: Call worker agent with original query
+2. **Evaluation Loop** (up to max_reflexion_rounds):
+   - Parse worker response
+   - Format evaluation query
+   - Call reflexion agent
+   - Parse evaluation result
+   - If satisfactory: Return final answer
+   - If not: Update query with improvements, repeat
+3. **Max Rounds Fallback**: Generate final answer using LLM
+
+**Note:** Internal method - use `mas.call()` or `oxy_request.call()` instead.
+
+## MathReflexion Class
+
+Specialized Reflexion subclass for mathematical problems.
+
+### Constructor
+
+```python
+MathReflexion(
+    name="math_solver",
+    desc="Specialized reflexion for math",
+    worker_agent="math_expert_agent",  # Optional, defaults to "math_expert_agent"
+    reflexion_agent="math_checker_agent",  # Optional, defaults to "math_checker_agent"
+    max_reflexion_rounds=3
+)
+```
+
+### Differences from Base Reflexion
+
+1. **Default Agents**: Uses math-specific agent names
+2. **Math Evaluation Template**: Specialized for mathematical correctness
+3. **Step-by-Step Focus**: Emphasizes showing calculation steps
+
+**Default Math Evaluation Template:**
+```python
+"""Please check the correctness and completeness of the following mathematical solution:
+
+Problem: {query}
+
+Solution: {answer}
+
+Check points:
+1. Are the calculation steps correct?
+2. Are there any missing steps?
+3. Is the final answer clear?
+4. Is the problem-solving approach clear?
+5. Are mathematical formulas and theorems applied correctly?
+
+Return your evaluation in the following format:
+- is_satisfactory: true/false (use true for Pass, false for Fail)
+- evaluation_reason: [Detailed explanation of the check]
+- improvement_suggestions: [Specific correction suggestions if failed]"""
+```
+
+## Usage Examples
+
+### Basic Reflexion
+
+```python
+from oxygent import MAS, oxy
+
+oxy_space = [
+    oxy.HttpLLM(name="default_llm", ...),
+    oxy.ChatAgent(
+        name="worker_agent",
+        prompt="You are a helpful assistant"
+    ),
+    oxy.ChatAgent(
+        name="reflexion_agent",
+        prompt="You are a quality evaluator"
+    ),
+    oxy.flows.Reflexion(
+        name="quality_flow",
+        worker_agent="worker_agent",
+        reflexion_agent="reflexion_agent",
+        max_reflexion_rounds=3
+    )
+]
+
+async def main():
+    async with MAS(oxy_space=oxy_space) as mas:
+        result = await mas.call(
+            callee="quality_flow",
+            arguments={"query": "Explain quantum computing"}
+        )
+        print(result.output)
+        print(result.extra)  # Contains reflexion metadata
+```
+
+### Math Reflexion
+
+```python
+oxy.flows.MathReflexion(
+    name="math_solver",
+    desc="Solve and verify mathematical problems",
+    max_reflexion_rounds=5  # More rounds for complex math
+)
+```
+
+### Custom Evaluation Criteria
+
+```python
+oxy.flows.Reflexion(
+    name="code_reviewer",
+    evaluation_template="""Review this code answer:
+
+Question: {query}
+Code: {answer}
+
+Evaluate:
+1. Code correctness
+2. Best practices
+3. Performance
+4. Security
+
+Return:
+- is_satisfactory: true/false
+- evaluation_reason: [Analysis]
+- improvement_suggestions: [Specific fixes]""",
+    worker_agent="coder_agent",
+    reflexion_agent="reviewer_agent"
+)
+```
+
+## Execution Flow Diagram
+
+```
+User Query
+    ↓
+┌─── Reflexion Loop (max_reflexion_rounds) ───┐
+│                                              │
+│  worker_agent generates answer               │
+│    ↓                                         │
+│  Parse worker response                       │
+│    ↓                                         │
+│  Format evaluation query (evaluation_template) │
+│    ↓                                         │
+│  reflexion_agent evaluates quality           │
+│    ↓                                         │
+│  Parse evaluation (ReflectionEvaluation)     │
+│    ↓                                         │
+│  is_satisfactory = true?                     │
+│    ├─Yes→ Return final answer ✅             │
+│    └─No─→ Format improvement query           │
+│           (improvement_template)             │
+│           Update current_query               │
+│           Continue loop ↻                    │
+│                                              │
+└──────────────────────────────────────────────┘
+    ↓
+If max rounds reached:
+  Use LLM to generate final answer
+    ↓
+OxyResponse(
+  output=final answer,
+  extra={
+    reflexion_rounds: N,
+    final_evaluation: {...},
+    reached_max_rounds: true/false
+  }
+)
+```
+
+## Return Value
+
+### OxyResponse Structure
+
+```python
+{
+    "state": OxyState.COMPLETED,
+    "output": "Final answer optimized through N rounds of reflexion:\n\n[answer]",
+    "extra": {
+        "reflexion_rounds": 3,  # Number of rounds executed
+        "final_evaluation": {
+            "is_satisfactory": true,
+            "evaluation_reason": "...",
+            "improvement_suggestions": "..."
+        },
+        "reached_max_rounds": false  # True if stopped due to max_rounds
+    }
+}
+```
+
+## Best Practices
+
+### 1. Choose Appropriate Evaluator
+
+```python
+# ✅ Good: Specialized evaluator
+oxy.ChatAgent(
+    name="evaluator",
+    llm_model="gpt-4",  # Strong evaluation capabilities
+    prompt="You are an expert editor. Evaluate answer quality rigorously."
+)
+
+# ⚠️ Caution: Same model for worker and evaluator may lack critical distance
+```
+
+### 2. Set Realistic Max Rounds
+
+```python
+# Quick improvements
+Reflexion(name="quick", max_reflexion_rounds=2, ...)
+
+# High-quality output
+Reflexion(name="quality", max_reflexion_rounds=5, ...)
+
+# Mathematical precision
+MathReflexion(name="math", max_reflexion_rounds=7, ...)
+```
+
+### 3. Provide Clear Evaluation Criteria
+
+```python
+# ✅ Good: Specific, measurable criteria
+evaluation_template="""Evaluate based on:
+1. Factual accuracy (verify claims)
+2. Completeness (addresses all aspects)
+3. Clarity (understandable language)
+..."""
+
+# ❌ Bad: Vague criteria
+evaluation_template="Is this answer good? yes/no"
+```
+
+### 4. Use Specific Improvement Suggestions
+
+Ensure reflexion agent provides actionable feedback:
+
+```python
+# ✅ Good
+improvement_suggestions="Add specific examples in section 2. Clarify the technical terms. Include performance comparison."
+
+# ❌ Bad
+improvement_suggestions="Make it better."
+```
+
+## Common Patterns
+
+### Pattern: Content Quality Improvement
+
+```python
+Reflexion(
+    name="content_improver",
+    worker_agent="content_writer",
+    reflexion_agent="editor",
+    max_reflexion_rounds=4
+)
+```
+
+### Pattern: Code Review
+
+```python
+Reflexion(
+    name="code_reviewer",
+    worker_agent="code_generator",
+    reflexion_agent="code_critic",
+    evaluation_template=code_review_template,
+    max_reflexion_rounds=3
+)
+```
+
+### Pattern: Mathematical Verification
+
+```python
+MathReflexion(
+    name="math_verifier",
+    max_reflexion_rounds=5
+)
+```
+
+## Comparison with Other Flows
+
+| Feature | Reflexion | Workflow | PlanAndSolve |
+|---------|-----------|----------|--------------|
+| **Self-evaluation** | Yes | Optional | No |
+| **Iterations** | Quality-driven | Custom | Step-driven |
+| **Improvement** | Automatic | Manual | N/A |
+| **Use case** | Quality refinement | Custom logic | Multi-step tasks |
+
+## Related API References
+
+- [Workflow API](/api-docs/flows-workflow-api) - Custom workflow flow API
+- [ParallelFlow API](/api-docs/flows-parallel-api) - Parallel execution flow API
+- [PlanAndSolve API](/api-docs/flows-plan-and-solve-api) - Plan-and-execute flow API
+- [ChatAgent API](/api-docs/agents-chat-api) - Worker and evaluator agent API
+- [ReActAgent API](/api-docs/agents-react-api) - Advanced worker agent API

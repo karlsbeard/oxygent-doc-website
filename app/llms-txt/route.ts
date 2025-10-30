@@ -34,8 +34,7 @@ ${examples.map(example => `- ${example.data.title}: ${baseUrl}/examples/${exampl
 ## Additional Resources
 
 - Full Documentation: ${baseUrl}/llms-full.txt
-- API Documentation: ${baseUrl}/api-docs
-- Ecosystem: ${baseUrl}/ecosystem
+- OxyAPI: ${baseUrl}/oxyapi
 
 ## Languages
 

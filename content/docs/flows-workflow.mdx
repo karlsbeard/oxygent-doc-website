@@ -1,0 +1,374 @@
+---
+title: Workflow
+description: Custom workflow execution flow that enables flexible user-defined logic integration
+icon: Workflow
+---
+
+# Workflow
+
+Workflow is OxyGent's flexible flow component that enables execution of custom workflow functions within the flow framework. It serves as a bridge between the flow system and user-defined logic, allowing you to implement any custom workflow pattern.
+
+## Overview
+
+The Workflow flow provides maximum flexibility for implementing custom execution patterns. Unlike other flows with predefined behavior (ParallelFlow, PlanAndSolve, Reflexion), Workflow gives you complete control over the execution logic through a custom function.
+
+**Key Features:**
+
+- **Custom Logic**: Execute any user-defined workflow function
+- **Flow Integration**: Seamlessly integrates with OxyGent's flow system
+- **Flexible Patterns**: Implement any workflow pattern (sequential, conditional, looping, etc.)
+- **Context Access**: Full access to OxyRequest for context and agent communication
+- **Simple Interface**: Minimal boilerplate, focus on your workflow logic
+
+**When to Use:**
+
+- When existing flows (ParallelFlow, PlanAndSolve, Reflexion) don't match your needs
+- Custom orchestration logic requiring specific control flow
+- Experimental workflow patterns or prototypes
+- Domain-specific workflows with unique requirements
+
+## Quick Start
+
+### Basic Usage
+
+Create a simple workflow that processes a request and returns a result:
+
+```python
+import asyncio
+from oxygent import MAS, oxy
+from oxygent.schemas import OxyRequest
+
+async def my_custom_workflow(oxy_request: OxyRequest) -> str:
+    """Simple custom workflow function."""
+    query = oxy_request.get_query()
+
+    # Your custom logic here
+    result = f"Processed query: {query}"
+
+    return result
+
+oxy_space = [
+    oxy.HttpLLM(
+        name="default_llm",
+        api_key="your_api_key",
+        base_url="your_base_url",
+        model_name="your_model"
+    ),
+    oxy.flows.Workflow(
+        name="custom_flow",
+        desc="My custom workflow",
+        func_workflow=my_custom_workflow
+    ),
+]
+
+async def main():
+    async with MAS(oxy_space=oxy_space) as mas:
+        result = await mas.call(
+            callee="custom_flow",
+            arguments={"query": "Hello, workflow!"}
+        )
+        print(result.output)
+
+asyncio.run(main())
+```
+
+### With Agent Calls
+
+Access other agents and tools within your workflow:
+
+```python
+async def multi_agent_workflow(oxy_request: OxyRequest) -> str:
+    """Workflow that orchestrates multiple agents."""
+    query = oxy_request.get_query()
+
+    # Call first agent for analysis
+    analysis_result = await oxy_request.call(
+        callee="analyzer_agent",
+        arguments={"query": query}
+    )
+
+    # Call second agent for processing
+    final_result = await oxy_request.call(
+        callee="processor_agent",
+        arguments={"query": analysis_result.output}
+    )
+
+    return f"Analysis: {analysis_result.output}\nResult: {final_result.output}"
+
+oxy_space = [
+    oxy.HttpLLM(name="default_llm", ...),
+    oxy.ReActAgent(name="analyzer_agent", ...),
+    oxy.ReActAgent(name="processor_agent", ...),
+    oxy.flows.Workflow(
+        name="orchestrator_flow",
+        desc="Orchestrates analysis and processing agents",
+        func_workflow=multi_agent_workflow
+    ),
+]
+```
+
+## Configuration Options
+
+### Core Parameters
+
+#### `func_workflow` (Callable, Required)
+
+The custom workflow function to execute. Must be an async function that accepts an `OxyRequest` and returns a string.
+
+```python
+from oxygent.schemas import OxyRequest
+
+async def my_workflow(oxy_request: OxyRequest) -> str:
+    # Your workflow logic
+    return "result"
+
+oxy.flows.Workflow(
+    name="my_flow",
+    func_workflow=my_workflow
+)
+```
+
+**Function Signature:**
+- **Input**: `oxy_request: OxyRequest` - Contains query, context, and methods to call other agents
+- **Output**: `str` - The final result of your workflow
+
+**When to adjust**: Always required - this is your workflow implementation.
+
+### BaseFlow Parameters
+
+Workflow inherits all standard BaseFlow parameters:
+
+#### `name` (str, Required)
+
+Unique identifier for the flow within the MAS.
+
+```python
+oxy.flows.Workflow(
+    name="data_pipeline_flow",
+    func_workflow=my_workflow
+)
+```
+
+#### `desc` (str, Optional)
+
+Description of what this workflow does.
+
+```python
+oxy.flows.Workflow(
+    name="validation_flow",
+    desc="Validates and processes user input through multiple stages",
+    func_workflow=my_workflow
+)
+```
+
+#### `timeout` (int, default: 100)
+
+Maximum execution time in seconds.
+
+```python
+oxy.flows.Workflow(
+    name="long_workflow",
+    timeout=300,  # 5 minutes for complex workflows
+    func_workflow=my_workflow
+)
+```
+
+#### `llm_model` (str, default: "default_llm")
+
+LLM model to use for fallback operations.
+
+```python
+oxy.flows.Workflow(
+    name="smart_flow",
+    llm_model="gpt-4",
+    func_workflow=my_workflow
+)
+```
+
+## Understanding Workflow Execution
+
+The Workflow flow follows a simple execution pattern:
+
+```
+User Request
+    ↓
+OxyRequest Created
+    ↓
+func_workflow(oxy_request) Called
+    ↓
+Custom Logic Executes
+    ↓  (may call agents/tools)
+[Agent Calls via oxy_request.call()]
+    ↓
+Return String Result
+    ↓
+OxyResponse Created (state=COMPLETED)
+    ↓
+Result Returned to User
+```
+
+**Key Points:**
+
+1. **Async Execution**: Workflow functions must be async
+2. **Context Access**: Full access to OxyRequest for context and communication
+3. **Agent Calls**: Use `await oxy_request.call()` to invoke other agents
+4. **Simple Return**: Just return a string - the flow handles OxyResponse creation
+
+## API Reference
+
+For complete API documentation including all constructor parameters, methods, and detailed parameter descriptions, see:
+
+**[Workflow API Reference](/api-docs/flows-workflow-api)** - Complete API documentation
+
+## Examples
+
+For practical examples and usage patterns, see:
+
+- [Custom Sequential Workflow](/examples/flows/custom-sequential) - Multi-step sequential processing
+- [Conditional Workflow](/examples/flows/conditional-logic) - Branching logic and conditions
+- [Loop-based Workflow](/examples/flows/iterative-processing) - Iterative execution patterns
+- [Multi-Agent Orchestration](/examples/flows/agent-orchestration) - Complex agent coordination
+
+See all examples in the [Examples Gallery](/examples).
+
+## Advanced Features
+
+### Conditional Logic
+
+Implement branching logic based on conditions:
+
+```python
+async def conditional_workflow(oxy_request: OxyRequest) -> str:
+    query = oxy_request.get_query()
+
+    # Determine which path to take
+    if "urgent" in query.lower():
+        result = await oxy_request.call(
+            callee="urgent_handler",
+            arguments={"query": query}
+        )
+    elif "analysis" in query.lower():
+        result = await oxy_request.call(
+            callee="analyst_agent",
+            arguments={"query": query}
+        )
+    else:
+        result = await oxy_request.call(
+            callee="general_agent",
+            arguments={"query": query}
+        )
+
+    return result.output
+```
+
+### Iterative Processing
+
+Implement loops and iterations:
+
+```python
+async def iterative_workflow(oxy_request: OxyRequest) -> str:
+    query = oxy_request.get_query()
+    max_iterations = 3
+
+    current_result = query
+    for i in range(max_iterations):
+        # Refine result through multiple iterations
+        response = await oxy_request.call(
+            callee="refiner_agent",
+            arguments={"query": current_result}
+        )
+        current_result = response.output
+
+        # Check if result is satisfactory
+        if "DONE" in current_result:
+            break
+
+    return f"Final result after {i+1} iterations: {current_result}"
+```
+
+### Error Handling
+
+Implement robust error handling:
+
+```python
+async def robust_workflow(oxy_request: OxyRequest) -> str:
+    query = oxy_request.get_query()
+
+    try:
+        # Primary agent
+        result = await oxy_request.call(
+            callee="primary_agent",
+            arguments={"query": query}
+        )
+        return result.output
+
+    except Exception as e:
+        # Fallback to backup agent
+        try:
+            result = await oxy_request.call(
+                callee="backup_agent",
+                arguments={"query": query}
+            )
+            return f"Fallback result: {result.output}"
+
+        except Exception as fallback_error:
+            return f"Error: Unable to process request - {str(fallback_error)}"
+```
+
+### Parallel Execution
+
+Combine multiple agent calls in parallel:
+
+```python
+import asyncio
+
+async def parallel_workflow(oxy_request: OxyRequest) -> str:
+    query = oxy_request.get_query()
+
+    # Execute multiple agents in parallel
+    results = await asyncio.gather(
+        oxy_request.call(callee="agent_1", arguments={"query": query}),
+        oxy_request.call(callee="agent_2", arguments={"query": query}),
+        oxy_request.call(callee="agent_3", arguments={"query": query}),
+    )
+
+    # Combine results
+    combined = "\n".join([f"Agent {i+1}: {r.output}" for i, r in enumerate(results)])
+    return combined
+```
+
+### State Management
+
+Maintain state across workflow execution:
+
+```python
+async def stateful_workflow(oxy_request: OxyRequest) -> str:
+    query = oxy_request.get_query()
+
+    # Access shared data for state
+    state = oxy_request.shared_data.get("workflow_state", {})
+
+    # Process and update state
+    step_count = state.get("steps", 0) + 1
+
+    result = await oxy_request.call(
+        callee="processor_agent",
+        arguments={"query": query}
+    )
+
+    # Update state
+    state["steps"] = step_count
+    state["last_result"] = result.output
+    oxy_request.shared_data["workflow_state"] = state
+
+    return f"Step {step_count}: {result.output}"
+```
+
+## Related Links
+
+- [ParallelFlow](/docs/flows-parallel) - Built-in parallel execution flow
+- [PlanAndSolve](/docs/flows-plan-and-solve) - Plan-and-execute workflow pattern
+- [Reflexion](/docs/flows-reflexion) - Self-evaluation and iterative improvement
+- [Flow Comparison Guide](/docs/flows-comparison) - Compare all flow types
+- [ReActAgent](/docs/agents-react) - Reasoning and acting agent
+- [OxyRequest Context](/docs/context) - Understanding request context and data flow
