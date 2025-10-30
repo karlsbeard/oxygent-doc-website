@@ -1,0 +1,460 @@
+---
+title: Flow Comparison Guide
+description: Comprehensive comparison of OxyGent flows to help you choose the right flow pattern for your use case
+icon: GitCompare
+---
+
+# Flow Comparison Guide
+
+This guide helps you choose the right flow pattern for your specific use case by comparing the characteristics, strengths, and ideal scenarios for each flow type.
+
+## Quick Reference Table
+
+| Flow | Execution Pattern | Complexity | Best For | Key Strength |
+|------|------------------|------------|----------|--------------|
+| **Workflow** | Custom logic | Variable | Custom patterns | Maximum flexibility |
+| **ParallelFlow** | Concurrent | Low | Independent operations | Speed through parallelization |
+| **PlanAndSolve** | Sequential steps | High | Multi-step tasks | Automatic planning |
+| **Reflexion** | Iterative improvement | Medium | Quality refinement | Self-evaluation |
+
+## Detailed Comparison
+
+### Workflow
+
+**Pattern**: Custom-defined execution logic
+
+**Characteristics:**
+- ✅ Complete control over execution flow
+- ✅ Supports any pattern (sequential, conditional, loops, parallel)
+- ✅ Direct access to OxyRequest and agent calls
+- ✅ Minimal boilerplate
+- ⚠️ Requires manual implementation of all logic
+
+**When to Use:**
+- Unique workflow requirements not covered by other flows
+- Complex branching logic or conditional execution
+- Experimental or prototype patterns
+- Need full control over execution flow
+
+**When Not to Use:**
+- Standard parallel execution (use ParallelFlow)
+- Multi-step tasks with planning (use PlanAndSolve)
+- Quality improvement iterations (use Reflexion)
+
+**Code Example:**
+```python
+async def custom_workflow(oxy_request: OxyRequest) -> str:
+    query = oxy_request.get_query()
+
+    # Custom logic - full control
+    if "urgent" in query.lower():
+        result = await oxy_request.call(callee="urgent_handler", arguments={"query": query})
+    else:
+        result = await oxy_request.call(callee="normal_handler", arguments={"query": query})
+
+    return result.output
+
+oxy.flows.Workflow(
+    name="custom_flow",
+    func_workflow=custom_workflow
+)
+```
+
+**Typical Use Cases:**
+- Custom orchestration logic
+- Conditional agent routing
+- Iterative processing with custom termination
+- Hybrid patterns combining multiple approaches
+
+---
+
+### ParallelFlow
+
+**Pattern**: Concurrent execution and result aggregation
+
+**Characteristics:**
+- ✅ Executes multiple tools/agents simultaneously
+- ✅ Automatic result aggregation
+- ✅ Significant speed improvements for independent operations
+- ✅ Simple configuration
+- ⚠️ Tools must be independent (no dependencies)
+- ⚠️ Simple result concatenation only
+
+**When to Use:**
+- Independent data fetching from multiple sources
+- Parallel analysis with different methods
+- Redundant operations for reliability
+- Batch operations with no dependencies
+
+**When Not to Use:**
+- Tools have execution dependencies
+- Need intelligent result summarization (use ParallelAgent instead)
+- Sequential processing required
+
+**Code Example:**
+```python
+oxy.flows.ParallelFlow(
+    name="multi_source_fetch",
+    desc="Fetch from database, API, and cache simultaneously",
+    permitted_tool_name_list=[
+        "database_reader",
+        "api_fetcher",
+        "cache_reader"
+    ]
+)
+```
+
+**Performance:**
+- **Sequential**: Time = T1 + T2 + T3
+- **Parallel**: Time = max(T1, T2, T3)
+- **Speedup**: Often 2-3x faster
+
+**Typical Use Cases:**
+- Multi-source data aggregation
+- Parallel sentiment/topic analysis
+- Redundant API calls for reliability
+- Batch independent operations
+
+---
+
+### PlanAndSolve
+
+**Pattern**: Automatic task decomposition and sequential execution
+
+**Characteristics:**
+- ✅ Automatic planning and task decomposition
+- ✅ Structured step-by-step execution
+- ✅ Optional dynamic replanning
+- ✅ Context preservation across steps
+- ⚠️ Higher complexity and overhead
+- ⚠️ Sequential only (no parallelization)
+
+**When to Use:**
+- Complex multi-step tasks
+- Tasks requiring decomposition and planning
+- Workflows where steps are interdependent
+- Dynamic scenarios needing adaptation (with replanning)
+
+**When Not to Use:**
+- Simple single-step tasks
+- When execution plan is fully known (use Workflow with predefined steps)
+- Need parallel execution (use ParallelFlow or Workflow)
+
+**Code Example:**
+```python
+oxy.flows.PlanAndSolve(
+    name="research_task",
+    planner_agent_name="planner",
+    executor_agent_name="executor",
+    enable_replanner=True,  # Adapt based on findings
+    max_replan_rounds=30
+)
+```
+
+**Execution Modes:**
+
+**1. Basic Mode** (`enable_replanner=False`):
+- Fixed plan execution
+- Linear step-by-step progress
+- Simpler and faster
+
+**2. Adaptive Mode** (`enable_replanner=True`):
+- Dynamic plan adjustment
+- Can adapt to intermediate results
+- More flexible but slower
+
+**Typical Use Cases:**
+- Research and analysis tasks
+- Data processing pipelines
+- Multi-stage workflows
+- Complex problem-solving
+
+---
+
+### Reflexion
+
+**Pattern**: Iterative self-evaluation and improvement
+
+**Characteristics:**
+- ✅ Automatic quality evaluation
+- ✅ Iterative improvement until satisfactory
+- ✅ Built-in feedback loop
+- ✅ Specialized MathReflexion variant
+- ⚠️ Slower due to multiple iterations
+- ⚠️ Requires good evaluator agent
+
+**When to Use:**
+- High-precision output requirements
+- Quality matters more than speed
+- Iterative refinement scenarios
+- Self-improving systems
+
+**When Not to Use:**
+- Speed is critical
+- Quality evaluation is not feasible
+- Single-pass sufficiency
+
+**Code Example:**
+```python
+oxy.flows.Reflexion(
+    name="quality_improver",
+    worker_agent="content_writer",
+    reflexion_agent="editor",
+    max_reflexion_rounds=5  # Up to 5 improvement cycles
+)
+
+# Specialized for math
+oxy.flows.MathReflexion(
+    name="math_solver",
+    max_reflexion_rounds=7
+)
+```
+
+**Quality vs Speed Trade-off:**
+- 1-2 rounds: Quick improvements
+- 3-5 rounds: Standard quality
+- 5-10 rounds: High precision
+
+**Typical Use Cases:**
+- Content quality improvement
+- Mathematical problem solving
+- Code review and refinement
+- Technical writing
+
+## Decision Tree
+
+```
+Start: I need to execute a workflow
+    │
+    ├─ Need maximum flexibility/custom logic?
+    │  YES → Use Workflow
+    │  NO  → Continue
+    │
+    ├─ Need to run independent operations in parallel?
+    │  YES → Use ParallelFlow
+    │  NO  → Continue
+    │
+    ├─ Need automatic task planning and decomposition?
+    │  YES → Use PlanAndSolve
+    │  NO  → Continue
+    │
+    └─ Need iterative quality improvement?
+       YES → Use Reflexion
+       NO  → Consider Workflow for custom pattern
+```
+
+## Detailed Feature Comparison
+
+### Execution Model
+
+| Feature | Workflow | ParallelFlow | PlanAndSolve | Reflexion |
+|---------|----------|--------------|--------------|-----------|
+| **Execution** | Custom | Parallel | Sequential | Iterative |
+| **Tool dependency** | Any | Independent | Dependent steps | N/A |
+| **Planning** | Manual | N/A | Automatic | N/A |
+| **Evaluation** | Optional | N/A | N/A | Automatic |
+| **Adaptation** | Custom | N/A | Optional (replanner) | Built-in |
+
+### Performance Characteristics
+
+| Aspect | Workflow | ParallelFlow | PlanAndSolve | Reflexion |
+|--------|----------|--------------|--------------|-----------|
+| **Speed** | Variable | Fast (parallel) | Medium | Slow (iterations) |
+| **Overhead** | Low | Low | High | Medium |
+| **Scalability** | Custom | High | Medium | Low |
+| **Complexity** | Variable | Low | High | Medium |
+
+### Configuration Complexity
+
+| Flow | Setup Difficulty | Configuration Options | Learning Curve |
+|------|------------------|----------------------|----------------|
+| **Workflow** | Low | Minimal (just function) | Low |
+| **ParallelFlow** | Low | Tool list | Very Low |
+| **PlanAndSolve** | High | Many parameters | High |
+| **Reflexion** | Medium | Templates, agents | Medium |
+
+## Use Case Matrix
+
+### By Task Type
+
+| Task Type | Recommended Flow | Alternative |
+|-----------|------------------|-------------|
+| **Data aggregation** | ParallelFlow | Workflow |
+| **Multi-step analysis** | PlanAndSolve | Workflow |
+| **Quality refinement** | Reflexion | Workflow (manual) |
+| **Conditional routing** | Workflow | N/A |
+| **Research task** | PlanAndSolve | Workflow |
+| **Content improvement** | Reflexion | Workflow |
+| **Batch operations** | ParallelFlow | Workflow (manual parallel) |
+| **Mathematical solving** | MathReflexion | PlanAndSolve |
+
+### By Constraints
+
+| Constraint | Recommended Flow | Reason |
+|------------|------------------|--------|
+| **Speed critical** | ParallelFlow | Parallel execution |
+| **Quality critical** | Reflexion | Iterative improvement |
+| **Flexibility needed** | Workflow | Custom control |
+| **Auto-planning needed** | PlanAndSolve | Automatic decomposition |
+| **Simple aggregation** | ParallelFlow | Low overhead |
+| **Complex orchestration** | Workflow | Full control |
+
+## Combination Patterns
+
+Flows can be combined for advanced patterns:
+
+### Pattern 1: Parallel + Reflexion
+
+Parallel execution followed by quality improvement:
+
+```python
+oxy_space = [
+    oxy.flows.ParallelFlow(name="parallel_draft", ...),
+    oxy.flows.Reflexion(
+        name="refine_results",
+        worker_agent="parallel_draft",  # Use parallel flow as worker
+        ...
+    )
+]
+```
+
+### Pattern 2: PlanAndSolve + Workflow
+
+Planning with custom execution logic:
+
+```python
+async def custom_executor(oxy_request: OxyRequest) -> str:
+    # Custom execution logic for each step
+    step = oxy_request.get_query()
+    # ... custom logic ...
+    return result
+
+oxy_space = [
+    oxy.flows.Workflow(name="custom_exec", func_workflow=custom_executor),
+    oxy.flows.PlanAndSolve(
+        name="planner",
+        executor_agent_name="custom_exec",  # Use custom workflow
+        ...
+    )
+]
+```
+
+### Pattern 3: Nested Workflows
+
+Workflow orchestrating other flows:
+
+```python
+async def orchestrator(oxy_request: OxyRequest) -> str:
+    query = oxy_request.get_query()
+
+    # Use parallel flow for data gathering
+    data = await oxy_request.call(callee="parallel_fetcher", arguments={"query": query})
+
+    # Use reflexion for quality
+    result = await oxy_request.call(callee="quality_improver", arguments={"query": data.output})
+
+    return result.output
+
+oxy.flows.Workflow(name="orchestrator", func_workflow=orchestrator)
+```
+
+## Migration Guide
+
+### From Workflow to ParallelFlow
+
+**When:** You realize you're manually doing parallel execution
+
+```python
+# Before (Workflow with manual parallelization)
+async def manual_parallel(oxy_request: OxyRequest) -> str:
+    results = await asyncio.gather(
+        oxy_request.call(callee="tool1", ...),
+        oxy_request.call(callee="tool2", ...),
+        oxy_request.call(callee="tool3", ...)
+    )
+    return "\n".join([r.output for r in results])
+
+# After (ParallelFlow)
+ParallelFlow(
+    name="parallel",
+    permitted_tool_name_list=["tool1", "tool2", "tool3"]
+)
+```
+
+### From Workflow to PlanAndSolve
+
+**When:** You're manually decomposing and executing steps
+
+```python
+# Before (Workflow with manual planning)
+async def manual_steps(oxy_request: OxyRequest) -> str:
+    step1 = await oxy_request.call(callee="agent", arguments={"query": "step 1"})
+    step2 = await oxy_request.call(callee="agent", arguments={"query": "step 2"})
+    # ...
+
+# After (PlanAndSolve)
+PlanAndSolve(
+    name="planner",
+    planner_agent_name="planner",
+    executor_agent_name="executor"
+)
+```
+
+### From Workflow to Reflexion
+
+**When:** You're manually implementing improvement loops
+
+```python
+# Before (Workflow with manual refinement)
+async def manual_refine(oxy_request: OxyRequest) -> str:
+    result = await oxy_request.call(callee="worker", ...)
+    for i in range(3):
+        evaluation = await oxy_request.call(callee="evaluator", ...)
+        if "good" in evaluation.output:
+            break
+        result = await oxy_request.call(callee="worker", ...)
+    return result.output
+
+# After (Reflexion)
+Reflexion(
+    name="improver",
+    worker_agent="worker",
+    reflexion_agent="evaluator",
+    max_reflexion_rounds=3
+)
+```
+
+## Best Practices Summary
+
+### Workflow
+- Use for unique patterns not covered by other flows
+- Keep workflow functions simple and focused
+- Document custom logic clearly
+- Consider if a specialized flow would be better
+
+### ParallelFlow
+- Ensure tools are truly independent
+- Limit to 2-5 parallel operations
+- Set appropriate timeouts
+- Consider ParallelAgent for intelligent summarization
+
+### PlanAndSolve
+- Use capable LLMs for planning
+- Provide clear executor instructions
+- Use predefined steps when workflow is known
+- Enable replanner only when needed
+
+### Reflexion
+- Choose strong evaluator agents
+- Set realistic max_reflexion_rounds
+- Provide specific evaluation criteria
+- Use MathReflexion for mathematical tasks
+
+## Related Links
+
+- [Workflow](/docs/flows-workflow) - Custom workflow execution
+- [ParallelFlow](/docs/flows-parallel) - Parallel execution
+- [PlanAndSolve](/docs/flows-plan-and-solve) - Plan-and-execute pattern
+- [Reflexion](/docs/flows-reflexion) - Iterative improvement
+- [ReActAgent](/docs/agents-react) - Reasoning and acting agent
+- [Multi-Agent System (MAS)](/docs/mas) - Agent orchestration

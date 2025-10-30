@@ -1,0 +1,555 @@
+---
+title: ParallelFlow API Reference
+description: Complete API reference for ParallelFlow constructor parameters and execution methods
+icon: Code
+---
+
+# ParallelFlow API Reference
+
+Complete API documentation for the ParallelFlow class.
+
+## Class Overview
+
+```python
+from oxygent.oxy.flows import ParallelFlow
+
+parallel_flow = ParallelFlow(
+    name="data_fetcher",
+    desc="Fetch data from multiple sources in parallel",
+    permitted_tool_name_list=["tool_1", "tool_2", "tool_3"],
+    timeout=100,
+    llm_model="default_llm"
+)
+```
+
+## Constructor Parameters
+
+### Core Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `name` | str | Required | Unique identifier for the parallel flow |
+| `permitted_tool_name_list` | list[str] | Required | List of tool/agent names to execute in parallel |
+
+### Optional Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `desc` | str | "" | Description of the flow's purpose |
+| `timeout` | int | 100 | Maximum execution time in seconds |
+| `llm_model` | str | "default_llm" | LLM model name for fallback operations |
+| `is_permission_required` | bool | False | Whether permission is required before execution |
+| `category` | str | "flow" | Category classification |
+| `is_master` | bool | False | Whether this is the master entry point |
+
+## Parameter Details
+
+### `name`
+- **Type**: `str`
+- **Required**: Yes
+- **Description**: A unique identifier for the parallel flow within the MAS. Used when calling the flow via `mas.call(callee="flow_name")`.
+
+**Example:**
+```python
+ParallelFlow(
+    name="revenue_parallel_flow",
+    permitted_tool_name_list=["get_revenue_a", "get_revenue_b", "get_revenue_c"]
+)
+```
+
+### `permitted_tool_name_list`
+- **Type**: `list[str]`
+- **Required**: Yes (via `add_permitted_tools()`)
+- **Description**: List of tool or agent names that will be executed concurrently. All tools receive the same request and execute in parallel.
+
+**Important:** All tools in this list must be registered in the same MAS instance.
+
+**Example:**
+```python
+ParallelFlow(
+    name="multi_source_fetch",
+    permitted_tool_name_list=[
+        "database_tool",
+        "api_tool",
+        "cache_tool"
+    ]
+)
+```
+
+**Usage Guidelines:**
+- **Independence Required**: Tools should be independent with no execution dependencies
+- **Same Input**: All tools receive the same `oxy_request.arguments`
+- **Optimal Count**: 2-5 tools for best balance of speed and manageability
+- **Resource Consideration**: More tools = more concurrent operations, consider system limits
+
+### `desc`
+- **Type**: `str`
+- **Default**: `""`
+- **Description**: Human-readable description of what this parallel flow does.
+
+**Example:**
+```python
+ParallelFlow(
+    name="company_data_flow",
+    desc="Fetch revenue data for three companies in parallel",
+    permitted_tool_name_list=["get_revenue_a", "get_revenue_b", "get_revenue_c"]
+)
+```
+
+### `timeout`
+- **Type**: `int`
+- **Default**: `100`
+- **Description**: Maximum execution time in seconds for the entire parallel flow. If any tool exceeds this time, the flow will timeout.
+
+**Important:** Timeout applies to the **slowest tool** since all tools run in parallel.
+
+**Usage Guidelines:**
+- Fast tools (API calls): 30-60 seconds
+- Medium tools (database queries): 60-120 seconds
+- Slow tools (complex processing): 120-300 seconds
+
+**Example:**
+```python
+ParallelFlow(
+    name="slow_processors",
+    timeout=200,  # Allow extra time for slower tools
+    permitted_tool_name_list=["heavy_processor_1", "heavy_processor_2"]
+)
+```
+
+### `llm_model`
+- **Type**: `str`
+- **Default**: `"default_llm"`
+- **Description**: Name reference to an LLM component in the MAS, used for any fallback LLM operations.
+
+**Example:**
+```python
+ParallelFlow(
+    name="smart_parallel",
+    llm_model="gpt-4",
+    permitted_tool_name_list=["analyzer_1", "analyzer_2"]
+)
+```
+
+### `is_permission_required`
+- **Type**: `bool`
+- **Default**: `False`
+- **Description**: Whether user permission is required before executing this parallel flow.
+
+### `category`
+- **Type**: `str`
+- **Default**: `"flow"`
+- **Description**: Category classification for the flow. Inherited from BaseFlow.
+
+### `is_master`
+- **Type**: `bool`
+- **Default**: `False`
+- **Description**: Whether this parallel flow is the master entry point for the multi-agent system.
+
+**Example:**
+```python
+ParallelFlow(
+    name="master_parallel",
+    is_master=True,  # Entry point
+    permitted_tool_name_list=["tool_1", "tool_2", "tool_3"]
+)
+```
+
+## Methods
+
+### `_execute(oxy_request: OxyRequest) -> OxyResponse`
+
+**Internal method** - Executes all permitted tools in parallel and aggregates results.
+
+**Implementation:**
+```python
+async def _execute(self, oxy_request: OxyRequest) -> OxyResponse:
+    # Execute all tools concurrently
+    oxy_responses = await asyncio.gather(
+        *[
+            oxy_request.call(
+                callee=permitted_tool_name,
+                arguments=oxy_request.arguments
+            )
+            for permitted_tool_name in self.permitted_tool_name_list
+        ]
+    )
+
+    # Aggregate results
+    oxy_response = OxyResponse(
+        state=OxyState.COMPLETED,
+        output="The following are the results from multiple executions:"
+               + "\n".join([res.output for res in oxy_responses])
+    )
+    return oxy_response
+```
+
+**Note:** This is an internal method. Users should call via `mas.call()` or `oxy_request.call()`.
+
+## Execution Flow
+
+```
+User Request
+    ↓
+OxyRequest Created with arguments
+    ↓
+ParallelFlow._execute() Called
+    ↓
+    ┌───────────────┬───────────────┬───────────────┐
+    ↓               ↓               ↓               ↓
+Tool 1 Exec     Tool 2 Exec     Tool 3 Exec    ...
+(parallel)      (parallel)      (parallel)
+    ↓               ↓               ↓               ↓
+Response 1      Response 2      Response 3      ...
+    └───────────────┴───────────────┴───────────────┘
+                        ↓
+            await asyncio.gather()
+                        ↓
+            Aggregate All Outputs
+                        ↓
+    OxyResponse (state=COMPLETED)
+    output = "Results:\nTool1: ...\nTool2: ...\nTool3: ..."
+                        ↓
+            Return to User
+```
+
+## Return Value
+
+### OxyResponse Structure
+
+```python
+{
+    "state": OxyState.COMPLETED,
+    "output": "The following are the results from multiple executions:\n" +
+              "Tool1 result\nTool2 result\nTool3 result"
+}
+```
+
+**Output Format:**
+- Prefix: "The following are the results from multiple executions:"
+- Each tool result on a new line
+- Results in the order of `permitted_tool_name_list`
+
+## Usage Examples
+
+### Basic Parallel Data Fetching
+
+```python
+from oxygent import MAS, oxy
+import asyncio
+
+fh = oxy.FunctionHub(name="data_tools")
+
+@fh.tool(description="Fetch revenue for company A")
+async def get_revenue_a():
+    await asyncio.sleep(2)  # Simulate API call
+    return "Company A revenue: $10M"
+
+@fh.tool(description="Fetch revenue for company B")
+async def get_revenue_b():
+    await asyncio.sleep(3)  # Simulate API call
+    return "Company B revenue: $15M"
+
+@fh.tool(description="Fetch revenue for company C")
+async def get_revenue_c():
+    await asyncio.sleep(1)  # Simulate API call
+    return "Company C revenue: $8M"
+
+oxy_space = [
+    oxy.HttpLLM(name="default_llm", ...),
+    fh,
+    oxy.flows.ParallelFlow(
+        name="revenue_parallel_flow",
+        desc="Fetch revenue data for three companies in parallel",
+        permitted_tool_name_list=[
+            "get_revenue_a",
+            "get_revenue_b",
+            "get_revenue_c"
+        ]
+    )
+]
+
+async def main():
+    async with MAS(oxy_space=oxy_space) as mas:
+        result = await mas.call(
+            callee="revenue_parallel_flow",
+            arguments={}
+        )
+        print(result.output)
+        # Output:
+        # The following are the results from multiple executions:
+        # Company A revenue: $10M
+        # Company B revenue: $15M
+        # Company C revenue: $8M
+
+asyncio.run(main())
+```
+
+### Parallel Agent Execution
+
+```python
+oxy_space = [
+    oxy.HttpLLM(name="default_llm", ...),
+    oxy.ReActAgent(
+        name="analyzer_agent",
+        llm_model="default_llm",
+        tools=[...]
+    ),
+    oxy.ReActAgent(
+        name="summarizer_agent",
+        llm_model="default_llm",
+        tools=[...]
+    ),
+    oxy.ReActAgent(
+        name="classifier_agent",
+        llm_model="default_llm",
+        tools=[...]
+    ),
+    oxy.flows.ParallelFlow(
+        name="multi_agent_parallel",
+        desc="Execute multiple analysis agents in parallel",
+        permitted_tool_name_list=[
+            "analyzer_agent",
+            "summarizer_agent",
+            "classifier_agent"
+        ]
+    )
+]
+```
+
+### Nested in ReActAgent
+
+```python
+oxy_space = [
+    oxy.HttpLLM(name="default_llm", ...),
+    fh,  # FunctionHub with tools
+    oxy.flows.ParallelFlow(
+        name="parallel_data_fetch",
+        permitted_tool_name_list=["tool_1", "tool_2", "tool_3"]
+    ),
+    oxy.ReActAgent(
+        name="master_agent",
+        is_master=True,
+        sub_agents=["parallel_data_fetch"],
+        llm_model="default_llm",
+        additional_prompt="Analyze and sort the parallel execution results"
+    )
+]
+```
+
+### With Custom Timeout
+
+```python
+oxy.flows.ParallelFlow(
+    name="long_running_parallel",
+    desc="Execute slow operations in parallel",
+    permitted_tool_name_list=[
+        "slow_processor_1",
+        "slow_processor_2",
+        "slow_processor_3"
+    ],
+    timeout=300  # 5 minutes for slow operations
+)
+```
+
+## Best Practices
+
+### 1. Ensure Tool Independence
+
+Tools in `permitted_tool_name_list` should be independent:
+
+```python
+# ✅ Good: Independent data fetchers
+ParallelFlow(
+    name="good_parallel",
+    permitted_tool_name_list=[
+        "fetch_from_db",      # Independent
+        "fetch_from_api",     # Independent
+        "fetch_from_cache"    # Independent
+    ]
+)
+
+# ❌ Bad: Dependent tools (tool_2 needs tool_1's result)
+ParallelFlow(
+    name="bad_parallel",
+    permitted_tool_name_list=[
+        "preprocess_data",    # Must run first
+        "analyze_data"        # Needs preprocessed data
+    ]
+)
+```
+
+### 2. Set Appropriate Timeouts
+
+Base timeout on the slowest expected tool:
+
+```python
+# If slowest tool takes ~60 seconds, set timeout to 90-120 seconds
+ParallelFlow(
+    name="data_parallel",
+    timeout=120,  # Extra buffer for the slowest tool
+    permitted_tool_name_list=[...]
+)
+```
+
+### 3. Limit Parallel Count
+
+Keep the number of parallel tools reasonable:
+
+```python
+# ✅ Good: 2-5 parallel tools
+ParallelFlow(
+    name="optimal_parallel",
+    permitted_tool_name_list=["tool_1", "tool_2", "tool_3"]  # 3 tools
+)
+
+# ⚠️ Caution: 10+ parallel tools may cause resource issues
+ParallelFlow(
+    name="heavy_parallel",
+    permitted_tool_name_list=["tool_1", ..., "tool_20"]  # 20 tools
+)
+```
+
+### 4. Use ParallelAgent for Intelligent Summarization
+
+If you need smart summarization of parallel results, use `ParallelAgent` instead:
+
+```python
+# For simple aggregation: ParallelFlow
+ParallelFlow(name="simple_parallel", ...)
+
+# For intelligent summary: ParallelAgent
+oxy.ParallelAgent(
+    name="smart_parallel",
+    llm_model="gpt-4",
+    ...
+)
+```
+
+### 5. Handle Tool Failures
+
+Consider what happens if one tool fails:
+
+```python
+# ParallelFlow will propagate exceptions
+# If any tool fails, the entire flow fails
+
+# For fault tolerance, wrap tools in error handling:
+@fh.tool(description="Resilient tool")
+async def resilient_tool():
+    try:
+        result = await risky_operation()
+        return result
+    except Exception as e:
+        return f"Error: {str(e)}"  # Return error as string instead of raising
+```
+
+## Performance Considerations
+
+### Parallelization Benefits
+
+**Time Savings:**
+- Sequential execution: T1 + T2 + T3
+- Parallel execution: max(T1, T2, T3)
+
+**Example:**
+```python
+# Sequential (using Workflow or normal agent calls)
+# Tool A: 5s, Tool B: 3s, Tool C: 4s
+# Total: 5 + 3 + 4 = 12 seconds
+
+# Parallel (using ParallelFlow)
+# Total: max(5, 3, 4) = 5 seconds
+# Speedup: 12/5 = 2.4x faster
+```
+
+### Resource Usage
+
+**Concurrent Execution:**
+- CPU: All tools execute simultaneously
+- Memory: All tools loaded in memory
+- Network: All network calls made concurrently
+
+**Recommendation:**
+- Monitor system resources with many parallel tools
+- Consider semaphores for rate limiting (e.g., in HttpLLM)
+
+### Timeout Strategy
+
+**Best Practice:**
+```python
+# Estimate maximum tool time: 60s
+# Add buffer: 60s * 1.5 = 90s
+# Set timeout: 90s (or 100s for round number)
+
+ParallelFlow(
+    name="data_flow",
+    timeout=100,
+    permitted_tool_name_list=[...]
+)
+```
+
+## Common Patterns
+
+### Pattern: Data Aggregation
+
+```python
+# Fetch data from multiple sources and aggregate
+ParallelFlow(
+    name="multi_source_data",
+    desc="Fetch from DB, API, and cache simultaneously",
+    permitted_tool_name_list=[
+        "database_reader",
+        "api_fetcher",
+        "cache_reader"
+    ]
+)
+```
+
+### Pattern: Parallel Analysis
+
+```python
+# Run multiple analyses on the same data
+ParallelFlow(
+    name="multi_perspective_analysis",
+    desc="Analyze data from different perspectives simultaneously",
+    permitted_tool_name_list=[
+        "sentiment_analyzer",
+        "topic_classifier",
+        "entity_extractor"
+    ]
+)
+```
+
+### Pattern: Redundancy for Reliability
+
+```python
+# Query multiple redundant sources for reliability
+ParallelFlow(
+    name="redundant_fetch",
+    desc="Fetch from multiple redundant sources, use fastest/best result",
+    permitted_tool_name_list=[
+        "primary_api",
+        "backup_api",
+        "fallback_api"
+    ]
+)
+```
+
+## Comparison with Other Flows
+
+| Feature | ParallelFlow | Workflow | PlanAndSolve |
+|---------|--------------|----------|--------------|
+| **Execution** | Concurrent | Custom logic | Sequential steps |
+| **Tool dependency** | Independent | Any | Dependent steps |
+| **Result aggregation** | Simple concat | Custom | N/A |
+| **Use case** | Parallel data fetch | Custom patterns | Multi-step plans |
+| **Complexity** | Low | Variable | High |
+
+## Related API References
+
+- [Workflow API](/api-docs/flows-workflow-api) - Custom workflow flow API
+- [PlanAndSolve API](/api-docs/flows-plan-and-solve-api) - Plan-and-execute flow API
+- [Reflexion API](/api-docs/flows-reflexion-api) - Self-evaluation flow API
+- [ParallelAgent API](/api-docs/agents-parallel-api) - Intelligent parallel agent API
+- [BaseFlow API](/api-docs/base-flow-api) - Base flow class API
