@@ -37,11 +37,6 @@ export default async function Layout({ params, children }: IProps) {
   //   iconClassName: 'bg-gradient-to-br from-purple-500 to-purple-600',
   // }]
 
-  const oxyapiLinks = [{
-    text: '🔧 开发工具',
-    url: `/${lang}/oxyapi`,
-  }]
-
   const links: LinkItemType[] = [
     {
       type: 'custom',
