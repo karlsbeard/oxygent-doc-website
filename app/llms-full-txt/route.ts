@@ -113,8 +113,7 @@ ${examples.map((example: any, idx: number) => `${idx + 1}. ${example.data.title}
 ## Additional Information
 
 For the latest updates and changes, please visit the main website.
-For API documentation, visit: ${baseUrl}/api-docs
-For ecosystem information, visit: ${baseUrl}/ecosystem
+For OxyAPI information, visit: ${baseUrl}/oxyapi
 
 ---
 End of document

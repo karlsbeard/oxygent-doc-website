@@ -27,6 +27,17 @@ export const examples = defineDocs({
   },
 })
 
+// Define oxyapi collection
+export const oxyapi = defineDocs({
+  dir: 'content/oxyapi',
+  docs: {
+    schema: frontmatterSchema,
+  },
+  meta: {
+    schema: metaSchema,
+  },
+})
+
 export default defineConfig({
   mdxOptions: {
     // MDX options
