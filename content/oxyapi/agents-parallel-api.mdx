@@ -1,0 +1,352 @@
+---
+title: ParallelAgent API Reference
+description: Complete API reference for the ParallelAgent class including constructor parameters, methods, and parallel execution patterns
+icon: Users
+---
+
+## Class Overview
+
+```python
+from oxygent.oxy import ParallelAgent
+
+class ParallelAgent(LocalAgent):
+    """Agent that executes tasks in parallel across multiple team members.
+
+    This agent distributes the same task to all available team members simultaneously
+    and combines their responses.
+    """
+```
+
+ParallelAgent inherits from `LocalAgent` and is specifically designed for parallel task execution. It distributes requests to multiple team members (tools or sub-agents), collects all responses, and then uses an LLM to merge the results into a unified answer.
+
+## Constructor
+
+### ParallelAgent()
+
+```python
+ParallelAgent(
+    name: str,
+    desc: str,
+    llm_model: str,
+    permitted_tool_name_list: list,
+    **kwargs
+)
+```
+
+#### Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `name` | `str` | Required | Agent name for identification and calling |
+| `desc` | `str` | Required | Agent description explaining its functionality |
+| `llm_model` | `str` | Required | Language model identifier for merging parallel results |
+| `permitted_tool_name_list` | `list` | Required | List of tool/agent names to execute in parallel |
+
+#### Inherited Parameters (from LocalAgent)
+
+ParallelAgent inherits all LocalAgent parameters, but typically doesn't need the following since it focuses on parallel execution:
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `prompt` | `Optional[str]` | Auto-generated | System prompt (automatically generated for result merging) |
+| `sub_agents` | `Optional[list]` | `[]` | Sub-agent list (managed through permitted_tool_name_list) |
+| `tools` | `Optional[list]` | `[]` | Tool list (managed through permitted_tool_name_list) |
+| `short_memory_size` | `int` | Config default | Short-term memory size |
+| `team_size` | `int` | `1` | Team size (ParallelAgent manages parallelism itself) |
+
+#### Important Note
+
+ParallelAgent **adds no new dataclass fields** - it inherits all parameters from LocalAgent. The key difference is in execution logic:
+- Regular LocalAgent: Sequential tool execution
+- ParallelAgent: Parallel execution of all tools in `permitted_tool_name_list`
+
+## Methods
+
+### _execute()
+
+```python
+async def _execute(self, oxy_request: OxyRequest) -> OxyResponse
+```
+
+Execute the request in parallel across all team members.
+
+#### Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `oxy_request` | `OxyRequest` | Request to execute across all team members |
+
+#### Returns
+
+| Type | Description |
+|------|-------------|
+| `OxyResponse` | Combined response with numbered results from all team members |
+
+#### Execution Flow
+
+1. **Generate parallel ID**: Creates unique parallel execution identifier
+2. **Parallel distribution**: Uses `asyncio.gather()` to send requests to all tools in `permitted_tool_name_list` simultaneously
+3. **Collect responses**: Waits for all parallel tasks to complete
+4. **Build merge prompt**: Creates prompt containing user question and all parallel results
+5. **LLM merging**: Uses configured LLM to merge parallel results into unified answer
+6. **Return result**: Returns merged final response
+
+#### Parallel Execution Features
+
+- **True parallelism**: All tasks execute simultaneously, not sequentially
+- **Result numbering**: Each team member's result is numbered (1, 2, 3...)
+- **Automatic merging**: LLM automatically analyzes and merges all parallel results
+- **Error tolerance**: Single team member failure doesn't affect others
+
+### Inherited Methods
+
+ParallelAgent inherits all LocalAgent methods but overrides the core execution logic:
+
+#### From LocalAgent
+
+- `init()` - Initialize agent and tool lists
+- `_get_history()` - Retrieve conversation history
+- `_build_instruction()` - Build instruction prompt
+- `_pre_process()` - Pre-process request
+- `_before_execute()` - Pre-execution preparation
+
+#### From BaseAgent
+
+- `_pre_save_data()` - Save trace data
+
+#### From BaseFlow
+
+- `call()` - Execute agent
+- `add_permitted_tool()` - Add permitted tool
+- `set_mas()` - Set MAS reference
+
+## Usage Examples
+
+### Basic Parallel Execution
+
+```python
+from oxygent import MAS
+from oxygent.oxy import ParallelAgent, ChatAgent, HttpLLM
+
+oxy_space = [
+    HttpLLM(
+        name="default_llm",
+        api_key="your-api-key",
+        base_url="https://api.openai.com/v1",
+        model_name="gpt-3.5-turbo"
+    ),
+
+    # Expert agents
+    ChatAgent(
+        name="tech_expert",
+        desc="Technical expert",
+        llm_model="default_llm",
+        prompt="You are a technical expert..."
+    ),
+    ChatAgent(
+        name="business_expert",
+        desc="Business expert",
+        llm_model="default_llm",
+        prompt="You are a business expert..."
+    ),
+    ChatAgent(
+        name="risk_expert",
+        desc="Risk expert",
+        llm_model="default_llm",
+        prompt="You are a risk expert..."
+    ),
+
+    # Parallel agent coordinating all experts
+    ParallelAgent(
+        name="expert_panel",
+        desc="Expert panel for parallel analysis",
+        llm_model="default_llm",
+        permitted_tool_name_list=[
+            "tech_expert", "business_expert", "risk_expert"
+        ],
+        is_master=True
+    )
+]
+
+async def main():
+    async with MAS(oxy_space=oxy_space) as mas:
+        result = await mas.call(
+            callee="expert_panel",
+            arguments={"query": "Evaluate the feasibility of this AI project"}
+        )
+        print(result.output)
+```
+
+### Multi-Tool Parallel Execution
+
+```python
+from oxygent.oxy import FunctionTool
+
+# Create multiple function tools
+def analyze_market(query: str) -> str:
+    """Market analysis tool"""
+    return f"Market analysis result: {query}"
+
+def analyze_technology(query: str) -> str:
+    """Technology analysis tool"""
+    return f"Technology analysis result: {query}"
+
+def analyze_finance(query: str) -> str:
+    """Financial analysis tool"""
+    return f"Financial analysis result: {query}"
+
+oxy_space = [
+    HttpLLM(name="default_llm", ...),
+
+    FunctionTool(name="market_tool", func=analyze_market),
+    FunctionTool(name="tech_tool", func=analyze_technology),
+    FunctionTool(name="finance_tool", func=analyze_finance),
+
+    # Parallel execution of all analysis tools
+    ParallelAgent(
+        name="analysis_agent",
+        desc="Parallel analysis agent",
+        llm_model="default_llm",
+        permitted_tool_name_list=[
+            "market_tool", "tech_tool", "finance_tool"
+        ]
+    )
+]
+```
+
+### Mixed Agents and Tools
+
+```python
+oxy_space = [
+    HttpLLM(name="default_llm", ...),
+
+    # Agents
+    ChatAgent(name="expert_agent", ...),
+    ReActAgent(name="reasoning_agent", ...),
+
+    # Tools
+    FunctionTool(name="search_tool", ...),
+    MCPTool(name="calculator", ...),
+
+    # Parallel execution of mixed types
+    ParallelAgent(
+        name="hybrid_agent",
+        desc="Hybrid parallel execution",
+        llm_model="default_llm",
+        permitted_tool_name_list=[
+            "expert_agent", "reasoning_agent",
+            "search_tool", "calculator"
+        ]
+    )
+]
+```
+
+## Configuration Options
+
+### Parallel Execution Configuration
+
+- `permitted_tool_name_list`: List of tools/agents to execute in parallel
+- `llm_model`: Language model for result merging
+
+### Result Merging Configuration
+
+ParallelAgent automatically generates merge prompts in this format:
+
+```
+You are a helpful assistant, the user's question is: {user_question}.
+Please summarize the results of the parallel execution of the above tasks.
+
+The parallel results are as following:
+1. {first_result}
+2. {second_result}
+3. {third_result}
+...
+```
+
+### Memory Management
+
+- `short_memory_size`: Affects context length during result merging
+- Recommend smaller values since parallel results already contain rich information
+
+## Performance Characteristics
+
+### Parallel Execution Advantages
+
+1. **Time efficiency**: All tasks execute simultaneously, total time equals slowest task
+2. **Resource utilization**: Fully utilizes system concurrency capabilities
+3. **Result diversity**: Obtains analysis results from multiple perspectives
+
+### Performance Considerations
+
+1. **Concurrency limits**: Affected by system concurrency capabilities and LLM API limits
+2. **Memory usage**: Simultaneous processing of multiple requests increases memory consumption
+3. **Merging cost**: LLM merging step adds additional API calls
+
+### Best Practices
+
+1. **Reasonable quantity**: Recommend 3-10 parallel tasks
+2. **Task balancing**: Ensure parallel tasks have relatively balanced execution times
+3. **Error handling**: Design fault tolerance for partial task failures
+
+## Error Handling
+
+### Common Errors
+
+1. **Empty tool list**
+   ```python
+   # Error: No parallel tools specified
+   ParallelAgent(
+       name="agent",
+       desc="test",
+       llm_model="default_llm",
+       permitted_tool_name_list=[]  # Empty list
+   )
+   ```
+
+2. **Tool not found**
+   ```python
+   # Ensure all tools are registered
+   ParallelAgent(
+       permitted_tool_name_list=["tool1", "tool2"],  # Ensure tool1, tool2 exist
+   )
+   ```
+
+3. **LLM model not configured**
+   ```python
+   # Ensure LLM is registered for result merging
+   oxy_space = [
+       HttpLLM(name="merge_llm", ...),
+       ParallelAgent(llm_model="merge_llm", ...)
+   ]
+   ```
+
+### Partial Failure Handling
+
+ParallelAgent uses `asyncio.gather()` for parallel task execution:
+- If any task fails, the entire parallel execution fails
+- Recommend implementing appropriate error handling in individual tools/agents
+- Consider custom implementation with `return_exceptions=True`
+
+## Use Cases
+
+### Suitable Scenarios
+
+1. **Multi-expert consultation**: Multiple experts analyzing the same problem simultaneously
+2. **Multi-dimensional analysis**: Technical, business, risk evaluation from multiple angles
+3. **Comparative assessment**: Parallel comparison of multiple solutions or options
+4. **Enhanced decision-making**: Improve decision quality through diverse perspectives
+
+### Unsuitable Scenarios
+
+1. **Sequential dependencies**: Later tasks depend on earlier task results
+2. **Resource competition**: Multiple tasks competing for same limited resources
+3. **Simple queries**: Single-dimension simple questions
+4. **Real-time interaction**: Scenarios requiring quick response
+
+## Related Links
+
+- [ParallelAgent Main Documentation](/docs/agents-parallel) - Overview and usage guide
+- [LocalAgent API](/oxyapi/agents-local-api) - Parent class API reference
+- [ChatAgent API](/oxyapi/agents-chat-api) - Basic chat agent
+- [ReActAgent API](/oxyapi/agents-react-api) - Reasoning agent
+- [Parallel Execution Examples](/examples/agents/parallel-execution) - Practical usage examples

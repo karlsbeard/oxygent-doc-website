@@ -21,7 +21,6 @@ jd_docs_fh = oxy.FunctionHub(name="jd_docs_tools")
 
 @jd_docs_fh.tool(description="A tool that can retrieve JD-related knowledge")
 def retrieval(query: str = Field(description="What aspect of knowledge")) -> str:
-    """The following uses character matching for simulation. In production environments, typically retrieve top-K relevant content from knowledge base based on query, and can add multi-path retrieval logic"""
     knowledage_dict = {
         "211_delivery": "**JD 211 Delivery Service**: Orders placed before 11:00 AM (or 10:00 AM in some cities) are delivered the same day; orders placed before 11:00 PM are delivered by 3:00 PM the next day. (Note: Timing starts from order submission for in-stock orders, and from payment completion for prepaid orders)",
         "mission": "JD's mission is 'Technology for a Better Life'.",

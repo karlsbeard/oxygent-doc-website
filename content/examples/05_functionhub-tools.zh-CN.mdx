@@ -15,8 +15,6 @@ from oxygent import MAS, oxy, Config
 from pydantic import Field
 
 Config.set_server_port(8081)
-
-# 实现FunctionHub工具
 jd_docs_fh = oxy.FunctionHub(name="jd_docs_tools")
 
 @jd_docs_fh.tool(description="一个可以召回京东相关知识的工具")

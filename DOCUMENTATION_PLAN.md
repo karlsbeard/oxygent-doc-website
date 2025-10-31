@@ -14,7 +14,7 @@
 ### Execution Principles
 
 1. **Follow the Template Strictly**: Every document must follow the template structure defined below
-2. **API Separation**: Always create separate API documentation in `/content/api-docs/` for each component
+2. **API Separation**: Always create separate API documentation in `/content/oxyapi/` for each component
 3. **Use Examples Directory**: Link to `/content/examples/` instead of writing best practices inline
 4. **Source Code First**: Always read and analyze source code before writing documentation
 5. **Test Examples**: All code examples must be tested and runnable
@@ -23,7 +23,7 @@
 ### Quality Checks Before Completion
 
 - [ ] Document follows template structure
-- [ ] Separate API documentation created in `/content/api-docs/`
+- [ ] Separate API documentation created in `/content/oxyapi/`
 - [ ] Links to examples instead of inline best practices
 - [ ] All code examples tested
 - [ ] Cross-references added
@@ -37,7 +37,7 @@ This document outlines a comprehensive, phased approach to completing and standa
 
 **Key Changes from Standard Documentation**:
 
-- **API Reference**: Must be in separate files under `/content/api-docs/`
+- **API Reference**: Must be in separate files under `/content/oxyapi/`
 - **Best Practices**: Link to `/content/examples/` instead of inline content
 - **Target Audience**: AI agent executing documentation tasks
 
@@ -130,10 +130,10 @@ Visual diagrams or ASCII art showing:
 
 For complete API documentation including all constructor parameters, methods, and detailed parameter descriptions, see:
 
-**[ComponentName API Reference](/api-docs/component-name-api)** - Complete API documentation
+**[ComponentName API Reference](/oxyapi/component-name-api)** - Complete API documentation
 ```
 
-**AI Agent Action**: When creating this document, you MUST also create `/content/api-docs/component-name-api.mdx` with:
+**AI Agent Action**: When creating this document, you MUST also create `/content/oxyapi/component-name-api.mdx` with:
 
 - Complete constructor parameters table
 - All method signatures and descriptions
@@ -338,7 +338,7 @@ See all examples in the [Examples Gallery](/examples).
      - Node-based workflow design
      - Configuration and execution
      - Link to examples
-   - **API Doc** (`/content/api-docs/agents-workflow-api.mdx`):
+   - **API Doc** (`/content/oxyapi/agents-workflow-api.mdx`):
      - Complete constructor parameters
      - Method signatures
      - Node types and configuration
@@ -357,7 +357,7 @@ See all examples in the [Examples Gallery](/examples).
      - Configuration options
      - API compatibility
      - Link to examples
-   - **API Doc** (`/content/api-docs/llms-http-api.mdx`):
+   - **API Doc** (`/content/oxyapi/llms-http-api.mdx`):
      - Constructor parameters
      - Connection options
      - Request/response formats
@@ -370,7 +370,7 @@ See all examples in the [Examples Gallery](/examples).
      - Tool registration patterns
      - Custom tool creation
      - Link to examples
-   - **API Doc** (`/content/api-docs/tools-function-hub-api.mdx`):
+   - **API Doc** (`/content/oxyapi/tools-function-hub-api.mdx`):
      - FunctionHub class API
      - FunctionTool class API
      - Registration methods
@@ -388,7 +388,7 @@ See all examples in the [Examples Gallery](/examples).
 **Success Criteria**:
 
 - [x] All main documents follow template standard
-- [x] All API documents created in `/content/api-docs/`
+- [x] All API documents created in `/content/oxyapi/`
 - [x] Source code thoroughly analyzed
 - [x] Working examples provided
 - [x] API references properly linked
@@ -397,12 +397,12 @@ See all examples in the [Examples Gallery](/examples).
 **Files Created**:
 
 - `/content/docs/agents-workflow.mdx` - WorkflowAgent documentation with custom workflow functions
-- `/content/api-docs/agents-workflow-api.mdx` - Complete WorkflowAgent API reference
+- `/content/oxyapi/agents-workflow-api.mdx` - Complete WorkflowAgent API reference
 - `/content/docs/context.mdx` - OxyRequest and context management system
 - `/content/docs/llms-http.mdx` - HTTP-based LLM client documentation (OpenAI, Gemini, Ollama)
-- `/content/api-docs/llms-http-api.mdx` - Complete HttpLLM API reference
+- `/content/oxyapi/llms-http-api.mdx` - Complete HttpLLM API reference
 - `/content/docs/tools-function-hub.mdx` - FunctionHub decorator-based tool registration
-- `/content/api-docs/tools-function-hub-api.mdx` - Complete FunctionHub API reference
+- `/content/oxyapi/tools-function-hub-api.mdx` - Complete FunctionHub API reference
 
 **Files Updated**:
 
@@ -429,7 +429,7 @@ See all examples in the [Examples Gallery](/examples).
      - Setup and configuration
      - Tool discovery patterns
      - Link to examples
-   - **API Doc** (`/content/api-docs/tools-mcp-stdio-api.mdx`):
+   - **API Doc** (`/content/oxyapi/tools-mcp-stdio-api.mdx`):
      - Constructor parameters
      - Connection methods
      - Tool discovery API
@@ -442,7 +442,7 @@ See all examples in the [Examples Gallery](/examples).
      - Real-time communication
      - Configuration patterns
      - Link to examples
-   - **API Doc** (`/content/api-docs/tools-mcp-sse-api.mdx`):
+   - **API Doc** (`/content/oxyapi/tools-mcp-sse-api.mdx`):
      - Constructor parameters
      - SSE connection methods
      - Event handling API
@@ -455,7 +455,7 @@ See all examples in the [Examples Gallery](/examples).
      - Streaming capabilities
      - Configuration patterns
      - Link to examples
-   - **API Doc** (`/content/api-docs/tools-mcp-streamable-api.mdx`):
+   - **API Doc** (`/content/oxyapi/tools-mcp-streamable-api.mdx`):
      - Constructor parameters
      - Streaming methods
      - Stream handling API
@@ -474,7 +474,7 @@ See all examples in the [Examples Gallery](/examples).
 **Success Criteria**:
 
 - [x] All main documents follow template standard
-- [x] All API documents created in `/content/api-docs/`
+- [x] All API documents created in `/content/oxyapi/`
 - [x] MCP setup instructions clear and tested
 - [x] Working examples for each client type
 - [x] Comparison guide created
@@ -483,17 +483,17 @@ See all examples in the [Examples Gallery](/examples).
 **Files Created**:
 
 - `/content/docs/tools-mcp-stdio.mdx` - StdioMCPClient for local process MCP communication
-- `/content/api-docs/tools-mcp-stdio-api.mdx` - Complete StdioMCPClient API reference
+- `/content/oxyapi/tools-mcp-stdio-api.mdx` - Complete StdioMCPClient API reference
 - `/content/docs/tools-mcp-sse.mdx` - SSEMCPClient for HTTP SSE-based MCP communication
-- `/content/api-docs/tools-mcp-sse-api.mdx` - Complete SSEMCPClient API reference
+- `/content/oxyapi/tools-mcp-sse-api.mdx` - Complete SSEMCPClient API reference
 - `/content/docs/tools-mcp-streamable.mdx` - StreamableMCPClient for HTTP streamable MCP communication
-- `/content/api-docs/tools-mcp-streamable-api.mdx` - Complete StreamableMCPClient API reference
+- `/content/oxyapi/tools-mcp-streamable-api.mdx` - Complete StreamableMCPClient API reference
 - `/content/docs/tools-mcp-comparison.mdx` - MCP client comparison and selection guide
 
 **Files Updated**:
 
 - `/content/docs/meta.json` - Added 4 new Tools entries (tools-mcp-stdio, tools-mcp-sse, tools-mcp-streamable, tools-mcp-comparison)
-- `/content/api-docs/meta.json` - Added 3 new API entries and restructured API reference navigation
+- `/content/oxyapi/meta.json` - Added 3 new API entries and restructured API reference navigation
 
 ---
 
@@ -516,7 +516,7 @@ See all examples in the [Examples Gallery](/examples).
      - Node graph design
      - Execution engine
      - Link to examples
-   - **API Doc** (`/content/api-docs/flows-workflow-api.mdx`):
+   - **API Doc** (`/content/oxyapi/flows-workflow-api.mdx`):
      - Workflow class API
      - Node configuration
      - Execution methods
@@ -526,17 +526,17 @@ See all examples in the [Examples Gallery](/examples).
 
 2. **`flows-parallel.mdx`** (2h review + check if API doc exists)
    - Review content for template compliance
-   - Create `/content/api-docs/flows-parallel-api.mdx` if missing
+   - Create `/content/oxyapi/flows-parallel-api.mdx` if missing
    - Update to link to examples
 
 3. **`flows-plan-and-solve.mdx`** (2h review + check if API doc exists)
    - Review content for template compliance
-   - Create `/content/api-docs/flows-plan-and-solve-api.mdx` if missing
+   - Create `/content/oxyapi/flows-plan-and-solve-api.mdx` if missing
    - Update to link to examples
 
 4. **`flows-reflexion.mdx`** (2h review + check if API doc exists)
    - Review content for template compliance
-   - Create `/content/api-docs/flows-reflexion-api.mdx` if missing
+   - Create `/content/oxyapi/flows-reflexion-api.mdx` if missing
    - Update to link to examples
 
 **AI Agent Tasks**:
@@ -561,10 +561,10 @@ See all examples in the [Examples Gallery](/examples).
 **Files Created**:
 
 - `/content/docs/flows-workflow.mdx` - Custom workflow execution with flexible patterns
-- `/content/api-docs/flows-workflow-api.mdx` - Complete Workflow API reference
-- `/content/api-docs/flows-parallel-api.mdx` - Complete ParallelFlow API reference
-- `/content/api-docs/flows-plan-and-solve-api.mdx` - Complete PlanAndSolve API reference
-- `/content/api-docs/flows-reflexion-api.mdx` - Complete Reflexion and MathReflexion API reference
+- `/content/oxyapi/flows-workflow-api.mdx` - Complete Workflow API reference
+- `/content/oxyapi/flows-parallel-api.mdx` - Complete ParallelFlow API reference
+- `/content/oxyapi/flows-plan-and-solve-api.mdx` - Complete PlanAndSolve API reference
+- `/content/oxyapi/flows-reflexion-api.mdx` - Complete Reflexion and MathReflexion API reference
 - `/content/docs/flows-comparison.mdx` - Comprehensive flow comparison and selection guide
 
 **Files Updated**:
@@ -573,7 +573,7 @@ See all examples in the [Examples Gallery](/examples).
 - `/content/docs/flows-plan-and-solve.mdx` - Added API Reference, Examples, and Related Links sections
 - `/content/docs/flows-reflexion.mdx` - Added API Reference, Examples, and Related Links sections
 - `/content/docs/meta.json` - Added flows-workflow and flows-comparison to navigation
-- `/content/api-docs/meta.json` - Added Flows API section with 4 new API references
+- `/content/oxyapi/meta.json` - Added Flows API section with 4 new API references
 
 ---
 
@@ -581,34 +581,38 @@ See all examples in the [Examples Gallery](/examples).
 
 **Duration**: 2-3 days
 **Effort**: ~12 hours
-**Status**: 🔴 Not Started
+**Status**: ✅ COMPLETE
+
+**Completed Date**: 2025-10-31
 
 **Note**: Review existing component documents and create missing API documentation.
 
+**Directory Structure Update**: During implementation, the API documentation directory was standardized to `/content/oxyapi/` instead of the originally planned `/content/api-docs/` to maintain consistency with the existing project structure.
+
 #### Existing Components Needing API Documentation
 
-1. **`api-docs/agents-chat-api.mdx`** (3h)
+1. **`oxyapi/agents-chat-api.mdx`** (3h)
    - Source: `OxyGent/oxygent/oxy/agents/chat_agent.py`
    - Based on existing `agents-chat.mdx`
    - Constructor parameters
    - Methods and return values
    - Usage patterns
 
-2. **`api-docs/agents-parallel-api.mdx`** (3h)
+2. **`oxyapi/agents-parallel-api.mdx`** (3h)
    - Source: `OxyGent/oxygent/oxy/agents/parallel_agent.py`
    - Based on existing `agents-parallel.mdx`
    - Constructor parameters
    - Parallel execution methods
    - Result aggregation
 
-3. **`api-docs/agents-rag-api.mdx`** (3h)
-   - Source: `OxyGent/oxygent/oxy/agents/rag_agent.py`
+3. **`oxyapi/agents-rag-api.mdx`** (3h)
+   - Source: RAG pattern implementation (ReActAgent + knowledge injection)
    - Based on existing `agents-rag.mdx`
-   - Constructor parameters
-   - Retrieval methods
+   - Knowledge injection patterns
+   - Retrieval function interfaces
    - RAG configuration options
 
-4. **`api-docs/agents-sse-agent-api.mdx`** (3h)
+4. **`oxyapi/agents-sse-agent-api.mdx`** (3h)
    - Source: `OxyGent/oxygent/oxy/agents/sse_oxy_agent.py`
    - Based on existing `agents-sse-agent.mdx`
    - Constructor parameters
@@ -627,22 +631,37 @@ See all examples in the [Examples Gallery](/examples).
 
 **AI Agent Tasks**:
 
-- [ ] Create 4 API documentation files for existing agents
-- [ ] Update 4 main documentation files to link to API docs
-- [ ] Ensure all API docs follow pattern from `agents-react-api.mdx`
-- [ ] Remove inline best practices, link to examples
-- [ ] Verify cross-references work
+- [x] Create 4 API documentation files for existing agents
+- [x] Update 4 main documentation files to link to API docs
+- [x] Ensure all API docs follow pattern from `agents-react-api.mdx`
+- [x] Remove inline best practices, link to examples
+- [x] Verify cross-references work
 
 **Dependencies**: Phase 2, 4
 **Blockers**: None
 **Success Criteria**:
 
-- [ ] All existing agent components have API documentation
-- [ ] All main docs link to API docs correctly
-- [ ] Parameter tables complete in API docs
-- [ ] Return values documented
-- [ ] Examples linked instead of inline
-- [ ] Cross-references verified
+- [x] All existing agent components have API documentation
+- [x] All main docs link to API docs correctly
+- [x] Parameter tables complete in API docs
+- [x] Return values documented
+- [x] Examples linked instead of inline
+- [x] Cross-references verified
+
+**Files Created**:
+
+- `/content/oxyapi/agents-chat-api.mdx` - Complete ChatAgent API reference
+- `/content/oxyapi/agents-parallel-api.mdx` - Complete ParallelAgent API reference  
+- `/content/oxyapi/agents-rag-api.mdx` - Complete RAG Agent API reference (pattern-based)
+- `/content/oxyapi/agents-sse-agent-api.mdx` - Complete SSEOxyAgent API reference
+
+**Files Updated**:
+
+- `/content/docs/agents-chat.mdx` - Added API Reference and Examples sections
+- `/content/docs/agents-parallel.mdx` - Added API Reference and Examples sections
+- `/content/docs/agents-rag.mdx` - Added API Reference and Examples sections
+- `/content/docs/agents-sse-agent.mdx` - Added API Reference and Examples sections
+- `/content/oxyapi/meta.json` - Added 4 new agent API references to navigation
 
 ---
 
@@ -823,9 +842,9 @@ Use this checklist for each new document:
 | Phase 2: Agents & LLMs | ✅ Complete | 29h (17h docs + 12h API) | ✅ Done |
 | Phase 3: Tools & MCP | ✅ Complete | 21h (12h docs + 9h API) | ✅ Done |
 | Phase 4: Flows | ✅ Complete | 14h (5h new + 6h review + 3h API) | ✅ Done |
-| Phase 5: API Docs | 2-3 days | 14h (12h API + 2h updates) | 🔴 Not Started |
+| Phase 5: API Docs | 2-3 days | 14h (12h API + 2h updates) | ✅ Complete |
 | Phase 6: QA | 2-3 days | 10h | 🔴 Not Started |
-| **Total** | **14-20 days** | **~102h** | **🟢 In Progress (78h completed)** |
+| **Total** | **14-20 days** | **~102h** | **🟢 In Progress (92h completed)** |
 
 **Note**: Effort increased from initial estimate due to API documentation separation requirement.
 

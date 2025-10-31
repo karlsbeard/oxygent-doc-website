@@ -4,33 +4,18 @@ description: Agent that executes tasks in parallel across multiple team members 
 icon: Users
 ---
 
-# ParallelAgent
-
 ## Definition
-
-Agent that executes tasks in parallel across multiple team members.
-
 ## Applicable Scenarios
 
 Suppose you need to use agents to accomplish business needs, and if the capacity of the agent model is small, you can use agent clusters to enhance your thinking skills. OxyGent natively supports the parallel work of agents, which can synthesize the execution results of multiple groups of agents and automatically summarize and reflect. You can arrange agents like a real work organization without worrying about conflicts between agents.
 
 ## Configuration Options
 
-### Parameters
+## API Reference
 
-| Parameter       | Type / Allowed value | Default | Description                                                                                                      |
-| --------------- | -------------------- | ------- | ---------------------------------------------------------------------------------------------------------------- |
-| *None declared* | —                    | —       | `ParallelAgent` adds **no new dataclass fields**; it inherits every parameter from `LocalAgent` (and its bases). |
+**完整 API 文档请参考：**
 
-### Methods
-
-| Method                        | Coroutine (async) | Return Value  | Purpose (concise)                                                                                                                                                                     |
-| ----------------------------- | ----------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `_execute(self, oxy_request)` | Yes               | `OxyResponse` | Distributes the incoming task to all permitted tools **concurrently**, collects their outputs, then uses the agent's LLM to summarise those parallel results into a single response.  |
-
-### Inherited
-
-Please refer to the LocalAgent class for inherited parameters and methods.
+**[ParallelAgent API Reference](/oxyapi/agents-parallel-api)** - 包含完整的构造函数参数、方法签名、并行执行模式和详细的参数描述
 
 ## Quick Start
 
@@ -277,9 +262,26 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
+## Examples
+
+实际使用示例和模式请参考：
+
+- [多专家分析](/examples/agents/parallel-experts) - 专家团队并行分析
+- [AI项目评估](/examples/application/ai-project-assessment) - 完整的项目可行性评估
+- [多维度决策](/examples/agents/multi-dimension-decision) - 多角度决策支持
+
+查看所有示例：[Examples Gallery](/examples)
+
 ## Use Cases
 
 - **Multi-expert analysis**: Gather opinions from multiple specialized agents
 - **Comprehensive assessments**: Technical, business, risk, and legal evaluations
 - **Team collaboration**: Multiple agents working on different aspects of a problem
 - **Enhanced decision-making**: Synthesize diverse perspectives for better decisions
+
+## Related Links
+
+- [ChatAgent](/docs/agents-chat) - 基础聊天代理
+- [ReActAgent](/docs/agents-react) - 推理代理
+- [WorkflowAgent](/docs/agents-workflow) - 工作流代理
+- [Configuration](/docs/configuration) - 配置选项

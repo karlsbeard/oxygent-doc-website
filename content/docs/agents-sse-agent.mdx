@@ -4,8 +4,6 @@ description: Agent for communicating with remote services through Server-Sent Ev
 icon: Radio
 ---
 
-# SSEOxyAgent
-
 ## Introduction
 
 The agent is a basic proxy designed to provide functionality for communicating with remote services. Specifically, different agents interact with remote services through the Server-Sent Events (SSE) protocol. The agent receives an `OxyRequest` object and, after completing the communication task (via the `execute` method), returns an `OxyResponse` object. Below is a detailed explanation of this functionality.
@@ -158,6 +156,12 @@ oxy_space = [
 ]
 ```
 
+## API Reference
+
+**完整 API 文档请参考：**
+
+**[SSEOxyAgent API Reference](/oxyapi/agents-sse-agent-api)** - 包含完整的构造函数参数、SSE 通信方法和远程代理集成
+
 ## SSEOxyAgent Principle
 
 ### Communication Process
@@ -229,3 +233,20 @@ SSE (Server-Sent Events) is a technology for server-to-client one-way real-time 
 ### Summary
 
 `WorkflowAgent` can integrate with `SSEOxyAgent` to complete specific tasks.
+
+## Examples
+
+实际使用示例和模式请参考：
+
+- [SSE 通信基础](/examples/agents/sse-basic) - SSEOxyAgent 基本用法
+- [数学计算服务](/examples/agents/sse-math-service) - 完整的数学代理示例
+- [分布式代理系统](/examples/application/distributed-agents) - 多服务 SSE 通信
+
+查看所有示例：[Examples Gallery](/examples)
+
+## Related Links
+
+- [WorkflowAgent](/docs/agents-workflow) - 工作流代理集成
+- [RemoteAgent](/docs/agents-remote) - 远程代理基类
+- [Configuration](/docs/configuration) - 配置选项
+- [Visualization](/docs/visualization) - 可视化工具

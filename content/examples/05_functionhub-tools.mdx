@@ -15,8 +15,6 @@ from oxygent import MAS, oxy, Config
 from pydantic import Field
 
 Config.set_server_port(8081)
-
-# Implement FunctionHub tools
 jd_docs_fh = oxy.FunctionHub(name="jd_docs_tools")
 
 @jd_docs_fh.tool(description="A tool that can retrieve JD-related knowledge")

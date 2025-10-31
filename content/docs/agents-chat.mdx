@@ -4,8 +4,6 @@ description: Basic conversational agent for handling dialogue interactions with 
 icon: MessageSquare
 ---
 
-# ChatAgent
-
 ## Overview
 
 `ChatAgent` is a conversational agent module in the OxyGent framework, designed to handle dialogue interactions with language models. It inherits from the `LocalAgent` class and provides functionality for managing conversation memory, processing user queries, and coordinating with language models to generate responses.
@@ -46,23 +44,11 @@ ChatAgent is suitable for the following scenarios:
 3. Systems requiring parallel processing of multiple tasks
 4. Agents requiring highly customized behaviors
 
-## Method Details
+## API Reference
 
-| Method | Coroutine (async) | Return Value | Purpose |
-|--------|-------------------|--------------|---------|
-| `_execute(self, oxy_request)` | Yes | `OxyResponse` | Builds a temporary conversation memory, appends the latest user query, merges any `llm_params`, and calls the configured LLM model; returns the model's reply wrapped in an `OxyResponse` |
+**完整 API 文档请参考：**
 
-## Parameter Configuration
-
-When creating a ChatAgent, the following parameters can be configured:
-
-| Parameter | Type | Description | Default Value |
-|-----------|------|-------------|---------------|
-| `name` | str | Agent name | Required |
-| `desc` | str | Agent description | Required |
-| `llm_model` | str | Language model identifier | Required |
-| `prompt` | str | System prompt | "You are a helpful assistant." |
-| `short_memory_size` | int | Short-term memory size | Inherited from LocalAgent |
+**[ChatAgent API Reference](/oxyapi/agents-chat-api)** - 包含完整的构造函数参数、方法签名和详细的参数描述
 
 ## Usage Example
 
@@ -94,8 +80,20 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
+## Examples
+
+实际使用示例和模式请参考：
+
+- [基础聊天示例](/examples/agents/basic-chat) - ChatAgent 基本用法
+- [客服机器人](/examples/application/customer-service) - 客服场景应用
+- [多轮对话](/examples/agents/multi-turn-chat) - 对话历史管理
+
+查看所有示例：[Examples Gallery](/examples)
+
 ## Related Links
 
-- [Quick Start](/docs/quick-start)
-- [ReActAgent](/docs/agents-react) - For more complex reasoning tasks
-- [ParallelAgent](/docs/agents-parallel) - For parallel task execution
+- [Quick Start](/docs/quick-start) - 快速开始指南
+- [ReActAgent](/docs/agents-react) - 更复杂的推理任务
+- [ParallelAgent](/docs/agents-parallel) - 并行任务执行
+- [Configuration](/docs/configuration) - 配置选项
+- [Context](/docs/context) - 上下文管理

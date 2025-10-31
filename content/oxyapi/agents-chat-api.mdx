@@ -1,0 +1,269 @@
+---
+title: ChatAgent API Reference
+description: Complete API reference for the ChatAgent class including constructor parameters, methods, and usage examples
+icon: MessageSquare
+---
+
+## Class Overview
+
+```python
+from oxygent.oxy import ChatAgent
+
+class ChatAgent(LocalAgent):
+    """A conversational agent that manages chat interactions with language models."""
+```
+
+ChatAgent inherits from `LocalAgent` and provides basic conversational functionality, including conversation history management, user query processing, and language model coordination.
+
+## Constructor
+
+### ChatAgent()
+
+```python
+ChatAgent(
+    name: str,
+    desc: str,
+    llm_model: str,
+    prompt: Optional[str] = "You are a helpful assistant.",
+    **kwargs
+)
+```
+
+#### Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `name` | `str` | Required | Agent name for identification and calling |
+| `desc` | `str` | Required | Agent description explaining its functionality |
+| `llm_model` | `str` | Required | Language model identifier to use |
+| `prompt` | `Optional[str]` | `"You are a helpful assistant."` | System prompt defining agent behavior |
+
+#### Inherited Parameters (from LocalAgent)
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `additional_prompt` | `Optional[str]` | `""` | Additional user-defined prompt |
+| `sub_agents` | `Optional[list]` | `[]` | List of other agent names this agent can delegate to |
+| `tools` | `Optional[list]` | `[]` | List of tools available to this agent |
+| `except_tools` | `Optional[list]` | `[]` | List of tools explicitly forbidden for this agent |
+| `is_sourcing_tools` | `bool` | `False` | Whether to enable dynamic tool retrieval |
+| `top_k_tools` | `int` | `10` | Number of tools to retrieve |
+| `short_memory_size` | `int` | Config default | Number of short-term memory entries to retain |
+| `is_retain_master_short_memory` | `bool` | `False` | Whether to retrieve user history |
+| `is_multimodal_supported` | `bool` | `False` | Whether to support multimodal input |
+| `team_size` | `int` | `1` | Number of instances for team execution |
+
+#### Inherited Parameters (from BaseAgent)
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `category` | `str` | `"agent"` | Tool/agent category |
+| `input_schema` | `dict[str, Any]` | Config default | Input parameter schema |
+
+#### Inherited Parameters (from BaseFlow)
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `is_master` | `bool` | `False` | Whether this is a master agent |
+| `timeout` | `int` | `300` | Execution timeout in seconds |
+| `func_process_input` | `Optional[Callable]` | `None` | Input processing function |
+| `func_process_output` | `Optional[Callable]` | `None` | Output processing function |
+| `func_format_input` | `Optional[Callable]` | `None` | Input formatting function |
+| `func_format_output` | `Optional[Callable]` | `None` | Output formatting function |
+| `permitted_tool_name_list` | `list` | `[]` | List of permitted tool names |
+
+## Methods
+
+### _execute()
+
+```python
+async def _execute(self, oxy_request: OxyRequest) -> OxyResponse
+```
+
+Execute a chat interaction with the language model.
+
+#### Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `oxy_request` | `OxyRequest` | Request object containing user query, conversation history, and additional parameters |
+
+#### Returns
+
+| Type | Description |
+|------|-------------|
+| `OxyResponse` | Response from the language model containing the generated answer |
+
+#### Execution Flow
+
+1. **Create temporary memory**: Creates a new Memory object to manage the conversation
+2. **Add system message**: Adds system prompt using built instruction
+3. **Load short-term memory**: Adds recent conversation history
+4. **Add user query**: Appends current user query to continue multi-turn conversation
+5. **Call language model**: Prepares arguments and calls configured LLM
+6. **Return response**: Returns LLM response
+
+### set_default_prompt()
+
+```python
+@model_validator(mode="after")
+def set_default_prompt(self) -> "ChatAgent"
+```
+
+Model validator that sets default prompt if none is provided.
+
+#### Returns
+
+| Type | Description |
+|------|-------------|
+| `ChatAgent` | Returns self instance |
+
+### Inherited Methods
+
+ChatAgent inherits the following methods:
+
+#### From LocalAgent
+
+- `init()` - Initialize agent and setup team execution
+- `_get_history()` - Retrieve conversation history from Elasticsearch
+- `_get_llm_tool_desc_list()` - Get tool descriptions for LLM context
+- `_build_instruction()` - Build instruction prompt by substituting template variables
+- `_pre_process()` - Pre-process request to load conversation history
+- `_before_execute()` - Prepare tools description for LLM execution
+
+#### From BaseAgent
+
+- `_pre_save_data()` - Save preliminary trace data before processing
+
+#### From BaseFlow
+
+- `call()` - Execute agent and handle request
+- `add_permitted_tool()` - Add permitted tool to list
+- `set_mas()` - Set multi-agent system reference
+
+## Usage Examples
+
+### Basic Usage
+
+```python
+from oxygent import MAS, OxySpace
+from oxygent.oxy import ChatAgent, HttpLLM
+
+# Create OxySpace and register components
+oxy_space = [
+    HttpLLM(
+        name="default_llm",
+        api_key="your-api-key",
+        base_url="https://api.openai.com/v1",
+        model_name="gpt-3.5-turbo"
+    ),
+    ChatAgent(
+        name="chat_agent",
+        desc="Basic chat agent",
+        llm_model="default_llm",
+        prompt="You are a helpful assistant."
+    )
+]
+
+# Use ChatAgent for conversation
+async def main():
+    async with MAS(oxy_space=oxy_space) as mas:
+        result = await mas.call(
+            callee="chat_agent",
+            arguments={"query": "Hello, please introduce yourself."}
+        )
+        print(result.output)
+```
+
+### Custom Prompt
+
+```python
+ChatAgent(
+    name="specialized_agent",
+    desc="Professional customer service agent",
+    llm_model="default_llm",
+    prompt="You are a professional customer service representative. "
+           "Always be polite, helpful, and provide accurate information."
+)
+```
+
+### Memory Management
+
+```python
+ChatAgent(
+    name="memory_agent",
+    desc="Chat agent with memory management",
+    llm_model="default_llm",
+    short_memory_size=20,  # Retain 20 conversation turns
+    is_retain_master_short_memory=True  # Retain user-level history
+)
+```
+
+### Team Execution Mode
+
+```python
+ChatAgent(
+    name="team_agent",
+    desc="Team collaborative chat agent",
+    llm_model="default_llm",
+    team_size=3,  # Create 3 parallel instances
+    is_master=True
+)
+```
+
+## Configuration Options
+
+### Memory Management
+
+- `short_memory_size`: Controls number of conversation turns to retain
+- `is_retain_master_short_memory`: Whether to retain user-level conversation history
+
+### Prompt Configuration
+
+- `prompt`: Main system prompt
+- `additional_prompt`: Additional user-defined prompt
+
+### Team Execution
+
+- `team_size`: Number of parallel execution instances (creates ParallelAgent when >1)
+
+## Error Handling
+
+### Common Errors
+
+1. **Missing LLM Model**
+   ```python
+   # Error: llm_model not set
+   ChatAgent(name="agent", desc="test")  # Raises exception
+
+   # Correct: set llm_model
+   ChatAgent(name="agent", desc="test", llm_model="default_llm")
+   ```
+
+2. **LLM Model Not Found**
+   ```python
+   # Ensure LLM model is registered in MAS
+   oxy_space = [
+       HttpLLM(name="my_llm", ...),  # Register LLM first
+       ChatAgent(llm_model="my_llm", ...)  # Then reference it
+   ]
+   ```
+
+## Performance Considerations
+
+### Memory Management
+
+- Larger `short_memory_size` increases token consumption in LLM calls
+- Recommend setting appropriate memory size based on actual needs
+
+### Team Execution
+
+- `team_size > 1` creates multiple agent instances for parallel execution
+- Suitable for scenarios requiring diverse responses
+
+## Related Links
+
+- [ChatAgent Main Documentation](/docs/agents-chat) - Overview and usage guide
+- [LocalAgent API](/oxyapi/agents-local-api) - Parent class API reference
+- [ReActAgent API](/oxyapi/agents-react-api) - More complex reasoning agent
+- [ParallelAgent API](/oxyapi/agents-parallel-api) - Parallel execution agent

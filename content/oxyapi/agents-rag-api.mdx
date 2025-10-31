@@ -1,0 +1,480 @@
+---
+title: RAG Agent API Reference
+description: Complete API reference for implementing Retrieval-Augmented Generation (RAG) patterns using ReActAgent and knowledge injection
+icon: Database
+---
+
+## Overview
+
+RAG Agent is not a standalone class, but rather a design pattern implemented through `ReActAgent` combined with knowledge injection functions. It improves answer accuracy and controllability by retrieving relevant external knowledge and injecting it into prompts before generating responses.
+
+## Core Components
+
+### 1. ReActAgent Foundation
+
+```python
+from oxygent.oxy import ReActAgent
+
+# RAG implementation based on ReActAgent
+rag_agent = ReActAgent(
+    name="rag_agent",
+    desc="Retrieval-Augmented Generation agent",
+    llm_model="default_llm",
+    prompt=INSTRUCTION,  # Prompt containing knowledge placeholders
+    func_process_input=update_query,  # Knowledge injection function
+)
+```
+
+### 2. Knowledge Injection Function
+
+```python
+def update_query(oxy_request: OxyRequest) -> OxyRequest:
+    """Knowledge injection function that adds retrieved knowledge to request before execution.
+
+    Args:
+        oxy_request: Original request object
+
+    Returns:
+        OxyRequest: Request object with injected knowledge
+    """
+    current_query = oxy_request.get_query()
+
+    # Execute knowledge retrieval
+    knowledge = retrieval(current_query)
+
+    # Inject knowledge into arguments
+    oxy_request.arguments["knowledge"] = knowledge
+
+    return oxy_request
+```
+
+### 3. Retrieval Function
+
+```python
+def retrieval(query: str) -> str:
+    """Retrieve relevant knowledge based on query.
+
+    Args:
+        query: User query string
+
+    Returns:
+        str: Retrieved relevant knowledge text
+    """
+    # Implement specific retrieval logic
+    # e.g., vector database query, search service, knowledge base query, etc.
+    return retrieved_knowledge
+```
+
+## API Reference
+
+### update_query()
+
+Core function for knowledge injection, called before ReActAgent execution.
+
+```python
+def update_query(oxy_request: OxyRequest) -> OxyRequest
+```
+
+#### Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `oxy_request` | `OxyRequest` | Request object containing user query and context |
+
+#### Returns
+
+| Type | Description |
+|------|-------------|
+| `OxyRequest` | Request object with injected knowledge |
+
+#### Implementation Points
+
+1. **Get query**: Use `oxy_request.get_query()` to get user query
+2. **Execute retrieval**: Call retrieval function to get relevant knowledge
+3. **Inject knowledge**: Add knowledge to `oxy_request.arguments["knowledge"]`
+4. **Return request**: Return modified request object
+
+#### Example Implementation
+
+```python
+def update_query(oxy_request: OxyRequest) -> OxyRequest:
+    current_query = oxy_request.get_query()
+
+    # Simple knowledge retrieval example
+    def retrieval(query):
+        # This should be actual retrieval logic
+        knowledge_base = {
+            "AI": "Artificial intelligence related knowledge...",
+            "Python": "Python programming related knowledge...",
+            "Database": "Database related knowledge..."
+        }
+
+        # Simple keyword matching
+        for key, knowledge in knowledge_base.items():
+            if key in query:
+                return knowledge
+
+        return "No relevant knowledge found"
+
+    # Inject retrieved knowledge
+    oxy_request.arguments["knowledge"] = retrieval(current_query)
+    return oxy_request
+```
+
+### retrieval()
+
+Standard interface for retrieval functions, specific implementation depends on knowledge source.
+
+```python
+def retrieval(query: str) -> str
+```
+
+#### Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `query` | `str` | User query string |
+
+#### Returns
+
+| Type | Description |
+|------|-------------|
+| `str` | Retrieved knowledge text, multiple knowledge pieces connected with newlines |
+
+#### Implementation Variants
+
+##### Vector Database Retrieval
+
+```python
+def retrieval(query: str) -> str:
+    """Semantic retrieval using vector database"""
+    # Encode query using embedding model
+    query_embedding = embedding_model.encode(query)
+
+    # Search in vector database
+    results = vector_db.search(query_embedding, top_k=5)
+
+    # Merge retrieval results
+    knowledge_pieces = [result.text for result in results]
+    return "\n".join(knowledge_pieces)
+```
+
+##### Search Engine Retrieval
+
+```python
+def retrieval(query: str) -> str:
+    """Retrieval using search engine"""
+    search_results = search_engine.search(query, num_results=3)
+
+    knowledge_pieces = []
+    for result in search_results:
+        knowledge_pieces.append(f"Source: {result.title}\nContent: {result.snippet}")
+
+    return "\n\n".join(knowledge_pieces)
+```
+
+##### Document Database Retrieval
+
+```python
+def retrieval(query: str) -> str:
+    """Retrieval from document database"""
+    # Use full-text search or keyword matching
+    documents = document_db.search(query)
+
+    relevant_docs = []
+    for doc in documents[:5]:  # Take top 5 relevant documents
+        relevant_docs.append(doc.content)
+
+    return "\n---\n".join(relevant_docs)
+```
+
+## Prompt Templates
+
+RAG Agent requires special prompt templates to handle injected knowledge.
+
+### Standard RAG Prompt Template
+
+```python
+INSTRUCTION = """
+You are a helpful assistant and can use these tools:
+${tools_description}
+
+Knowledge base information:
+${knowledge}
+
+Use the knowledge base information to provide accurate answers.
+If you need to use tools, follow the standard tool calling format.
+
+Important notes:
+1. When you have collected enough information to answer the user's question, please respond in the following format:
+<think>Your reasoning (if analysis is needed)</think>
+Your response content
+
+2. When you find that the user's question lacks certain conditions, you can ask them back:
+<think>Your reasoning (if analysis is needed)</think>
+Your follow-up question to the user
+
+3. When you need to use a tool, you must respond **only** with the following exact JSON object format:
+{
+    "think": "Your reasoning (if analysis is needed)",
+    "tool_name": "Tool name",
+    "arguments": {
+        "Parameter name": "Parameter value"
+    }
+}
+"""
+```
+
+### Knowledge Placeholders
+
+- `${knowledge}`: Placeholder for injecting retrieved knowledge
+- `${tools_description}`: Tool description placeholder
+- Can add other custom placeholders
+
+## Complete Implementation Example
+
+### Basic RAG Implementation
+
+```python
+import asyncio
+from oxygent import MAS, OxyRequest, oxy
+from oxygent.utils.env_utils import get_env_var
+
+# RAG prompt template
+INSTRUCTION = """
+You are a helpful assistant and can use these tools:
+${tools_description}
+
+Knowledge base information:
+${knowledge}
+
+Use the knowledge base information to provide accurate answers.
+If you need to use tools, follow the standard tool calling format.
+"""
+
+def update_query(oxy_request: OxyRequest) -> OxyRequest:
+    """Knowledge injection function"""
+    current_query = oxy_request.get_query()
+
+    def retrieval(query):
+        # Simulate knowledge base retrieval
+        knowledge_base = [
+            "OxyGent is a multi-agent system framework",
+            "Supports multiple types of agents and tools",
+            "Provides flexible configuration and extension capabilities"
+        ]
+        return "\n".join(knowledge_base)
+
+    # Inject knowledge
+    oxy_request.arguments["knowledge"] = retrieval(current_query)
+    return oxy_request
+
+# Create RAG system
+oxy_space = [
+    oxy.HttpLLM(
+        name="default_llm",
+        api_key=get_env_var("DEFAULT_LLM_API_KEY"),
+        base_url=get_env_var("DEFAULT_LLM_BASE_URL"),
+        model_name=get_env_var("DEFAULT_LLM_MODEL_NAME"),
+        llm_params={"temperature": 0.01},
+    ),
+    oxy.ReActAgent(
+        name="rag_agent",
+        desc="Retrieval-Augmented Generation agent",
+        llm_model="default_llm",
+        prompt=INSTRUCTION,
+        func_process_input=update_query,
+        is_master=True,
+    ),
+]
+
+async def main():
+    async with MAS(oxy_space=oxy_space) as mas:
+        result = await mas.call(
+            callee="rag_agent",
+            arguments={"query": "What is OxyGent?"}
+        )
+        print(result.output)
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+### Advanced RAG Implementation
+
+```python
+import json
+from typing import List, Dict
+
+class AdvancedRAG:
+    """Advanced RAG implementation class"""
+
+    def __init__(self, knowledge_sources: List[Dict]):
+        self.knowledge_sources = knowledge_sources
+
+    def multi_source_retrieval(self, query: str) -> str:
+        """Multi-source knowledge retrieval"""
+        all_knowledge = []
+
+        for source in self.knowledge_sources:
+            if source["type"] == "vector_db":
+                knowledge = self._vector_search(query, source)
+            elif source["type"] == "document_db":
+                knowledge = self._document_search(query, source)
+            elif source["type"] == "api":
+                knowledge = self._api_search(query, source)
+            else:
+                continue
+
+            if knowledge:
+                all_knowledge.append(f"[{source['name']}] {knowledge}")
+
+        return "\n\n".join(all_knowledge)
+
+    def _vector_search(self, query: str, source: Dict) -> str:
+        """Vector database search"""
+        # Implement vector search logic
+        pass
+
+    def _document_search(self, query: str, source: Dict) -> str:
+        """Document database search"""
+        # Implement document search logic
+        pass
+
+    def _api_search(self, query: str, source: Dict) -> str:
+        """API search"""
+        # Implement API search logic
+        pass
+
+# Use advanced RAG
+knowledge_sources = [
+    {"name": "Technical Docs", "type": "vector_db", "config": {...}},
+    {"name": "FAQ Database", "type": "document_db", "config": {...}},
+    {"name": "Real-time Search", "type": "api", "config": {...}},
+]
+
+advanced_rag = AdvancedRAG(knowledge_sources)
+
+def advanced_update_query(oxy_request: OxyRequest) -> OxyRequest:
+    """Advanced knowledge injection function"""
+    current_query = oxy_request.get_query()
+
+    # Multi-source retrieval
+    knowledge = advanced_rag.multi_source_retrieval(current_query)
+
+    # Inject knowledge
+    oxy_request.arguments["knowledge"] = knowledge
+
+    # Can add other metadata
+    oxy_request.arguments["retrieval_timestamp"] = get_current_timestamp()
+    oxy_request.arguments["knowledge_sources"] = len(knowledge_sources)
+
+    return oxy_request
+```
+
+## Configuration Options
+
+### Knowledge Injection Configuration
+
+| Configuration | Type | Description |
+|---------------|------|-------------|
+| `knowledge_placeholder` | `str` | Knowledge placeholder name, default "knowledge" |
+| `max_knowledge_length` | `int` | Maximum knowledge length limit |
+| `retrieval_timeout` | `float` | Retrieval timeout in seconds |
+| `fallback_knowledge` | `str` | Fallback knowledge when retrieval fails |
+
+### Retrieval Configuration
+
+| Configuration | Type | Description |
+|---------------|------|-------------|
+| `top_k` | `int` | Number of retrieval results |
+| `similarity_threshold` | `float` | Similarity threshold |
+| `enable_reranking` | `bool` | Whether to enable reranking |
+| `knowledge_sources` | `List[Dict]` | Knowledge source configuration list |
+
+## Performance Optimization
+
+### Retrieval Optimization
+
+1. **Caching mechanism**: Cache retrieval results for common queries
+2. **Async retrieval**: Use async methods for retrieval
+3. **Batch retrieval**: Batch process multiple queries
+4. **Index optimization**: Optimize vector database indexes
+
+### Knowledge Injection Optimization
+
+1. **Length control**: Limit injected knowledge length
+2. **Relevance filtering**: Filter low-relevance knowledge
+3. **Format optimization**: Optimize knowledge format and structure
+4. **Context management**: Manage knowledge position in context
+
+## Error Handling
+
+### Common Errors
+
+1. **Retrieval failure**
+   ```python
+   def safe_retrieval(query: str) -> str:
+       try:
+           return retrieval(query)
+       except Exception as e:
+           logger.error(f"Retrieval failed: {e}")
+           return "Retrieval service temporarily unavailable"
+   ```
+
+2. **Knowledge injection failure**
+   ```python
+   def safe_update_query(oxy_request: OxyRequest) -> OxyRequest:
+       try:
+           knowledge = safe_retrieval(oxy_request.get_query())
+           oxy_request.arguments["knowledge"] = knowledge
+       except Exception as e:
+           logger.error(f"Knowledge injection failed: {e}")
+           oxy_request.arguments["knowledge"] = ""
+
+       return oxy_request
+   ```
+
+3. **Timeout handling**
+   ```python
+   import asyncio
+
+   async def timeout_retrieval(query: str, timeout: float = 5.0) -> str:
+       try:
+           return await asyncio.wait_for(
+               async_retrieval(query),
+               timeout=timeout
+           )
+       except asyncio.TimeoutError:
+           return "Retrieval timeout, using default knowledge"
+   ```
+
+## Best Practices
+
+### Retrieval Strategy
+
+1. **Diversified retrieval**: Use multiple retrieval methods
+2. **Relevance ranking**: Rank results by relevance
+3. **Knowledge deduplication**: Remove duplicate knowledge pieces
+4. **Context awareness**: Consider conversation context for retrieval
+
+### Knowledge Management
+
+1. **Knowledge quality**: Ensure knowledge base quality and timeliness
+2. **Knowledge structure**: Reasonably organize knowledge structure
+3. **Knowledge updates**: Regularly update knowledge base content
+4. **Knowledge validation**: Validate accuracy of retrieved knowledge
+
+### Prompt Design
+
+1. **Clear instructions**: Provide clear knowledge usage instructions
+2. **Format specification**: Standardize knowledge format in prompts
+3. **Priority**: Clarify usage priority of knowledge and tools
+4. **Error handling**: Handle insufficient or incorrect knowledge
+
+## Related Links
+
+- [RAG Agent Main Documentation](/docs/agents-rag) - Overview and usage guide
+- [ReActAgent API](/oxyapi/agents-react-api) - Basic reasoning agent API
+- [Context Documentation](/docs/context) - Context management system
+- [RAG Examples](/examples/agents/rag-examples) - Practical usage examples

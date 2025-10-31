@@ -4,8 +4,6 @@ description: Retrieval-Augmented Generation (RAG) conversational agent that enha
 icon: Database
 ---
 
-# RagAgent
-
 Rag_agent (Retrieval-Augmented Generation) conversational agent. Before generating a response with a large language model, relevant external knowledge is retrieved through a search function and injected into the prompt to improve the accuracy and controllability of the answers.
 
 ## Overview
@@ -116,18 +114,21 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## Configuration Options
+## API Reference
 
-### Core Parameters
+**完整 API 文档请参考：**
 
-#### knowledge
+**[RAG Agent API Reference](/oxyapi/agents-rag-api)** - 包含完整的知识注入模式、检索函数接口和实现方法
 
-1. Call the externally injected retrieval function to obtain relevant knowledge based on the request content.
-2. Write the retrieved knowledge into `oxy_request.arguments` under the placeholder key (`knowledge_placeholder`) for subsequent template rendering/prompt composition.
+## Examples
 
-#### retrieval(str)
+实际使用示例和模式请参考：
 
-Perform knowledge retrieval based on the current request (e.g., from a vector database, search service, or self-hosted knowledge base).
+- [基础 RAG 实现](/examples/agents/basic-rag) - 简单的知识检索增强
+- [文档问答系统](/examples/application/document-qa) - 基于文档库的问答
+- [技术支持机器人](/examples/application/tech-support) - 知识库驱动的技术支持
+
+查看所有示例：[Examples Gallery](/examples)
 
 ## Use Cases
 
@@ -135,3 +136,10 @@ Perform knowledge retrieval based on the current request (e.g., from a vector da
 - **Document Q&A**: Answer questions based on your document database
 - **Technical support**: Provide accurate answers from knowledge bases
 - **Research assistance**: Retrieve relevant information before generating responses
+
+## Related Links
+
+- [ReActAgent](/docs/agents-react) - 基础推理代理
+- [Context](/docs/context) - 上下文管理系统
+- [Tools Function Hub](/docs/tools-function-hub) - 工具集成
+- [Configuration](/docs/configuration) - 配置选项
