@@ -48,8 +48,11 @@ export const translations: Record<string, Partial<Translations>> = {
  */
 const customZhCN = {
   'documentation.title': '文档',
+  'documentation.description': '学习如何使用 OxyGent 构建智能代理应用',
   'oxyapi.title': 'OxyAPI',
+  'oxyapi.description': '完整的 API 参考文档和使用指南',
   'examples.title': '在线演示',
+  'examples.description': '实际应用示例和最佳实践',
   'home.hero.title': '下一代智能代理框架',
   'home.hero.subtitle': '重新定义AI应用开发',
   'home.hero.description': 'OxyGent 是一个高性能的智能代理框架，专为构建强大的AI应用而设计。支持多代理协作、工具集成和企业级部署。',
@@ -87,8 +90,11 @@ const customZhCN = {
 
 const customEnUS: typeof customZhCN = {
   'documentation.title': 'Documentation',
+  'documentation.description': 'Learn how to build intelligent agent applications with OxyGent',
   'oxyapi.title': 'OxyAPI',
+  'oxyapi.description': 'Complete API reference documentation and usage guide',
   'examples.title': 'Examples',
+  'examples.description': 'Real-world examples and best practices',
   'home.hero.title': 'Next-Generation Intelligent Agent Framework',
   'home.hero.subtitle': 'Redefining AI Application Development',
   'home.hero.description': 'OxyGent is a high-performance intelligent agent framework designed for building powerful AI applications. Supporting multi-agent collaboration, tool integration, and enterprise-grade deployment.',

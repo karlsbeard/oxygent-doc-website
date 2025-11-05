@@ -1,6 +1,6 @@
 'use client'
 
-import { ArrowRightIcon, GitHubLogoIcon } from '@radix-ui/react-icons'
+import { ArrowRightIcon } from '@radix-ui/react-icons'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { customTranslations } from '@/lib/i18n'
@@ -120,7 +120,7 @@ export default function HomePage() {
                   dark:text-gray-300
                 `}
               >
-                学习如何使用 OxyGent 构建智能代理应用
+                {t['documentation.description']}
               </p>
             </Link>
 
@@ -150,7 +150,7 @@ export default function HomePage() {
                   dark:text-gray-300
                 `}
               >
-                完整的 API 参考文档和使用指南
+                {t['oxyapi.description']}
               </p>
             </Link>
 
@@ -180,120 +180,8 @@ export default function HomePage() {
                   dark:text-gray-300
                 `}
               >
-                实际应用示例和最佳实践
+                {t['examples.description']}
               </p>
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Quick Start Code */}
-      <section
-        className={`
-          bg-gray-50 py-16
-          sm:py-24
-          dark:bg-gray-800/50
-        `}
-      >
-        <div className="mx-auto max-w-4xl px-6">
-          <div className="text-center">
-            <h2
-              className={`
-                mb-4 text-2xl font-bold text-gray-900
-                sm:text-3xl
-                dark:text-white
-              `}
-            >
-              {t['home.quickStart.title']}
-            </h2>
-            <p
-              className={`
-                mb-8 text-gray-600
-                dark:text-gray-300
-              `}
-            >
-              {t['home.quickStart.description']}
-            </p>
-          </div>
-
-          <div className="rounded-lg bg-gray-900 p-6 shadow-lg">
-            <pre className="text-sm text-gray-300">
-              <code>
-                {`# 安装 OxyGent
-pip install oxygent
-
-# 创建你的第一个代理
-from oxygent import MAS, oxy
-
-@oxy.agent("hello_agent")
-async def hello_world(request):
-    return "Hello from OxyGent!"
-
-# 运行代理
-mas = MAS()
-result = await mas.run("hello_agent", "Hello!")
-print(result)  # "Hello from OxyGent!"`}
-              </code>
-            </pre>
-          </div>
-        </div>
-      </section>
-
-      {/* Footer CTA */}
-      <section
-        className={`
-          py-16
-          sm:py-24
-        `}
-      >
-        <div className="mx-auto max-w-4xl px-6 text-center">
-          <h2
-            className={`
-              mb-4 text-2xl font-bold text-gray-900
-              sm:text-3xl
-              dark:text-white
-            `}
-          >
-            {t['home.cta.title']}
-          </h2>
-          <p
-            className={`
-              mb-8 text-gray-600
-              dark:text-gray-300
-            `}
-          >
-            {t['home.cta.description']}
-          </p>
-
-          <div
-            className={`
-              flex flex-col items-center justify-center gap-4
-              sm:flex-row sm:gap-6
-            `}
-          >
-            <Link
-              href={`/${lang}/docs/quick-start`}
-              className={`
-                inline-flex items-center rounded-lg bg-blue-600 px-6 py-3 text-lg font-semibold text-white shadow-sm
-                hover:bg-blue-700
-                focus:ring-2 focus:ring-blue-500 focus:outline-none
-              `}
-            >
-              {t['home.cta.getStarted']}
-            </Link>
-
-            <Link
-              href="https://github.com/jd-opensource/OxyGent"
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`
-                inline-flex items-center gap-2 text-lg font-semibold text-gray-700
-                hover:text-blue-600
-                dark:text-gray-300 dark:hover:text-blue-400
-              `}
-            >
-              <GitHubLogoIcon className="h-5 w-5" />
-              {t['home.cta.github']}
             </Link>
           </div>
         </div>
