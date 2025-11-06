@@ -1,0 +1,154 @@
+---
+title: 快速开始
+description: 几分钟内开始使用 OxyGent - 设置您的环境并运行您的第一个多智能体系统
+icon: Rocket
+---
+
+Oxygent 是一个Python 库，旨在简化使用 OpenAI 的 GPT 模型开发多智能体系统（MAS）。它提供了一个简单的接口来创建智能体、管理它们的交互，以及处理诸如向量数据库和嵌入缓存等任务。
+
+## 构建 OxyGent 环境
+
+本指南演示如何设置您的环境并使用 Oxygen 多智能体系统（MAS）框架运行一个简单的示例。以下步骤将引导您完成依赖项安装、环境配置和执行示例脚本。
+
+### 步骤 1：创建并激活 Python 环境
+
+<Callout type="warn">
+**注意**：OxyGent 仅支持 Python 3.10 及以上版本。
+请确保您的 Python 环境版本至少为 3.10 ，否则可能无法正常运行。
+</Callout>
+
+建议为您的项目使用专用的 Python 环境。您可以使用以下方法创建和激活环境：
+
+#### 使用 conda
+
+```bash
+conda create -n oxy_env python==3.10
+conda activate oxy_env
+```
+
+#### 使用 venv
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+```
+
+#### 使用 uv
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+uv python install 3.10
+uv venv .venv --python 3.10
+source .venv/bin/activate
+```
+
+### 步骤 2：安装所需的 Python 包
+
+激活环境后，使用以下命令安装所需的 Python 包：
+
+```bash
+pip install oxygent
+```
+
+如果您使用 uv 创建环境，请使用以下命令：
+
+```bash
+uv pip install oxygent
+```
+
+### 步骤 3：示例 Python 脚本
+
+下面是一个示例 Python 脚本（`demo.py`），演示如何使用 Oxygen MAS 框架。此脚本初始化一个 MAS 实例并启动一个处理简单查询的 Web 服务。
+
+```python
+import os
+
+from oxygent import MAS, Config, oxy
+from oxygent import preset_tools
+
+time_tools = preset_tools.time_tools
+math_tools = preset_tools.math_tools
+file_tools = preset_tools.file_tools
+
+Config.set_agent_llm_model("default_llm")
+
+oxy_space = [
+ oxy.HttpLLM(
+ name='default_llm',
+ api_key=os.getenv('DEFAULT_LLM_API_KEY'),
+ base_url=os.getenv('DEFAULT_LLM_BASE_URL'),
+ model_name=os.getenv('DEFAULT_LLM_MODEL_NAME'),
+ llm_params={
+ 'temperature': 0.01
+ },
+ semaphore=4
+ ),
+ time_tools,
+ oxy.ReActAgent(
+ name="time_agent",
+ desc="A tool that can query the time",
+ tools=["time_tools"],
+ ),
+ file_tools,
+ oxy.ReActAgent(
+ name="file_agent",
+ desc="A tool that can operate the file system",
+ tools=["file_tools"],
+ ),
+ math_tools,
+ oxy.ReActAgent(
+ name='math_agent',
+ desc='A tool that can perform mathematical calculations.',
+ tools=['math_tools'],
+ ),
+ oxy.ReActAgent(
+ is_master=True,
+ name="master_agent",
+ sub_agents=["time_agent", "file_agent", "math_agent"],
+ ),
+]
+
+async def main():
+ async with MAS(oxy_space=oxy_space) as mas:
+ await mas.start_web_service(first_query="What time is it now? Please save it into time.txt.")
+
+if __name__ == "__main__":
+ import asyncio
+ asyncio.run(main())
+```
+
+### 步骤 4：配置您的 LLM 设置
+
+在运行脚本之前，设置以下环境变量以配置您的大语言模型（LLM）服务：
+
+```bash
+export DEFAULT_LLM_API_KEY="your_api_key"
+export DEFAULT_LLM_BASE_URL="your_base_url" # 如果您想使用自定义 base URL
+export DEFAULT_LLM_MODEL_NAME="your_model_name"
+```
+
+## 运行 Oxygent 示例
+
+<Callout type="info">
+**注意**：为了获得最佳体验，建议您首先安装 [Node.js](https://nodejs.org/)。
+</Callout>
+
+使用以下命令执行示例脚本：
+
+```bash
+python demo.py
+```
+
+### 查看输出
+
+![Quick Start Chat Interface](/images/oxygent/quickstart_chat.png)
+
+您可以点击右侧 master_agent 下的输出文本以查看动态生成的调用流程图。
+
+![Quick Start Flow Chart](/images/oxygent/quickstart_chat_flow_chat.png)
+
+## 下一步
+
+- 探索[配置](/docs/configuration)指南以了解有关自定义 OxyGent 的更多信息
+- 了解[智能体](/docs/agents-react)以理解不同的智能体类型
+- 查看[示例](/examples)了解更多高级用例

@@ -35,6 +35,11 @@ const config = {
       },
       {
         protocol: 'https',
+        hostname: 'storage.jd.com',
+        pathname: '/opponent/**',
+      },
+      {
+        protocol: 'https',
         hostname: 'img.shields.io',
         pathname: '/**',
       },

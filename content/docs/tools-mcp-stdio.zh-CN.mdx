@@ -1,0 +1,507 @@
+---
+title: StdioMCPClient
+description: 使用标准 I/O 通信的本地进程 MCP 客户端
+icon: Terminal
+---
+
+**StdioMCPClient** 实现了基于标准输入/输出流的 MCP（模型上下文协议）通信，实现与本地 MCP 服务器进程的无缝集成。
+
+## 概述
+
+StdioMCPClient 专为集成作为独立进程运行的本地 MCP 服务器而设计。它启动和管理实现 MCP 协议的外部进程（例如 Node.js 脚本、Python 服务器或其他可执行文件），通过标准 I/O 流建立双向通信。
+
+### 关键特性
+
+- **进程管理**：自动启动和管理 MCP 服务器进程
+- **Stdio 传输**：通过 stdin/stdout 管道进行可靠通信
+- **工具发现**：自动发现和注册服务器工具
+- **NPX 集成**：内置对 Node.js 包执行器的支持
+- **目录验证**：确保所需的目录和文件在启动前存在
+- **资源清理**：正确的进程终止和资源管理
+
+### 何时使用 StdioMCPClient
+
+```
+┌─────────────────────────────────────────────────────┐
+│ StdioMCPClient 使用场景 │
+├─────────────────────────────────────────────────────┤
+│ │
+│ ✓ 本地 MCP 服务器（Node.js、Python 等） │
+│ ✓ 带有 MCP 接口的命令行工具 │
+│ ✓ 开发和测试环境 │
+│ ✓ 单机部署 │
+│ ✓ 低延迟本地进程通信 │
+│ ✓ 使用 npx/npm 打包的 MCP 服务器 │
+│ │
+│ 使用 SSEMCPClient 用于： │
+│ → 通过 HTTP 的远程 MCP 服务器 │
+│ → 实时流式响应 │
+│ │
+│ 使用 StreamableMCPClient 用于： │
+│ → 双向 HTTP 流式传输 │
+│ → 高级基于 HTTP 的 MCP 通信 │
+└─────────────────────────────────────────────────────┘
+```
+
+## 快速开始
+
+### 使用 NPX 的基本用法
+
+使用 npx 运行 Node.js MCP 服务器：
+
+```python
+import asyncio
+import os
+from oxygent import MAS, oxy
+
+oxy_space = [
+ oxy.HttpLLM(
+ name="default_llm",
+ api_key=os.getenv("DEFAULT_LLM_API_KEY"),
+ base_url=os.getenv("DEFAULT_LLM_BASE_URL"),
+ model_name=os.getenv("DEFAULT_LLM_MODEL_NAME"),
+ llm_params={"temperature": 0.1},
+ ),
+ oxy.StdioMCPClient(
+ name="filesystem_tools",
+ params={
+ "command": "npx",
+ "args": ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"],
+ "env": {}
+ }
+ ),
+ oxy.ReActAgent(
+ name="file_assistant",
+ is_master=True,
+ llm_model="default_llm",
+ tools=["filesystem_tools"]
+ ),
+]
+
+async def main():
+ async with MAS(oxy_space=oxy_space) as mas:
+ result = await mas.call(
+ callee="file_assistant",
+ arguments={
+ "messages": [
+ {"role": "user", "content": "List files in /tmp directory"}
+ ]
+ }
+ )
+ print(result.output)
+
+if __name__ == "__main__":
+ asyncio.run(main())
+```
+
+### 本地 Python MCP 服务器
+
+运行自定义 Python MCP 服务器：
+
+```python
+from oxygent import MAS, oxy
+import os
+
+oxy_space = [
+ oxy.HttpLLM(name="default_llm", ...),
+ oxy.StdioMCPClient(
+ name="custom_tools",
+ params={
+ "command": "uv",
+ "args": ["--directory", "./mcp_servers", "run", "custom_server.py"],
+ "env": {}
+ }
+ ),
+ oxy.ReActAgent(
+ name="agent",
+ is_master=True,
+ llm_model="default_llm",
+ tools=["custom_tools"]
+ ),
+]
+
+async def main():
+ async with MAS(oxy_space=oxy_space) as mas:
+ await mas.start_web_service(first_query="Hello!")
+
+asyncio.run(main())
+```
+
+### 多个 MCP 服务器
+
+管理多个本地 MCP 服务器：
+
+```python
+oxy_space = [
+ oxy.HttpLLM(name="default_llm", ...),
+
+ # Filesystem tools
+ oxy.StdioMCPClient(
+ name="filesystem_tools",
+ params={
+ "command": "npx",
+ "args": ["-y", "@modelcontextprotocol/server-filesystem", "/workspace"],
+ }
+ ),
+
+ # Git tools
+ oxy.StdioMCPClient(
+ name="git_tools",
+ params={
+ "command": "npx",
+ "args": ["-y", "@modelcontextprotocol/server-git"],
+ }
+ ),
+
+ # Custom local tools
+ oxy.StdioMCPClient(
+ name="custom_tools",
+ params={
+ "command": "python",
+ "args": ["./servers/my_mcp_server.py"],
+ }
+ ),
+
+ oxy.ReActAgent(
+ name="dev_assistant",
+ is_master=True,
+ llm_model="default_llm",
+ tools=["filesystem_tools", "git_tools", "custom_tools"]
+ ),
+]
+```
+
+## 配置选项
+
+### 必需 参数s
+
+| 参数 | 类型 | 必需 | 描述 |
+|-----------|------|----------|-------------|
+| `name` | `str` | **是** | 此 MCP 客户端的唯一标识符 |
+| `params` | `dict` | **是** | 进程和命令的配置字典 |
+
+### params 字典
+
+`params` 字典配置 MCP 服务器进程：
+
+| 键 | 类型 | 必需 | 描述 |
+|-----|------|----------|-------------|
+| `command` | `str` | **是** | 要执行的命令（例如："npx"、"python"、"node"） |
+| `args` | `list[str]` | **是** | 命令行参数作为字符串列表 |
+| `env` | `dict[str, str]` | 否 | 附加环境变量（与 `os.environ` 合并） |
+
+**示例：**
+```python
+oxy.StdioMCPClient(
+ name="my_server",
+ params={
+ "command": "npx",
+ "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/dir"],
+ "env": {
+ "DEBUG": "true",
+ "API_KEY": "your-key"
+ }
+ }
+)
+```
+
+### 继承的参数
+
+StdioMCPClient 继承自 BaseMCPClient，具有以下选项：
+
+| 参数 | 类型 | 默认值 | 描述 |
+|-----------|------|---------|-------------|
+| `headers` | `dict[str, str]` | `{}` | HTTP 请求头（通常不用于 stdio） |
+| `is_dynamic_headers` | `bool` | `False` | 启用动态请求头更新 |
+| `is_inherit_headers` | `bool` | `False` | 从请求上下文继承请求头 |
+| `is_keep_alive` | `bool` | 配置默认值 | 在调用之间保持连接 |
+
+## 理解 StdioMCP 流程
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ StdioMCPClient 生命周期 │
+└─────────────────────────────────────────────────────────┘
+ │
+ 1. 初始化阶段
+ │
+ ▼
+ ┌───────────────────────────┐
+ │ 验证命令路径 │
+ │ （如需要，解析 npx） │
+ └───────────────────────────┘
+ │
+ ▼
+ ┌───────────────────────────┐
+ │ 检查目录是否存在 │
+ │ 如需要，创建目录 │
+ └───────────────────────────┘
+ │
+ 2. 进程启动
+ │
+ ▼
+ ┌───────────────────────────┐
+ │ 启动外部进程 │
+ │ command + args + env │
+ └───────────────────────────┘
+ │
+ ▼
+ ┌───────────────────────────┐
+ │ 设置 stdio 传输 │
+ │ stdin ←→ stdout 管道 │
+ └───────────────────────────┘
+ │
+ 3. MCP 会话
+ │
+ ▼
+ ┌───────────────────────────┐
+ │ 创建 ClientSession │
+ │ 初始化 MCP 协议 │
+ └───────────────────────────┘
+ │
+ 4. 工具发现
+ │
+ ▼
+ ┌───────────────────────────┐
+ │ 通过 MCP 调用list_tools()│
+ │ 注册 MCPTool 包装器 │
+ └───────────────────────────┘
+ │
+ 5. 工具执行
+ │
+ ▼
+ ┌───────────────────────────┐
+ │ 智能体调用工具 │
+ │ → 发送到 stdio │
+ │ ← 从 stdout 接收 │
+ └───────────────────────────┘
+ │
+ 6. 清理
+ │
+ ▼
+ ┌───────────────────────────┐
+ │ 关闭会话 │
+ │ 终止进程 │
+ │ 释放资源 │
+ └───────────────────────────┘
+```
+
+## Command Patterns
+
+### NPX 命令
+
+使用 Node Package eXecute 执行 npm 包：
+
+```python
+# Standard NPX usage
+oxy.StdioMCPClient(
+ name="server",
+ params={
+ "command": "npx",
+ "args": [
+ "-y", # Automatically accept installation
+ "@modelcontextprotocol/server-filesystem",
+ "/workspace"
+ ]
+ }
+)
+
+# With specific version
+oxy.StdioMCPClient(
+ name="server",
+ params={
+ "command": "npx",
+ "args": [
+ "-y",
+ "@modelcontextprotocol/server-filesystem@1.2.3",
+ "/workspace"
+ ]
+ }
+)
+```
+
+### 基于目录的命令
+
+从特定目录运行 MCP 服务器：
+
+```python
+oxy.StdioMCPClient(
+ name="local_server",
+ params={
+ "command": "uv", # 或 "python"、"node" 等
+ "args": [
+ "--directory", "./mcp_servers", # 切换到此目录
+ "run", "my_server.py" # 执行此文件
+ ]
+ }
+)
+```
+
+**目录验证：**
+- `--directory` 中的路径必须存在
+- `run` 中指定的文件必须存在于该目录中
+- 否则会引发 `FileNotFoundError`
+
+### Python MCP 服务器
+
+```python
+# 直接使用 Python
+oxy.StdioMCPClient(
+ name="python_server",
+ params={
+ "command": "python",
+ "args": ["./servers/my_mcp_server.py"]
+ }
+)
+
+# 使用 uv（快速 Python 包管理器）
+oxy.StdioMCPClient(
+ name="uv_server",
+ params={
+ "command": "uv",
+ "args": ["run", "./servers/my_mcp_server.py"]
+ }
+)
+```
+
+### 自定义环境变量
+
+向服务器进程传递环境变量：
+
+```python
+oxy.StdioMCPClient(
+ name="server_with_env",
+ params={
+ "command": "npx",
+ "args": ["-y", "@my-org/mcp-server"],
+ "env": {
+ "DEBUG": "true",
+ "API_KEY": os.getenv("MY_API_KEY"),
+ "LOG_LEVEL": "info",
+ "CUSTOM_VAR": "value"
+ }
+ }
+)
+```
+
+**注意：** 环境变量与 `os.environ` 合并，因此服务器可以访问系统环境和自定义变量。
+
+## 高级功能
+
+### 自动目录创建
+
+StdioMCPClient 会自动为文件系统服务器创建所需的目录：
+
+```python
+oxy.StdioMCPClient(
+ name="filesystem",
+ params={
+ "command": "npx",
+ "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/new/dir"]
+ }
+)
+# 如果 /path/to/new/dir 不存在，它将被创建
+```
+
+### 错误处理
+
+内置验证和错误处理：
+
+```python
+try:
+ oxy_space = [
+ oxy.StdioMCPClient(
+ name="invalid_server",
+ params={
+ "command": "npx",
+ "args": ["--directory", "./nonexistent", "run", "server.py"]
+ }
+ )
+ ]
+ async with MAS(oxy_space=oxy_space) as mas:
+ # This will raise FileNotFoundError during initialization
+ await mas.call(...)
+except FileNotFoundError as e:
+ print(f"Server validation error: {e}")
+```
+
+### 连接管理
+
+控制连接生命周期：
+
+```python
+# 保持连接（默认）
+oxy.StdioMCPClient(
+ name="persistent_server",
+ is_keep_alive=True, # 进程在调用之间保持活跃
+ ...
+)
+
+# 每次调用创建新连接
+oxy.StdioMCPClient(
+ name="transient_server",
+ is_keep_alive=False, # 每次调用都启动进程
+ ...
+)
+```
+
+## API 参考
+
+有关完整的 API 文档，包括所有构造函数参数、方法和实现细节，请参考：
+
+**[StdioMCPClient API 参考](/oxyapi/tools-mcp-stdio-api)** - 完整的 API 文档
+
+## 示例
+
+探索实际实现：
+
+- **[本地 MCP 工具](/examples/06_local-mcp-tools)** - 使用带有 stdio 传输的本地 MCP 服务器
+- **[FunctionHub 工具](/examples/05_functionhub-tools)** - 与 FunctionHub 方法的对比
+
+查看所有示例：[示例库](/examples)。
+
+## 故障排除
+
+### 常见问题
+
+**命令未找到：**
+```python
+# 问题："npx" 未找到
+# 解决方案：确保已安装 Node.js 并在 PATH 中
+oxy.StdioMCPClient(
+ params={
+ "command": shutil.which("npx") or "npx", # 解析完整路径
+ ...
+ }
+)
+```
+
+**文件未找到：**
+```python
+# 问题：服务器文件不存在
+# 解决方案：检查文件路径和目录
+params={
+ "command": "uv",
+ "args": ["--directory", "./mcp_servers", "run", "server.py"]
+}
+# 确保 ./mcp_servers/server.py 存在
+```
+
+**进程超时：**
+```python
+# 问题：服务器启动时间过长
+# 解决方案：在 BaseTool 参数中增加超时
+oxy.StdioMCPClient(
+ name="slow_server",
+ timeout=120, # 2 分钟
+ ...
+)
+```
+
+## 相关文档
+
+- **[SSEMCPClient](/docs/tools-mcp-sse)** - 基于 HTTP SSE 的 MCP 客户端
+- **[StreamableMCPClient](/docs/tools-mcp-streamable)** - HTTP 流式 MCP 客户端
+- **[MCP 对比指南](/docs/tools-mcp-comparison)** - 对比不同的 MCP 客户端
+- **[FunctionHub](/docs/tools-function-hub)** - 替代的 Python 原生工具方法
+- **[ReAct 智能体](/docs/agents-react)** - 在智能体中使用 MCP 工具

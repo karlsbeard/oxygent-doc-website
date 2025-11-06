@@ -1,10 +1,10 @@
 ---
 title: ParallelFlow API 参考
-description: 完整 API 参考文档： ParallelFlow constructor parameters 和 execution methods
+description: ParallelFlow 的完整 API 参考文档，包括构造函数参数和执行方法
 icon: Code
 ---
 
-## Class 概述
+## 类概述
 
 ```python
 from oxygent.oxy.flows import ParallelFlow
@@ -24,28 +24,28 @@ parallel_flow = ParallelFlow(
 
 |参数|类型|默认值|描述|
 |-----------|------|---------|-------------|
-| `name` | str | 必需 | Unique identifier for the parallel flow |
-| `permitted_tool_name_list` | list[str] | 必需 | List of tool/agent names to execute in parallel |
+| `name` | str | 必需 | 并行流程的唯一标识符 |
+| `permitted_tool_name_list` | list[str] | 必需 | 要并行执行的工具/代理名称列表 |
 
-### 可选 参数s
+### 可选参数
 
 |参数|类型|默认值|描述|
 |-----------|------|---------|-------------|
-| `desc` | str | "" | Description of the flow's purpose |
-| `timeout` | int | 100 | Maximum execution time in seconds |
-| `llm_model` | str | "default_llm" | LLM model name for fallback operations |
-| `is_permission_required` | bool | False | Whether permission is required before execution |
-| `category` | str | "flow" | Category 类ification |
-| `is_master` | bool | False | Whether this is the master entry point |
+| `desc` | str | "" | 流程用途的描述 |
+| `timeout` | int | 100 | 最大执行时间（秒） |
+| `llm_model` | str | "default_llm" | 用于后备操作的 LLM 模型名称 |
+| `is_permission_required` | bool | False | 执行前是否需要权限 |
+| `category` | str | "flow" | 类别分类 |
+| `is_master` | bool | False | 是否为主入口点 |
 
 ## 参数详情
 
 ### `name`
-- **Type**: `str`
-- **必需**: Yes
-- **Description**: 的唯一标识符 the parallel flow 在多智能体系统中. Used 当 calling the flow via `mas.call(callee="flow_name")`.
+- **类型**：`str`
+- **必需**：是
+- **描述**：并行流程在多智能体系统中的唯一标识符。通过 `mas.call(callee="flow_name")` 调用流程时使用。
 
-**Example:**
+**示例：**
 ```python
 ParallelFlow(
     name="revenue_parallel_flow",
@@ -542,10 +542,9 @@ ParallelFlow(
 | **Use case** | Parallel data fetch | Custom patterns | Multi-step plans |
 | **Complexity** | Low | Variable | High |
 
-## Related API 参考s
+## Related API 参考
 
-- [Workflow API](/oxyapi/flows-workflow-api) - Custom workflow flow API
-- [PlanAndSolve API](/oxyapi/flows-plan-和-solve-api) - Plan-和-execute flow API
-- [Reflexion API](/oxyapi/flows-reflexion-api) - Self-evaluation flow API
-- [ParallelAgent API](/oxyapi/agents-parallel-api) - Intelligent parallel agent API
-- [BaseFlow API](/oxyapi/base-flow-api) - Base flow class API
+- [Workflow API](/oxyapi/flows-workflow-api) - 自定义工作流 API
+- [PlanAndSolve API](/oxyapi/flows-plan-and-solve-api) - 计划执行流 API
+- [Reflexion API](/oxyapi/flows-reflexion-api) - 自我评估流 API
+- [ParallelAgent API](/oxyapi/agents-parallel-api) - 智能并行代理 API

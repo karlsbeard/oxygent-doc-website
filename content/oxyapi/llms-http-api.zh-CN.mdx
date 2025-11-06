@@ -1,10 +1,10 @@
 ---
 title: HttpLLM API 参考
-description: 完整 API 文档： HttpLLM 类
+description: HttpLLM 类的完整 API 参考文档
 icon: Code
 ---
 
-## Class Definition
+## 类定义
 
 ```python
 from oxygent import oxy
@@ -22,38 +22,38 @@ llm = oxy.HttpLLM(
 
 ## 构造函数参数
 
-### 必需 参数s
+### 必需参数
 
 |参数|类型|必需|默认值|描述|
 |-----------|------|----------|---------|-------------|
-| `name` | `str` | **Yes** | - | Unique identifier for this LLM in the MAS system |
-| `api_key` | `str` | **Conditional** | `None` | API key for authentication. 必需 for OpenAI/Gemini, not needed for Ollama |
-| `base_url` | `str` | **Yes** | - | Base URL of the LLM API endpoint (e.g., "https://api.openai.com/v1") |
-| `model_name` | `str` | **Yes** | - | Model identifier (e.g., "gpt-4o", "gemini-pro", "llama3.2") |
+| `name` | `str` | **是** | - | MAS 系统中此 LLM 的唯一标识符 |
+| `api_key` | `str` | **条件性** | `None` | 用于身份验证的 API 密钥。OpenAI/Gemini 必需，Ollama 不需要 |
+| `base_url` | `str` | **是** | - | LLM API 端点的基础 URL（例如 "https://api.openai.com/v1"） |
+| `model_name` | `str` | **是** | - | 模型标识符（例如 "gpt-4o"、"gemini-pro"、"llama3.2"） |
 
-### LLM Configuration
-
-|参数|类型|默认值|描述|
-|-----------|------|---------|-------------|
-| `llm_params` | `dict` | `{}` | 默认 parameters for LLM calls (temperature, max_tokens, top_p, etc.). These are sent 包含 every request 和 can be overridden per call |
-| `timeout` | `float` | `300` | Maximum execution time in seconds (default: 5 minutes) |
-| `category` | `str` | `"llm"` | Category 类ification (automatically set, do not modify) |
-
-### Multimodal Support
+### LLM 配置
 
 |参数|类型|默认值|描述|
 |-----------|------|---------|-------------|
-| `is_multimodal_supported` | `bool` | `False` | Whether this LLM supports multimodal input (images, videos, documents) |
-| `is_convert_url_to_base64` | `bool` | `False` | Convert media URLs to base64 before sending (required for some APIs that don't support URLs) |
-| `max_image_pixels` | `int` | `10000000` | Maximum image size in pixels (10 million). Images exceeding this are rejected |
-| `max_video_size` | `int` | `12582912` | Maximum video file size in bytes (default: 12MB) |
-| `max_file_size_bytes` | `int` | `2097152` | Maximum non-media file size in bytes for base64 embedding (default: 2MB) |
+| `llm_params` | `dict` | `{}` | LLM 调用的默认参数（temperature、max_tokens、top_p 等）。这些参数会随每个请求发送，可以在每次调用时覆盖 |
+| `timeout` | `float` | `300` | 最大执行时间（秒）（默认：5 分钟） |
+| `category` | `str` | `"llm"` | 类别分类（自动设置，请勿修改） |
 
-### HTTP Configuration
+### 多模态支持
 
 |参数|类型|默认值|描述|
 |-----------|------|---------|-------------|
-| `headers` | `dict \| Callable[[OxyRequest], dict]` | `{}` | Additional HTTP headers to send 包含 requests. Can be a static dict or a function that receives OxyRequest 和 返回 headers |
+| `is_multimodal_supported` | `bool` | `False` | 此 LLM 是否支持多模态输入（图像、视频、文档） |
+| `is_convert_url_to_base64` | `bool` | `False` | 发送前将媒体 URL 转换为 base64（某些不支持 URL 的 API 需要） |
+| `max_image_pixels` | `int` | `10000000` | 最大图像大小（像素）（1000 万）。超过此大小的图像将被拒绝 |
+| `max_video_size` | `int` | `12582912` | 最大视频文件大小（字节）（默认：12MB） |
+| `max_file_size_bytes` | `int` | `2097152` | base64 嵌入的最大非媒体文件大小（字节）（默认：2MB） |
+
+### HTTP 配置
+
+|参数|类型|默认值|描述|
+|-----------|------|---------|-------------|
+| `headers` | `dict \| Callable[[OxyRequest], dict]` | `{}` | 随请求发送的额外 HTTP 头。可以是静态字典或接收 OxyRequest 并返回头的函数 |
 
 **Headers Function Signature:**
 ```python
@@ -61,34 +61,34 @@ def get_headers(oxy_request: OxyRequest) -> dict[str, str]:
     return {"X-Custom-Header": "value"}
 ```
 
-### Messaging & 错误处理
+### 消息传递与错误处理
 
 |参数|类型|默认值|描述|
 |-----------|------|---------|-------------|
-| `is_send_think` | `bool` | From `Config` | Whether to extract 和 send thinking process messages to the frontend. Supports `<think>...</think>` XML tags 和 JSON `"think"` 字段 |
-| `friendly_error_text` | `str` | `"Sorry, I seem to have encountered a problem. Please try again."` | User-friendly error message displayed 当 exceptions occur |
+| `is_send_think` | `bool` | 来自 `Config` | 是否提取并向前端发送思考过程消息。支持 `<think>...</think>` XML 标签和 JSON `"think"` 字段 |
+| `friendly_error_text` | `str` | `"抱歉，我似乎遇到了问题。请重试。"` | 发生异常时显示的用户友好错误消息 |
 
-### Execution Control
-
-|参数|类型|默认值|描述|
-|-----------|------|---------|-------------|
-| `semaphore` | `int` | `16` | 最大数量 concurrent LLM requests allowed |
-| `retries` | `int` | `2` | Number of retry attempts on failure |
-| `delay` | `float` | `1.0` | Delay between retry attempts in seconds |
-
-### Data & Logging
+### 执行控制
 
 |参数|类型|默认值|描述|
 |-----------|------|---------|-------------|
-| `desc` | `str` | `""` | Human-readable description of this LLM |
-| `is_save_data` | `bool` | `True` | Whether to save execution traces to Elasticsearch |
-| `is_permission_required` | `bool` | `False` | Whether permission checks are required (usually False for LLMs) |
+| `semaphore` | `int` | `16` | 允许的最大并发 LLM 请求数 |
+| `retries` | `int` | `2` | 失败时的重试次数 |
+| `delay` | `float` | `1.0` | 重试尝试之间的延迟（秒） |
 
-## Call Arguments
+### 数据与日志
 
-When calling an HttpLLM via `oxy_request.call()` or as an agent's `llm_model`, you can pass these arguments:
+|参数|类型|默认值|描述|
+|-----------|------|---------|-------------|
+| `desc` | `str` | `""` | 此 LLM 的可读描述 |
+| `is_save_data` | `bool` | `True` | 是否将执行跟踪保存到 Elasticsearch |
+| `is_permission_required` | `bool` | `False` | 是否需要权限检查（LLM 通常为 False） |
 
-### 必需 Arguments
+## 调用参数
+
+通过 `oxy_request.call()` 或作为代理的 `llm_model` 调用 HttpLLM 时，可以传递以下参数：
+
+### 必需参数
 
 ```python
 response = await oxy_request.call(
@@ -102,11 +102,11 @@ response = await oxy_request.call(
 )
 ```
 
-|Argument|类型|必需|描述|
+|参数|类型|必需|描述|
 |----------|------|----------|-------------|
-| `messages` | `list[dict]` | **Yes** | List of message 对象s in OpenAI format |
+| `messages` | `list[dict]` | **是** | OpenAI 格式的消息对象列表 |
 
-### Message Format
+### 消息格式
 
 ```python
 {
@@ -118,9 +118,9 @@ response = await oxy_request.call(
 }
 ```
 
-### Multimodal Message Format
+### 多模态消息格式
 
-For vision-enabled models:
+对于支持视觉的模型：
 
 ```python
 {
@@ -132,37 +132,37 @@ For vision-enabled models:
 }
 ```
 
-### 可选 Arguments
+### 可选参数
 
-|Argument|类型|描述|
+|参数|类型|描述|
 |----------|------|-------------|
-| `temperature` | `float` | Sampling temperature (0.0 to 2.0) |
-| `max_tokens` | `int` | Maximum tokens to generate |
-| `top_p` | `float` | Nucleus sampling parameter |
-| `frequency_penalty` | `float` | Penalize frequent tokens |
-| `presence_penalty` | `float` | Penalize present tokens |
-| `stop` | `str \| list[str]` | Stop sequences |
-| `stream` | `bool` | Enable streaming mode |
-| `response_format` | `dict` | Response format (e.g., `{"type": "json_对象"}`) |
+| `temperature` | `float` | 采样温度（0.0 到 2.0） |
+| `max_tokens` | `int` | 生成的最大 token 数 |
+| `top_p` | `float` | 核采样参数 |
+| `frequency_penalty` | `float` | 惩罚频繁 token |
+| `presence_penalty` | `float` | 惩罚已出现 token |
+| `stop` | `str \| list[str]` | 停止序列 |
+| `stream` | `bool` | 启用流式模式 |
+| `response_format` | `dict` | 响应格式（例如 `{"type": "json_object"}`)  |
 
-**Note:** Available parameters depend on the specific LLM provider. Consult their documentation.
+**注意：**可用参数取决于特定的 LLM 提供商。请查阅其文档。
 
 ## 方法
 
 ### _execute()
 
-Internal method that sends HTTP requests to the LLM API. Not called directly by users.
+向 LLM API 发送 HTTP 请求的内部方法。用户不直接调用。
 
 ```python
 async def _execute(self, oxy_request: OxyRequest) -> OxyResponse
 ```
 
-**Implementation Details:**
-- Auto-detects provider based on `base_url` (OpenAI, Gemini, Ollama)
-- Formats requests according to provider requirements
-- H和les authentication headers
-- Supports streaming responses
-- Processes multimodal input
+**实现细节：**
+- 根据 `base_url` 自动检测提供商（OpenAI、Gemini、Ollama）
+- 根据提供商要求格式化请求
+- 处理身份验证头
+- 支持流式响应
+- 处理多模态输入
 
 **Provider Detection Logic:**
 ```python
@@ -182,24 +182,24 @@ else:
 
 ### _get_messages()
 
-Internal method that processes messages for multimodal input. Not called directly.
+处理多模态输入消息的内部方法。不直接调用。
 
 ```python
 async def _get_messages(self, oxy_request: OxyRequest) -> list[dict]
 ```
 
-**Features:**
-- Parses mixed text/image/video content
-- Converts markdown links to multimodal format
-- Reads document files inline
-- Converts URLs to base64 (if enabled)
-- Validates image/video sizes
+**功能：**
+- 解析混合文本/图像/视频内容
+- 将 markdown 链接转换为多模态格式
+- 内联读取文档文件
+- 将 URL 转换为 base64（如果启用）
+- 验证图像/视频大小
 
-## Response Format
+## 响应格式
 
 ### OxyResponse
 
-Every LLM call 返回 an OxyResponse:
+每个 LLM 调用都返回一个 OxyResponse：
 
 ```python
 class OxyResponse:
@@ -222,9 +222,9 @@ else:
     error = response.output  # Error message
 ```
 
-### Streaming Responses
+### 流式响应
 
-When `stream=True`, intermediate messages are sent via `send_message()`:
+当 `stream=True` 时，中间消息通过 `send_message()` 发送：
 
 ```python
 {
@@ -234,17 +234,17 @@ When `stream=True`, intermediate messages are sent via `send_message()`:
 }
 ```
 
-**Final Response:**
+**最终响应：**
 ```python
 OxyResponse(
     state=OxyState.COMPLETED,
-    output="complete generated text"  # All tokens concatenated
+    output="complete generated text"  # 所有 token 连接在一起
 )
 ```
 
-## Usage 示例s
+## 使用示例
 
-### Basic Usage
+### 基本用法
 
 ```python
 import os
@@ -273,7 +273,7 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-### Multiple Providers
+### 多个提供商
 
 ```python
 oxy_space = [
@@ -301,14 +301,14 @@ oxy_space = [
         model_name="llama3.2"
     ),
 
-    # Use different models for different agents
+    # 为不同代理使用不同模型
     oxy.ChatAgent(name="fast", llm_model="gemini"),
     oxy.ReActAgent(name="smart", llm_model="gpt4"),
     oxy.ChatAgent(name="local", llm_model="llama"),
 ]
 ```
 
-### Direct LLM Calls
+### 直接 LLM 调用
 
 ```python
 async def my_workflow(oxy_request: OxyRequest):
@@ -336,7 +336,7 @@ oxy_space = [
 ]
 ```
 
-### Dynamic Headers
+### 动态请求头
 
 ```python
 def get_auth_headers(oxy_request: OxyRequest) -> dict:
@@ -351,11 +351,11 @@ oxy.HttpLLM(
     api_key=os.getenv("API_KEY"),
     base_url="https://api.example.com",
     model_name="gpt-4",
-    headers=get_auth_headers  # Function instead of dict
+    headers=get_auth_headers  # 使用函数而非字典
 )
 ```
 
-### Streaming
+### 流式传输
 
 ```python
 async def streaming_workflow(oxy_request: OxyRequest):
@@ -378,7 +378,7 @@ oxy_space = [
 ]
 ```
 
-### Multimodal Input
+### 多模态输入
 
 ```python
 oxy.HttpLLM(
@@ -390,7 +390,7 @@ oxy.HttpLLM(
     is_convert_url_to_base64=False
 )
 
-# Call with image
+# 使用图像调用
 response = await oxy_request.call(
     callee="gpt4_vision",
     arguments={
@@ -412,7 +412,7 @@ response = await oxy_request.call(
 )
 ```
 
-### Custom 参数s
+### 自定义参数
 
 ```python
 # Set defaults
@@ -440,61 +440,61 @@ response = await oxy_request.call(
 )
 ```
 
-## Provider-Specific Details
+## 提供商特定详情
 
 ### OpenAI
 
-**Base URLs:**
-- Production: `https://api.openai.com/v1`
-- Azure: `https://{resource}.openai.azure.com/openai/deployments/{deployment}`
+**基础 URL：**
+- 生产环境：`https://api.openai.com/v1`
+- Azure：`https://{resource}.openai.azure.com/openai/deployments/{deployment}`
 
-**Models:**
-- `gpt-4o`, `gpt-4-turbo`, `gpt-3.5-turbo`
+**模型：**
+- `gpt-4o`、`gpt-4-turbo`、`gpt-3.5-turbo`
 
-**Auth:** Bearer token in `Authorization` header
+**身份验证：**`Authorization` 头中的 Bearer token
 
-**Endpoint:** Appends `/chat/completions`
+**端点：**附加 `/chat/completions`
 
 ### Gemini
 
-**Base URL:** `https://generativelanguage.googleapis.com/v1beta`
+**基础 URL：**`https://generativelanguage.googleapis.com/v1beta`
 
-**Models:**
-- `gemini-2.0-flash-exp`, `gemini-pro`, `gemini-pro-vision`
+**模型：**
+- `gemini-2.0-flash-exp`、`gemini-pro`、`gemini-pro-vision`
 
-**Auth:** API key in `X-goog-api-key` header
+**身份验证：**`X-goog-api-key` 头中的 API 密钥
 
-**Endpoint:** Appends `/models/{model_name}:generateContent`
+**端点：**附加 `/models/{model_name}:generateContent`
 
-**Note:** Gemini uses a different message format internally (automatically converted)
+**注意：**Gemini 内部使用不同的消息格式（自动转换）
 
 ### Ollama
 
-**Base URL:** `http://localhost:11434` (default)
+**基础 URL：**`http://localhost:11434`（默认）
 
-**Models:** Any model installed locally (llama3.2, mistral, etc.)
+**模型：**本地安装的任何模型（llama3.2、mistral 等）
 
-**Auth:** None required
+**身份验证：**无需
 
-**Endpoint:** Appends `/api/chat`
+**端点：**附加 `/api/chat`
 
-**Note:** No API key needed, runs locally
+**注意：**无需 API 密钥，本地运行
 
 ## 错误处理
 
-### Common Errors
+### 常见错误
 
-|Error Type|Cause|Solution|
+|错误类型|原因|解决方案|
 |------------|-------|----------|
-| `ValueError: base_url must be a non-empty string` | Missing or empty base_url | Set valid base_url |
-| `ValueError: model_name must be a non-empty string` | Missing model_name | Set valid model_name |
-| `ValueError: LLM API error: ...` | API returned error | Check API key, quota, model name |
-| `httpx.TimeoutException` | Request exceeded timeout | Increase `timeout` parameter |
-| `httpx.HTTPStatusError` | HTTP error (4xx, 5xx) | Check API credentials 和 status |
+| `ValueError: base_url must be a non-empty string` | 缺少或空的 base_url | 设置有效的 base_url |
+| `ValueError: model_name must be a non-empty string` | 缺少 model_name | 设置有效的 model_name |
+| `ValueError: LLM API error: ...` | API 返回错误 | 检查 API 密钥、配额、模型名称 |
+| `httpx.TimeoutException` | 请求超时 | 增加 `timeout` 参数 |
+| `httpx.HTTPStatusError` | HTTP 错误（4xx、5xx） | 检查 API 凭证和状态 |
 
-### Retry Logic
+### 重试逻辑
 
-HttpLLM automatically retries failed requests:
+HttpLLM 自动重试失败的请求：
 
 ```python
 oxy.HttpLLM(
@@ -502,21 +502,21 @@ oxy.HttpLLM(
     api_key=os.getenv("API_KEY"),
     base_url="https://api.example.com",
     model_name="gpt-4",
-    retries=3,  # Retry up to 3 times
-    delay=2.0,  # Wait 2 seconds between retries
-    timeout=120 # 2 minute timeout per attempt
+    retries=3,  # 最多重试 3 次
+    delay=2.0,  # 重试之间等待 2 秒
+    timeout=120 # 每次尝试 2 分钟超时
 )
 ```
 
-**Retry Behavior:**
-- Attempts up to `retries` times
-- Waits `delay` seconds between attempts
-- Returns `OxyState.FAILED` after exhausting retries
+**重试行为：**
+- 最多尝试 `retries` 次
+- 每次尝试之间等待 `delay` 秒
+- 用尽重试后返回 `OxyState.FAILED`
 
 ## 相关文档
 
-- **[HttpLLM Guide](/docs/llms-http)** - Main documentation 和 usage patterns
-- **[ChatAgent](/docs/agents-chat)** - Conversational agent using LLMs
-- **[ReActAgent API](/oxyapi/agents-react-api)** - Reasoning agent API
-- **[Configuration](/docs/configuration)** - Global LLM configuration
-- **[OxyRequest & Context](/docs/context)** - Underst和ing the call API
+- **[HttpLLM 指南](/docs/llms-http)** - 主要文档和使用模式
+- **[ChatAgent](/docs/agents-chat)** - 使用 LLM 的对话代理
+- **[ReActAgent API](/oxyapi/agents-react-api)** - 推理代理 API
+- **[配置](/docs/configuration)** - 全局 LLM 配置
+- **[OxyRequest 与上下文](/docs/context)** - 理解调用 API

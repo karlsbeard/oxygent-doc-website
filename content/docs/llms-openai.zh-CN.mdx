@@ -1,0 +1,113 @@
+---
+title: OpenAILLM
+description: 使用官方 AsyncOpenAI 客户端集成的 OpenAI 语言模型的具体实现
+icon: MessageSquare
+---
+
+## 概述
+
+`OpenAILLM` 是 `RemoteLLM` 类的具体实现，专门为 OpenAI 的语言模型设计。它使用官方 AsyncOpenAI 客户端以获得最佳性能和与 OpenAI API 标准的兼容性。该类提供与 OpenAI 聊天完成 API 的无缝集成，支持所有 OpenAI 模型和兼容的 API。
+
+## 类层次结构
+
+![OpenAI LLM Architecture](https://storage.jd.com/opponent/AI/1.png)
+
+## 特性
+
+`OpenAILLM` 类提供以下核心功能：
+
+1. **官方客户端集成**：
+   - 使用官方 AsyncOpenAI 客户端库
+   - 针对 OpenAI API 优化性能
+   - 与 OpenAI API 标准完全兼容
+
+2. **高级请求处理**：
+   - 动态负载构建
+   - 从多个源合并配置
+   - 从请求参数传递参数
+
+3. **流式传输支持**：
+   - 实时内容传递
+   - 增量消息转发
+   - 流式传输期间的思考过程提取
+
+4. **响应处理**：
+   - 统一的响应格式
+   - 正确处理完成响应
+   - 支持推理内容提取
+
+## 方法详情
+
+| 方法 | 异步 | 返回类型 | 用途 |
+| ------ | ----------------- | ------------ | ------- |
+| `_execute(oxy_request)` | 是 | `OxyResponse` | 使用 OpenAI API 执行请求，处理负载构建、配置合并和响应处理 |
+
+## 参数详情
+
+| 参数 | 类型/允许的值 | 默认值 | 描述 |
+| --------- | -------------------- | ------- | ----------- |
+| `api_key` | `Optional[str]` | `None` | 用于 OpenAI 身份验证的 API 密钥 |
+| `base_url` | `Optional[str]` | `""` | OpenAI API 的基础 URL 端点（可用于兼容的 API） |
+| `model_name` | `Optional[str]` | `""` | 用于请求的特定 OpenAI 模型名称（例如："gpt-4"、"gpt-3.5-turbo"） |
+| `headers` | `Dict[str, str]` 或 `Callable[[OxyRequest], Dict[str, str]]` | `lambda oxy_request: {}` | 额外的 HTTP 请求头或返回请求头的函数 |
+
+## 使用示例
+
+以下是如何使用 `OpenAILLM` 类的基本示例：
+
+```python
+from oxygent.oxy.llms.openai_llm import OpenAILLM
+from oxygent.schemas import OxyRequest
+
+# 创建 OpenAILLM
+openai_llm = OpenAILLM(
+ api_key="your-openai-api-key",
+ base_url="https://api.openai.com/v1",
+ model_name="gpt-4",
+ timeout=60
+)
+
+# 创建请求
+request = OxyRequest(
+ messages=[{"role": "user", "content": "你好，你好吗？"}]
+)
+
+# 执行请求
+response = await openai_llm.execute(request)
+
+# 访问响应
+print(response.output)
+```
+
+## 配置优先级
+
+配置从多个源合并，按以下优先级顺序：
+
+1. **请求参数**（最高优先级）
+2. **实例特定的 LLM 参数**
+3. **全局 LLM 配置**
+
+## 流式传输特性
+
+- `OpenAILLM` 使用官方 AsyncOpenAI 客户端以获得最佳性能和兼容性
+- 该类支持流式和非流式响应
+- 当启用流式传输时，内容被增量转发到客户端
+- 该类对流式传输期间的思考过程提取有特殊处理：
+  - 检测响应中的 `reasoning_content`
+  - 自动使用 `<think>` 和 `</think>` 标签包装推理内容
+  - 实时转发思考内容到前端
+- 对于流式响应，该类在转发增量更新的同时累积完整响应
+
+## 注意事项
+
+- 该类旨在与所有 OpenAI 模型和兼容的 API 配合使用
+- 兼容的 API 包括实现 OpenAI API 标准的服务（例如：Azure OpenAI、带有 OpenAI 兼容服务器的本地模型）
+- 内置了适当的错误处理，用于处理 API 失败和超时
+- 响应格式在流式和非流式模式下是标准化的
+
+## 使用场景
+
+- **OpenAI GPT 模型**：GPT-4、GPT-3.5-turbo 以及所有 OpenAI 模型
+- **兼容的 API**：Azure OpenAI、带有 OpenAI 兼容端点的本地 LLM 服务器
+- **流式应用**：实时聊天界面、交互式应用程序
+- **生产系统**：需要官方客户端支持的企业应用程序

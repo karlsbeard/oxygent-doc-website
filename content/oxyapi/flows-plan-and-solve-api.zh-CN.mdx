@@ -1,10 +1,10 @@
 ---
 title: PlanAndSolve API 参考
-description: 完整 API 参考文档： PlanAndSolve flow constructor parameters 和 execution methods
+description: PlanAndSolve 流程的完整 API 参考文档，包括构造函数参数和执行方法
 icon: Code
 ---
 
-## Class 概述
+## 类概述
 
 ```python
 from oxygent.oxy.flows import PlanAndSolve
@@ -26,46 +26,46 @@ plan_solve_flow = PlanAndSolve(
 
 |参数|类型|默认值|描述|
 |-----------|------|---------|-------------|
-| `name` | str | 必需 | Unique identifier for the flow |
-| `planner_agent_name` | str | "planner_agent" | Name of the planner agent |
-| `executor_agent_name` | str | "executor_agent" | Name of the executor agent |
+| `name` | str | 必需 | 流程的唯一标识符 |
+| `planner_agent_name` | str | "planner_agent" | 规划器代理的名称 |
+| `executor_agent_name` | str | "executor_agent" | 执行器代理的名称 |
 
-### Planning 参数s
-
-|参数|类型|默认值|描述|
-|-----------|------|---------|-------------|
-| `max_replan_轮` | int | 30 | 最大数量 planning iterations |
-| `pre_plan_steps` | List[str] | None | Predefined plan steps (bypasses planner) |
-| `enable_replanner` | bool | False | Enable dynamic replanning |
-
-### LLM and Parsing 参数s
+### 规划参数
 
 |参数|类型|默认值|描述|
 |-----------|------|---------|-------------|
-| `llm_model` | str | "default_llm" | LLM model name for fallback operations |
-| `func_parse_planner_response` | Callable | None | Custom planner response parser |
-| `pydantic_parser_planner` | PydanticOutputParser | Plan parser | Planner output parser |
-| `func_parse_replanner_response` | Callable | None | Custom replanner response parser |
-| `pydantic_parser_replanner` | PydanticOutputParser | Action parser | Replanner output parser |
+| `max_replan_rounds` | int | 30 | 最大规划迭代次数 |
+| `pre_plan_steps` | List[str] | None | 预定义的计划步骤（绕过规划器） |
+| `enable_replanner` | bool | False | 启用动态重新规划 |
 
-### 可选 参数s
+### LLM 和解析参数
 
 |参数|类型|默认值|描述|
 |-----------|------|---------|-------------|
-| `desc` | str | "" | Description of the flow's purpose |
-| `timeout` | int | 100 | Maximum execution time in seconds |
-| `is_permission_required` | bool | False | Whether permission is required |
-| `category` | str | "flow" | Category 类ification |
-| `is_master` | bool | False | Whether this is the master entry point |
+| `llm_model` | str | "default_llm" | 用于后备操作的 LLM 模型名称 |
+| `func_parse_planner_response` | Callable | None | 自定义规划器响应解析器 |
+| `pydantic_parser_planner` | PydanticOutputParser | Plan parser | 规划器输出解析器 |
+| `func_parse_replanner_response` | Callable | None | 自定义重新规划器响应解析器 |
+| `pydantic_parser_replanner` | PydanticOutputParser | Action parser | 重新规划器输出解析器 |
+
+### 可选参数
+
+|参数|类型|默认值|描述|
+|-----------|------|---------|-------------|
+| `desc` | str | "" | 流程用途的描述 |
+| `timeout` | int | 100 | 最大执行时间（秒） |
+| `is_permission_required` | bool | False | 是否需要权限 |
+| `category` | str | "flow" | 类别分类 |
+| `is_master` | bool | False | 是否为主入口点 |
 
 ## 参数详情
 
 ### `name`
-- **Type**: `str`
-- **必需**: Yes
-- **Description**: Unique identifier for the PlanAndSolve flow 在多智能体系统中.
+- **类型**：`str`
+- **必需**：是
+- **描述**：PlanAndSolve 流程在多智能体系统中的唯一标识符。
 
-**Example:**
+**示例：**
 ```python
 PlanAndSolve(
     name="complex_task_solver",

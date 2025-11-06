@@ -1,10 +1,10 @@
 ---
 title: FunctionHub API 参考
-description: 完整 API 文档： FunctionHub 类
+description: FunctionHub 类的完整 API 参考文档
 icon: Code
 ---
 
-## Class Definition
+## 类定义
 
 ```python
 from oxygent import oxy
@@ -25,46 +25,46 @@ def my_function(param: str):
 
 ## 构造函数参数
 
-### 必需 参数s
+### 必需参数
 
 |参数|类型|必需|默认值|描述|
 |-----------|------|----------|---------|-------------|
-| `name` | `str` | **Yes** | - | Unique identifier for this FunctionHub. Agents reference this name in their `tools` list |
+| `name` | `str` | **是** | - | FunctionHub 的唯一标识符。代理在其 `tools` 列表中引用此名称 |
 
-### Core Configuration
-
-|参数|类型|默认值|描述|
-|-----------|------|---------|-------------|
-| `desc` | `str` | `""` | Human-readable description of this tool collection |
-| `category` | `str` | `"tool"` | Category 类ification (automatically set) |
-
-### Execution Control
+### 核心配置
 
 |参数|类型|默认值|描述|
 |-----------|------|---------|-------------|
-| `timeout` | `float` | `60` | Maximum execution time per tool in seconds (default: 1 minute) |
-| `semaphore` | `int` | `16` | 最大数量 concurrent tool executions |
-| `retries` | `int` | `2` | Number of retry attempts on failure |
-| `delay` | `float` | `1.0` | Delay between retry attempts in seconds |
+| `desc` | `str` | `""` | 此工具集合的可读描述 |
+| `category` | `str` | `"tool"` | 类别分类（自动设置） |
 
-### Permission & Security
+### 执行控制
 
 |参数|类型|默认值|描述|
 |-----------|------|---------|-------------|
-| `is_permission_required` | `bool` | `True` | Whether agents need permission to call tools from this hub |
-| `is_save_data` | `bool` | `True` | Whether to save execution traces to Elasticsearch |
+| `timeout` | `float` | `60` | 每个工具的最大执行时间（秒）（默认：1 分钟） |
+| `semaphore` | `int` | `16` | 最大并发工具执行数 |
+| `retries` | `int` | `2` | 失败时的重试次数 |
+| `delay` | `float` | `1.0` | 重试尝试之间的延迟（秒） |
 
-### Internal Attributes (Read-Only)
+### 权限与安全
 
-|Attribute|类型|描述|
+|参数|类型|默认值|描述|
+|-----------|------|---------|-------------|
+| `is_permission_required` | `bool` | `True` | 代理是否需要权限来调用此中心的工具 |
+| `is_save_data` | `bool` | `True` | 是否将执行跟踪保存到 Elasticsearch |
+
+### 内部属性（只读）
+
+|属性|类型|描述|
 |-----------|------|-------------|
-| `func_dict` | `dict` | Internal registry mapping function names to (description, async_func) tuples |
+| `func_dict` | `dict` | 将函数名称映射到（描述，async_func）元组的内部注册表 |
 
 ## 方法
 
 ### tool()
 
-Decorator for registering functions as tools in the hub.
+用于在中心注册函数为工具的装饰器。
 
 ```python
 @function_hub.tool(description: str)
@@ -72,18 +72,18 @@ def my_function(...):
     ...
 ```
 
-**参数:**
-- `description` (str): **必需** - Human-readable description of the tool's functionality. This is shown to LLMs 当 selecting tools.
+**参数：**
+- `description` (str): **必需** - 工具功能的可读描述。在选择工具时会向 LLM 显示此内容。
 
-**Returns:** Decorator function that registers and returns the async version of the decorated function
+**返回：**装饰器函数，注册并返回被装饰函数的异步版本
 
-**Behavior:**
-1. Checks if function is already async
-2. If sync, wraps it in an async function
-3. Registers `(description, async_func)` tuple in `func_dict` 包含 function name as key
-4. Returns the async version of the function
+**行为：**
+1. 检查函数是否已经是异步的
+2. 如果是同步的，将其包装在异步函数中
+3. 在 `func_dict` 中注册 `(描述, async_func)` 元组，以函数名称作为键
+4. 返回函数的异步版本
 
-**Example:**
+**示例：**
 ```python
 tools = oxy.FunctionHub(name="math_tools")
 
@@ -97,39 +97,39 @@ def add(a: int, b: int):
 
 ### init()
 
-Internal initialization method called by MAS. Not called directly by users.
+MAS 调用的内部初始化方法。用户不直接调用。
 
 ```python
 async def init(self)
 ```
 
-**Behavior:**
-1. Calls `super().init()` for base initialization
-2. Iterates through `func_dict`
-3. For each function, creates a `FunctionTool` instance
-4. Registers each `FunctionTool` 包含 the MAS
+**行为：**
+1. 调用 `super().init()` 进行基础初始化
+2. 遍历 `func_dict`
+3. 为每个函数创建 `FunctionTool` 实例
+4. 在 MAS 中注册每个 `FunctionTool`
 
-**Example of what happens internally:**
+**内部发生的示例：**
 ```python
-# Before init:
+# init 之前：
 hub.func_dict = {
     "add": ("Add two numbers", async_add_func),
     "multiply": ("Multiply two numbers", async_multiply_func)
 }
 
-# After init (inside MAS):
+# init 之后（MAS 内部）：
 mas.oxy_name_to_oxy = {
-    "math_tools": hub,           # The hub itself
-    "add": FunctionTool(...),    # Individual tool
-    "multiply": FunctionTool(...) # Individual tool
+    "math_tools": hub,           # 中心本身
+    "add": FunctionTool(...),    # 单独的工具
+    "multiply": FunctionTool(...) # 单独的工具
 }
 ```
 
-## Function Signature Patterns
+## 函数签名模式
 
-### 参数 类型 Annotations
+### 参数类型注解
 
-FunctionHub extracts schemas from function signatures:
+FunctionHub 从函数签名中提取模式：
 
 ```python
 @tools.tool(description="Example function")
@@ -159,21 +159,21 @@ def example(
     return result
 ```
 
-### Schema Extraction Rules
+### 模式提取规则
 
 |Pattern|必需|类型|描述|
 |---------|----------|------|-------------|
-| `param: str` | Yes | `str` | 必需 parameter, no description |
-| `param: str = "default"` | No | `str` | 可选 包含 default value |
-| `param: str = Field(description="...")` | Yes | `str` | 必需 包含 description |
-| `param: str = Field(default="...", description="...")` | No | `str` | 可选 包含 description |
-| `param: list` | Yes | `array` | 必需 list |
-| `param: dict` | Yes | `对象` | 必需 dictionary |
-| `oxy_request: OxyRequest` | Excluded | - | Context parameter (not in schema) |
+| `param: str` | 是 | `str` | 必需参数，无描述 |
+| `param: str = "default"` | 否 | `str` | 可选，带默认值 |
+| `param: str = Field(description="...")` | 是 | `str` | 必需，带描述 |
+| `param: str = Field(default="...", description="...")` | 否 | `str` | 可选，带描述 |
+| `param: list` | 是 | `array` | 必需列表 |
+| `param: dict` | 是 | `对象` | 必需字典 |
+| `oxy_request: OxyRequest` | 排除 | - | 上下文参数（不在模式中） |
 
-### Return Values
+### 返回值
 
-Functions can return any JSON-serializable type:
+函数可以返回任何 JSON 可序列化的类型：
 
 ```python
 @tools.tool(description="Returns a string")
@@ -201,22 +201,22 @@ def complex_result():
     }
 ```
 
-## Generated FunctionTool Attributes
+## 生成的 FunctionTool 属性
 
-When FunctionHub creates FunctionTool instances during `init()`, each tool has:
+当 FunctionHub 在 `init()` 期间创建 FunctionTool 实例时，每个工具都有：
 
 |Attribute|类型|Source|描述|
 |-----------|------|--------|-------------|
-| `name` | `str` | Function name | Function's `__name__` attribute |
-| `desc` | `str` | Decorator arg | Description passed to `@tool()` |
-| `func_process` | `Callable` | Function | The async function to execute |
-| `input_schema` | `dict` | Auto-extracted | Schema 包含 `properties` 和 `required` 字段 |
-| `desc_for_llm` | `str` | Auto-generated | Formatted description shown to LLMs |
-| `timeout` | `float` | Hub config | Inherited from FunctionHub |
-| `is_permission_required` | `bool` | Hub config | Inherited from FunctionHub |
-| `needs_oxy_request` | `bool` | Auto-detected | True if function has `OxyRequest` parameter |
+| `name` | `str` | 函数名称 | 函数的 `__name__` 属性 |
+| `desc` | `str` | 装饰器参数 | 传递给 `@tool()` 的描述 |
+| `func_process` | `Callable` | 函数 | 要执行的异步函数 |
+| `input_schema` | `dict` | 自动提取 | 包含 `properties` 和 `required` 字段的模式 |
+| `desc_for_llm` | `str` | 自动生成 | 向 LLM 显示的格式化描述 |
+| `timeout` | `float` | Hub 配置 | 从 FunctionHub 继承 |
+| `is_permission_required` | `bool` | Hub 配置 | 从 FunctionHub 继承 |
+| `needs_oxy_request` | `bool` | 自动检测 | 如果函数有 `OxyRequest` 参数则为 True |
 
-**Example of generated schema:**
+**生成的模式示例：**
 ```python
 @tools.tool(description="Add two numbers")
 def add(
@@ -239,11 +239,11 @@ def add(
 }
 ```
 
-## OxyRequest Integration
+## OxyRequest 集成
 
-### Accessing Context
+### 访问上下文
 
-Functions can receive `OxyRequest` to access execution context:
+函数可以接收 `OxyRequest` 来访问执行上下文：
 
 ```python
 from oxygent import OxyRequest
@@ -278,13 +278,13 @@ async def context_tool(
     return result
 ```
 
-**Key Points:**
-- `OxyRequest` parameter **must** be named exactly `oxy_request`
-- It is **automatically excluded** from the tool schema
-- LLMs don't see this parameter 和 don't need to provide it
-- It's automatically injected by the framework
+**关键点：**
+- `OxyRequest` 参数**必须**精确命名为 `oxy_request`
+- 它会**自动从**工具模式中排除
+- LLM 看不到此参数，也不需要提供它
+- 它由框架自动注入
 
-### Signature Detection
+### 签名检测
 
 ```python
 # WITHOUT OxyRequest
@@ -306,11 +306,11 @@ async def aware(oxy_request: OxyRequest, param: str):
 # (OxyRequest excluded from schema)
 ```
 
-## Async vs Sync Functions
+## 异步 vs 同步函数
 
-### Automatic Conversion
+### 自动转换
 
-FunctionHub automatically wraps sync functions:
+FunctionHub 自动包装同步函数：
 
 ```python
 # Synchronous function
@@ -325,11 +325,11 @@ def sync_func(param: str):
 # return sync_func(*args, **kwargs)
 ```
 
-**Note:** Sync functions block the event loop. Use async for I/O operations.
+**注意：** 同步函数会阻塞事件循环。对于 I/O 操作使用 async。
 
-### Async Functions
+### 异步函数
 
-Use async for I/O-bound operations:
+对于 I/O 密集型操作使用 async：
 
 ```python
 import aiohttp
@@ -347,17 +347,17 @@ async def async_func(url: str):
 
 |Operation Type|Use Sync|Use Async|
 |----------------|----------|-----------|
-| Pure computation | ✓ | ✗ |
-| Mathematical operations | ✓ | ✗ |
-| String manipulation | ✓ | ✗ |
-| HTTP requests | ✗ | ✓ |
-| Database queries | ✗ | ✓ |
-| File I/O | ✗ | ✓ |
-| Sleep/delays | ✗ | ✓ (use asyncio.sleep) |
+| 纯计算 | ✓ | ✗ |
+| 数学运算 | ✓ | ✗ |
+| 字符串操作 | ✓ | ✗ |
+| HTTP 请求 | ✗ | ✓ |
+| 数据库查询 | ✗ | ✓ |
+| 文件 I/O | ✗ | ✓ |
+| 休眠/延迟 | ✗ | ✓ (使用 asyncio.sleep) |
 
-## Usage 示例s
+## 使用示例
 
-### Basic 示例
+### 基础示例
 
 ```python
 from oxygent import MAS, oxy
@@ -391,7 +391,7 @@ async def main():
         await mas.start_web_service(first_query="What is 10 + 5?")
 ```
 
-### Multiple Hubs
+### 多个 Hub
 
 ```python
 # Create multiple hubs for organization
@@ -438,7 +438,7 @@ oxy_space = [
 ]
 ```
 
-### With Pydantic Fields
+### 使用 Pydantic Fields
 
 ```python
 from pydantic import Field
@@ -458,7 +458,7 @@ async def search(
 # LLM sees detailed parameter information
 ```
 
-### With OxyRequest
+### 使用 OxyRequest
 
 ```python
 from oxygent import OxyRequest
@@ -488,7 +488,7 @@ async def get_from_session(
     return f"{key} = {value}" if value else f"{key} not found"
 ```
 
-### With Custom Configuration
+### 使用自定义配置
 
 ```python
 # Hub with custom settings
@@ -510,9 +510,9 @@ async def flaky_operation(param: str):
 
 ## 错误处理
 
-### Tool Execution Errors
+### 工具执行错误
 
-Errors in tool functions are caught 和 returned as `OxyState.FAILED`:
+工具函数中的错误会被捕获并作为 `OxyState.FAILED` 返回：
 
 ```python
 @tools.tool(description="May raise errors")
@@ -527,9 +527,9 @@ def risky_operation(param: str):
 # - Automatically retries based on hub's retry settings
 ```
 
-### Schema Validation Errors
+### 模式验证错误
 
-Invalid function signatures are detected during initialization:
+无效的函数签名会在初始化期间被检测到：
 
 ```python
 @tools.tool(description="Invalid signature")
@@ -543,8 +543,8 @@ def bad_function(**kwargs):  # **kwargs not supported
 
 ## 相关文档
 
-- **[FunctionHub Guide](/docs/tools-function-hub)** - Main documentation 和 usage patterns
-- **[ReActAgent](/docs/agents-react)** - Using tools in reasoning agents
-- **[MCP Tools](/docs/tools-mcp)** - External tool integration
-- **[OxyRequest & Context](/docs/context)** - Detailed context API documentation
-- **[Configuration](/docs/configuration)** - Global tool configuration
+- **[FunctionHub 指南](/docs/tools-function-hub)** - 主要文档和使用模式
+- **[ReActAgent](/docs/agents-react)** - 在推理代理中使用工具
+- **[MCP 工具](/docs/tools-mcp)** - 外部工具集成
+- **[OxyRequest & 上下文](/docs/context)** - 详细的上下文 API 文档
+- **[配置](/docs/configuration)** - 全局工具配置

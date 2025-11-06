@@ -1,0 +1,418 @@
+---
+title: 四大作用域
+description: 理解 OxyGent 的分层数据作用域系统，用于管理智能体之间的上下文和状态
+icon: Layers
+---
+
+OxyGent 实现了一个复杂的**四作用域系统**，用于在多智能体系统的不同级别管理数据、上下文和状态。这种分层作用域使得能够精确控制智能体之间的数据可见性、生命周期和共享模式。
+
+## 概述
+
+四大作用域系统提供隔离和连接的数据空间，用于管理信息在多智能体系统中的流动：
+
+1. **节点作用域** (`arguments`) - 特定于单个智能体/工具调用的数据
+2. **请求作用域** (`shared_data`) - 在单个执行链内共享的数据
+3. **会话组作用域** (`group_data`) - 跨多个对话持久化的数据
+4. **全局作用域** (`mas`) - 系统级注册表和配置
+
+### 关键特性
+
+- **分层数据管理**：数据可见性和生命周期的清晰边界
+- **自动传播**：数据在嵌套智能体调用中自然流动
+- **内存隔离**：防止会话之间的意外状态泄漏
+- **灵活共享**：在需要时共享上下文而不污染全局状态
+- **持久状态**：在多次交互中维护对话历史
+
+### 何时使用各作用域
+
+| 作用域 | 用例 | 生命周期 | 可见性 |
+|-------|----------|----------|------------|
+| **节点作用域** | 工具参数、局部变量 | 单次调用 | 仅当前节点 |
+| **请求作用域** | 调用链中的共享上下文 | 单次请求 | 当前链 |
+| **会话组作用域** | 对话历史 | 多次请求 | 同一会话组 |
+| **全局作用域** | 智能体注册表、配置 | 应用程序生命周期 | 整个 MAS |
+
+## 快速开始
+
+### 理解 域s Through Example
+
+```python
+import asyncio
+from oxygent import MAS, oxy
+from oxygent.utils.env_utils import get_env_var
+
+oxy_space = [
+ oxy.HttpLLM(
+ name="default_llm",
+ api_key=get_env_var("DEFAULT_LLM_API_KEY"),
+ base_url=get_env_var("DEFAULT_LLM_BASE_URL"),
+ model_name=get_env_var("DEFAULT_LLM_MODEL_NAME"),
+ ),
+ oxy.ReActAgent(
+ name="assistant",
+ is_master=True,
+ llm_model="default_llm",
+ ),
+]
+
+async def main():
+ async with MAS(oxy_space=oxy_space) as mas:
+ # 节点作用域：此调用特定的参数
+ # 请求作用域：此执行链的 shared_data
+ # 会话组作用域：对话历史的 group_data
+ result = await mas.call(
+ callee="assistant",
+ arguments={ # Node Scope
+ "messages": [{"role": "user", "content": "Hello"}],
+ "temperature": 0.7
+ },
+ # 可选：传递请求作用域的共享数据
+ shared_data={"user_id": "12345"}, # Request Scope
+ # 可选：传递会话作用域的组数据
+ group_data={"preferences": {"language": "en"}} # Session Group Scope
+ )
+ print(result.output)
+
+if __name__ == "__main__":
+ asyncio.run(main())
+```
+
+### 在自定义智能体中访问作用域
+
+创建自定义智能体或工具时，您可以通过 `OxyRequest` 访问所有作用域：
+
+```python
+from oxygent.oxy import LocalAgent
+from oxygent.schemas import OxyRequest, OxyResponse
+
+class MyCustomAgent(LocalAgent):
+ async def _execute(self, oxy_request: OxyRequest) -> OxyResponse:
+ # 访问节点作用域
+ user_message = oxy_request.arguments.get("messages", [])
+
+ # 访问请求作用域（在此调用链内共享）
+ user_id = oxy_request.shared_data.get("user_id")
+
+ # 访问会话组作用域（跨请求持久化）
+ preferences = oxy_request.group_data.get("preferences", {})
+
+ # 访问全局作用域（MAS 注册表）
+ llm = oxy_request.get_oxy("default_llm")
+
+ # 您的智能体逻辑在这里
+ response = await llm.call(...)
+
+ # 可选：为下游智能体更新 shared/group 数据
+ oxy_request.shared_data["processed_by"] = self.name
+ oxy_request.group_data["last_interaction"] = "2025-10-29"
+
+ return OxyResponse(output=response)
+```
+
+## 理解四大作用域
+
+### 1. 节点作用域 (`arguments`)
+
+**目的**：单个智能体或工具调用的隔离数据。
+
+**特征**：
+- 显式传递给每个智能体/工具调用
+- 不会自动与子智能体共享
+- 调用完成后清理
+- 适用于：输入参数、局部变量、节点特定配置
+
+**示例使用场景**：
+- LLM 参数（temperature、max_tokens）
+- 工具特定参数（搜索查询、文件路径）
+- 单次交互的用户消息
+- 仅此次调用的配置覆盖
+
+```python
+# 每次调用都有自己的参数作用域
+result1 = await mas.call(
+ callee="agent",
+ arguments={"query": "What is Python?"} # 作用域 1
+)
+
+result2 = await mas.call(
+ callee="agent",
+ arguments={"query": "What is Java?"} # 作用域 2（完全独立）
+)
+```
+
+### 2. 请求作用域 (`shared_data`)
+
+**目的**：在单个执行链（请求及所有嵌套调用）内共享上下文。
+
+**特征**：
+- 自动传播到调用链中的所有子智能体
+- 生命周期：根请求的持续时间
+- 按引用共享（变更对父级和同级可见）
+- 适用于：用户上下文、请求元数据、临时共享状态
+
+**示例使用场景**：
+- 用户身份验证信息（user_id、权限）
+- 请求跟踪数据（correlation_id、时间戳）
+- 在智能体之间共享的中间结果
+- 执行期间累积的上下文
+
+**传播示例**：
+
+```python
+async def main():
+ async with MAS(oxy_space=oxy_space) as mas:
+ result = await mas.call(
+ callee="master_agent",
+ arguments={"query": "Process user request"},
+ shared_data={"user_id": "12345", "role": "admin"}
+ )
+ # shared_data 自动可用于 master_agent
+ # 以及它调用的所有子智能体（file_agent、math_agent 等）
+```
+
+**执行流程**：
+
+```
+User Request
+ ↓ (shared_data: {"user_id": "12345"})
+Master Agent
+ ↓ (inherited shared_data)
+ ├─→ File Agent (can read/write shared_data)
+ └─→ Math Agent (can read/write shared_data)
+```
+
+### 3. 会话组作用域 (`group_data`)
+
+**目的**：同一对话会话中跨多个请求的持久数据。
+
+**特征**：
+- 在多次 `mas.call()` 调用中存活
+- 如果配置，则存储在数据库（Elasticsearch/Redis）中
+- 使用 `group_id` 或 `from_trace_id` 检索
+- 适用于：对话历史、用户偏好、累积上下文
+
+**示例使用场景**：
+- 多轮对话上下文
+- 用户偏好和设置
+- 从先前交互中累积的知识
+- 会话特定状态（购物车、表单进度）
+
+**对话连续性示例**：
+
+```python
+async def multi_turn_conversation():
+ async with MAS(oxy_space=oxy_space) as mas:
+ # 第一轮：初始化会话
+ result1 = await mas.call(
+ callee="assistant",
+ arguments={"messages": [{"role": "user", "content": "My name is Alice"}]},
+ group_data={"conversation_topic": "introduction"}
+ )
+
+ # 获取会话连续性的 trace_id
+ trace_id_1 = result1.current_trace_id
+
+ # 第二轮：继续同一会话
+ result2 = await mas.call(
+ callee="assistant",
+ arguments={"messages": [{"role": "user", "content": "What's my name?"}]},
+ from_trace_id=trace_id_1 # 链接到之前的对话
+ )
+ # 智能体可以访问之前轮次的 group_data
+ # 结果："Your name is Alice"
+```
+
+### 4. 全局作用域 (`mas`)
+
+**目的**：智能体、工具和配置的系统级注册表。
+
+**特征**：
+- 每个 MAS 应用程序一个实例
+- 包含所有注册的 Oxy 组件（智能体、工具、LLM）
+- 配置和服务注册表
+- 生命周期：整个应用程序运行时
+- 适用于：组件查找、全局配置、共享服务
+
+**示例使用场景**：
+- 按名称查找智能体/工具
+- 访问全局配置（Config 类）
+- 共享服务（数据库连接、HTTP 客户端）
+- 系统级状态管理
+
+**组件访问示例**：
+
+```python
+class MyAgent(LocalAgent):
+ async def _execute(self, oxy_request: OxyRequest) -> OxyResponse:
+ # 访问全局 MAS 实例
+ mas = oxy_request.mas
+
+ # 查找其他组件
+ llm = oxy_request.get_oxy("default_llm")
+ calculator = oxy_request.get_oxy("calculator_tool")
+
+ # 检查组件是否存在
+ if oxy_request.has_oxy("specialized_tool"):
+ tool = oxy_request.get_oxy("specialized_tool")
+ result = await tool.execute(...)
+
+ return OxyResponse(output=result)
+```
+
+## 作用域生命周期和关系
+
+### 数据流程层次结构
+
+```
+┌─────────────────────────────────────────┐
+│ Global Scope (MAS) │ Lifetime: Application
+│ • Agent Registry │
+│ • Configuration │
+│ • Shared Services │
+└─────────────────────────────────────────┘
+ ↓ (context)
+┌─────────────────────────────────────────┐
+│ Session Group Scope (group_data) │ Lifetime: Multiple Requests
+│ • Conversation History │
+│ • User Preferences │
+│ • Accumulated Context │
+└─────────────────────────────────────────┘
+ ↓ (inheritance)
+┌─────────────────────────────────────────┐
+│ Request Scope (shared_data) │ Lifetime: Single Request Chain
+│ • User Context │
+│ • Request Metadata │
+│ • Temporary Shared State │
+└─────────────────────────────────────────┘
+ ↓ (propagation)
+┌─────────────────────────────────────────┐
+│ Node Scope (arguments) │ Lifetime: Single Invocation
+│ • Input Parameters │
+│ • Local Variables │
+│ • Node-specific Config │
+└─────────────────────────────────────────┘
+```
+
+### 作用域可见性矩阵
+
+| 作用域 | 可见于 | 可变更 | 是否持久化 |
+|-------|-----------|------------|-----------|
+| **节点** | 仅当前节点 | 当前节点 | 否 |
+| **请求** | 调用链中的所有节点 | 链中的所有节点 | 否 |
+| **会话组** | 会话中的所有请求 | 任何请求 | 是（如果配置了数据库）|
+| **全局** | 所有节点 | 仅配置 | 是 |
+
+## 配置选项
+
+### 控制作用域行为
+
+```python
+from oxygent import Config
+
+# 配置会话持久化
+Config.set_es_enabled(True) # 启用 Elasticsearch 进行 group_data 持久化
+Config.set_redis_enabled(True) # 启用 Redis 进行缓存
+
+# 配置数据保留
+Config.set_es_schema_group_data({
+ "type": "object",
+ "properties": {
+ "preferences": {"type": "object"},
+ "history": {"type": "text"}
+ }
+})
+```
+
+### 内存管理
+
+控制作用域在智能体中如何处理内存：
+
+```python
+oxy.ReActAgent(
+ name="assistant",
+ short_memory_size=10, # 在内存中保留最后 10 次交互
+ is_discard_react_memory=True, # 清理中间推理
+ memory_max_tokens=8000 # 上下文的令牌限制
+)
+```
+
+## 示例
+
+实际示例和使用模式，请参考：
+
+- [基本作用域使用](/examples/core-concepts/scope-basics) - 理解各作用域
+- [多轮对话](/examples/core-concepts/multi-turn-scope) - 使用 group_data 实现连续性
+- [共享上下文模式](/examples/core-concepts/shared-context) - 在请求链中传递数据
+- [自定义智能体作用域](/examples/core-concepts/custom-agent-scopes) - 在自定义智能体中访问作用域
+
+查看 [示例库](/examples) 中的所有示例。
+
+## 最佳实践
+
+### 1. 选择正确的作用域
+
+- **不要**：将所有内容放入 `shared_data`
+- **要**：使用满足您目的的最窄作用域
+- **节点作用域**：当数据仅与一个智能体相关时
+- **请求作用域**：当数据需要在调用链中流动时
+- **会话组作用域**：当数据必须跨对话持久化时
+- **全局作用域**：仅用于真正的全局资源
+
+### 2. 避免作用域污染
+
+```python
+# ❌ 错误：用节点特定数据污染 shared_data
+oxy_request.shared_data["llm_temperature"] = 0.7
+oxy_request.shared_data["file_path"] = "/tmp/file.txt"
+oxy_request.shared_data["tool_config"] = {...}
+
+# ✅ 正确：将节点特定数据保留在 arguments 中
+arguments = {
+ "llm_temperature": 0.7,
+ "file_path": "/tmp/file.txt",
+ "tool_config": {...}
+}
+```
+
+### 3. 清理敏感数据
+
+```python
+# 使用后清理敏感数据
+async def process_payment(oxy_request: OxyRequest):
+ credit_card = oxy_request.arguments.get("credit_card")
+ # 处理支付...
+
+ # 清理敏感数据
+ if "credit_card" in oxy_request.arguments:
+ del oxy_request.arguments["credit_card"]
+ if "credit_card" in oxy_request.shared_data:
+ del oxy_request.shared_data["credit_card"]
+```
+
+### 4. 记录作用域依赖
+
+```python
+class MyAgent(LocalAgent):
+ """
+ Custom agent for processing user requests.
+
+ Required Arguments (Node Scope):
+ - query (str): User query
+ - max_results (int, optional): Maximum results
+
+ Required Shared Data (Request Scope):
+ - user_id (str): User identifier for auth
+
+ Optional Group Data (Session Scope):
+ - preferences (dict): User preferences
+ """
+ async def _execute(self, oxy_request: OxyRequest) -> OxyResponse:
+ # 实现...
+```
+
+## 相关链接
+
+- [上下文系统](/docs/context) - 详细的上下文管理
+- [MAS（多智能体系统）](/docs/mas) - MAS 架构和 API
+- [生命周期](/docs/lifecycle) - 智能体生命周期和状态管理
+- [配置](/docs/configuration) - 全局配置选项

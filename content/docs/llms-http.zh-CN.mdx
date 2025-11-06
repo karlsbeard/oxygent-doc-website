@@ -1,0 +1,478 @@
+---
+title: HTTP LLM
+description: 用于 OpenAI 兼容 API 的基于 HTTP 的大语言模型集成
+icon: Cloud
+---
+
+## 概述
+
+**HttpLLM** 是 OxyGent 中主要的 LLM 集成，通过 HTTP 连接到远程语言模型 API。它为 OpenAI 兼容的 API 提供统一接口，包括 OpenAI、Gemini、Ollama 和其他兼容服务。HttpLLM 自动处理身份验证、请求格式化、响应解析和流式传输支持。
+
+### 关键特性
+
+- **多提供商支持**：适用于 OpenAI、Gemini、Ollama 和任何 OpenAI 兼容的 API
+- **流式传输**：实时令牌流式传输以获得响应式用户体验
+- **多模态**：支持图像、视频和文档（当模型支持时）
+- **自动检测**：根据端点 URL 自动格式化请求
+- **灵活的请求头**：静态、动态和基于函数的请求头配置
+- **错误处理**：用户友好的错误消息和自动重试逻辑
+
+### 支持的提供商
+
+```
+┌─────────────────────────────────────────────────────┐
+│ HttpLLM Provider Support │
+├─────────────────────────────────────────────────────┤
+│ │
+│ ┌──────────────────┐ ┌──────────────────┐ │
+│ │ OpenAI │ │ Gemini │ │
+│ │ GPT-4, GPT-3.5 │ │ Gemini Pro │ │
+│ │ GPT-4o │ │ Gemini Flash │ │
+│ └──────────────────┘ └──────────────────┘ │
+│ │
+│ ┌──────────────────┐ ┌──────────────────┐ │
+│ │ Ollama │ │ Azure OpenAI │ │
+│ │ Local models │ │ Enterprise │ │
+│ └──────────────────┘ └──────────────────┘ │
+│ │
+│ ┌──────────────────┐ ┌──────────────────┐ │
+│ │ Claude (via │ │ Any OpenAI │ │
+│ │ compatible API) │ │ Compatible API │ │
+│ └──────────────────┘ └──────────────────┘ │
+└─────────────────────────────────────────────────────┘
+```
+
+## 快速开始
+
+### 基础配置
+
+连接到 OpenAI 兼容的 API：
+
+```python
+import os
+from oxygent import MAS, oxy
+
+oxy_space = [
+ # OpenAI
+ oxy.HttpLLM(
+ name="gpt4",
+ api_key=os.getenv("OPENAI_API_KEY"),
+ base_url="https://api.openai.com/v1",
+ model_name="gpt-4o",
+ ),
+
+ # 在智能体中使用
+ oxy.ChatAgent(
+ name="assistant",
+ llm_model="gpt4",
+ ),
+]
+
+async def main():
+ async with MAS(oxy_space=oxy_space) as mas:
+ await mas.start_web_service(
+ first_query="Hello! How can you help me?"
+ )
+
+if __name__ == "__main__":
+ import asyncio
+ asyncio.run(main())
+```
+
+### 多个 LLM 提供商
+
+配置多个 LLM 提供商 在同一系统中：
+
+```python
+oxy_space = [
+ # OpenAI GPT-4
+ oxy.HttpLLM(
+ name="gpt4",
+ api_key=os.getenv("OPENAI_API_KEY"),
+ base_url="https://api.openai.com/v1",
+ model_name="gpt-4o",
+ ),
+
+ # Google Gemini
+ oxy.HttpLLM(
+ name="gemini",
+ api_key=os.getenv("GEMINI_API_KEY"),
+ base_url="https://generativelanguage.googleapis.com/v1beta",
+ model_name="gemini-2.0-flash-exp",
+ ),
+
+ # 本地 Ollama
+ oxy.HttpLLM(
+ name="local_llama",
+ api_key=None, # Ollama 不需要 API 密钥
+ base_url="http://localhost:11434",
+ model_name="llama3.2",
+ ),
+
+ # 不同的智能体使用不同的模型
+ oxy.ChatAgent(name="fast_agent", llm_model="gemini"),
+ oxy.ReActAgent(name="smart_agent", llm_model="gpt4"),
+ oxy.ChatAgent(name="local_agent", llm_model="local_llama"),
+]
+```
+
+### 直接 LLM 调用
+
+从工作流中直接调用 LLM:
+
+```python
+async def my_workflow(oxy_request: OxyRequest):
+ # 直接调用 LLM
+ response = await oxy_request.call(
+ callee="gpt4",
+ arguments={
+ "messages": [
+ {"role": "system", "content": "You are a helpful assistant."},
+ {"role": "user", "content": "Explain quantum computing in simple terms."}
+ ],
+ "llm_params": {
+ "temperature": 0.7,
+ "max_tokens": 500
+ }
+ }
+ )
+
+ return response.output
+
+oxy_space = [
+ oxy.HttpLLM(name="gpt4", ...),
+ oxy.WorkflowAgent(
+ name="workflow_agent",
+ func_workflow=my_workflow
+ )
+]
+```
+
+## 配置选项
+
+### 核心参数
+
+| 参数 | 类型 | 必需 | 描述 |
+|-----------|------|----------|-------------|
+| `name` | `str` | **是** | 此 LLM 的唯一标识符 |
+| `api_key` | `str` | **条件性** | 用于身份验证的 API 密钥（Ollama 不需要） |
+| `base_url` | `str` | **是** | API 端点的基础 URL |
+| `model_name` | `str` | **是** | 模型标识符（例如："gpt-4o"、"gemini-pro"） |
+
+### LLM 参数
+
+| 参数 | 类型 | 默认值 | 描述 |
+|-----------|------|---------|-------------|
+| `llm_params` | `dict` | `{}` | 传递给 LLM 的默认参数（temperature、max_tokens 等） |
+| `timeout` | `float` | `300` | 最大执行时间（秒）（5 分钟） |
+
+### 多模态支持
+
+| 参数 | 类型 | 默认值 | 描述 |
+|-----------|------|---------|-------------|
+| `is_multimodal_supported` | `bool` | `False` | 启用图像/视频输入支持 |
+| `is_convert_url_to_base64` | `bool` | `False` | 将媒体 URL 转换为 base64（用于不支持 URL 的 API） |
+| `max_image_pixels` | `int` | `10000000` | 最大图像大小（像素） |
+| `max_video_size` | `int` | `12582912` | 最大视频大小（字节）（12MB） |
+| `max_file_size_bytes` | `int` | `2097152` | base64 的最大文件大小（2MB） |
+
+### 请求头配置
+
+| 参数 | 类型 | 默认值 | 描述 |
+|-----------|------|---------|-------------|
+| `headers` | `dict \| Callable` | `{}` | 静态请求头或返回请求头的函数 |
+
+### 消息和错误处理
+
+| 参数 | 类型 | 默认值 | 描述 |
+|-----------|------|---------|-------------|
+| `is_send_think` | `bool` | 来自 `Config` | 向前端发送思考过程消息 |
+| `friendly_error_text` | `str` | `"Sorry..."` | 失败时的用户友好错误消息 |
+
+## 提供商特定配置
+
+### OpenAI
+
+```python
+oxy.HttpLLM(
+    name="openai_gpt4",
+    api_key=os.getenv("OPENAI_API_KEY"),
+    base_url="https://api.openai.com/v1",
+    model_name="gpt-4o",
+    llm_params={
+        "temperature": 0.7,
+        "max_tokens": 2000,
+        "top_p": 1.0,
+        "frequency_penalty": 0.0,
+        "presence_penalty": 0.0
+    }
+)
+```
+
+**端点**：如果不存在，自动附加 `/chat/completions`
+
+### Google Gemini
+
+```python
+oxy.HttpLLM(
+    name="gemini",
+    api_key=os.getenv("GEMINI_API_KEY"),
+    base_url="https://generativelanguage.googleapis.com/v1beta",
+    model_name="gemini-2.0-flash-exp",
+    llm_params={
+        "temperature": 0.9,
+        "topP": 1.0,
+        "topK": 32
+    }
+)
+```
+
+**端点**：自动附加 `/models/{model_name}:generateContent`
+**身份验证**：使用 `X-goog-api-key` 请求头而不是 `Authorization`
+
+### Ollama
+
+```python
+oxy.HttpLLM(
+    name="ollama_llama",
+    api_key=None,  # 不需要 API 密钥
+    base_url="http://localhost:11434",
+    model_name="llama3.2",
+    llm_params={
+        "temperature": 0.8,
+        "num_predict": 1000
+    }
+)
+```
+
+**端点**：自动附加 `/api/chat`
+**身份验证**：无需身份验证
+
+### Azure OpenAI
+
+```python
+oxy.HttpLLM(
+ name="azure_gpt4",
+ api_key=os.getenv("AZURE_OPENAI_API_KEY"),
+ base_url=os.getenv("AZURE_OPENAI_ENDPOINT"), # e.g., https://your-resource.openai.azure.com/openai/deployments/your-deployment
+ model_name=os.getenv("AZURE_OPENAI_DEPLOYMENT"),
+ llm_params={
+ "temperature": 0.7
+ }
+)
+```
+
+## 高级功能
+
+### 流式传输支持
+
+启用实时令牌流式传输:
+
+```python
+async def streaming_workflow(oxy_request: OxyRequest):
+ response = await oxy_request.call(
+ callee="gpt4",
+ arguments={
+ "messages": [
+ {"role": "user", "content": "Write a long story about dragons."}
+ ],
+ "stream": True # 启用流式传输
+ }
+ )
+ return response.output
+
+oxy_space = [
+ oxy.HttpLLM(name="gpt4", ...),
+ oxy.WorkflowAgent(
+ name="streaming_agent",
+ func_workflow=streaming_workflow
+ )
+]
+```
+
+**行为：**
+- 令牌在到达时流式传输给用户
+- 消息发送时包含 `{"type": "stream", "content": {"delta": "..."}}`
+- 最终响应包含完整文本
+
+### 动态请求头
+
+配置每个请求变化的请求头:
+
+```python
+def get_headers(oxy_request: OxyRequest) -> dict:
+ # 访问请求上下文
+ user_id = oxy_request.get_shared_data("user_id", "anonymous")
+
+ return {
+ "X-User-ID": user_id,
+ "X-Session-ID": oxy_request.get_group_id(),
+ "X-Trace-ID": oxy_request.current_trace_id
+ }
+
+oxy.HttpLLM(
+ name="contextual_llm",
+ api_key=os.getenv("API_KEY"),
+ base_url="https://api.example.com",
+ model_name="gpt-4",
+ headers=get_headers # 使用函数而不是字典
+)
+```
+
+### Multimodal 输入
+
+处理图像和视频 (用于支持视觉的模型):
+
+```python
+oxy.HttpLLM(
+ name="gpt4_vision",
+ api_key=os.getenv("OPENAI_API_KEY"),
+ base_url="https://api.openai.com/v1",
+ model_name="gpt-4o",
+ is_multimodal_supported=True,
+ is_convert_url_to_base64=False # 直接使用 URL
+)
+
+# 在工作流或智能体中
+response = await oxy_request.call(
+ callee="gpt4_vision",
+ arguments={
+ "messages": [
+ {
+ "role": "user",
+ "content": [
+ {"type": "text", "text": "What's in this image?"},
+ {
+ "type": "image_url",
+ "image_url": {
+ "url": "https://example.com/image.jpg"
+ }
+ }
+ ]
+ }
+ ]
+ }
+)
+```
+
+### 自定义 LLM 参数
+
+每次调用时覆盖默认参数:
+
+```python
+# 设置默认值
+llm = oxy.HttpLLM(
+ name="gpt4",
+ api_key=os.getenv("OPENAI_API_KEY"),
+ base_url="https://api.openai.com/v1",
+ model_name="gpt-4o",
+ llm_params={
+ "temperature": 0.7,
+ "max_tokens": 1000
+ }
+)
+
+# 在特定调用中覆盖
+response = await oxy_request.call(
+    callee="gpt4",
+    arguments={
+        "messages": [...],
+        "temperature": 0.2,  # 覆盖默认值
+        "max_tokens": 500,  # 覆盖默认值
+        "top_p": 0.9,  # 额外参数
+        "response_format": {"type": "json_object"}  # 新参数
+    }
+)
+```
+
+### 思考消息提取
+
+启用推理透明度:
+
+```python
+oxy.HttpLLM(
+    name="reasoning_llm",
+    api_key=os.getenv("OPENAI_API_KEY"),
+    base_url="https://api.openai.com/v1",
+    model_name="gpt-4o",
+    is_send_think=True  # 提取并发送 <think> 标签
+)
+
+# LLM 响应："<think>让我分析一下...</think>答案是 42。"
+# 用户接收：
+# - 思考消息："让我分析一下..."
+# - 最终答案："答案是 42。"
+```
+
+## URL 自动检测
+
+HttpLLM 自动检测和格式化端点：
+
+```
+提供商 | 基础 URL 包含 | 自动附加路径
+-----------|------------------------------|-------------------
+OpenAI | api.openai.com | /chat/completions
+Gemini | generativelanguage.google | /models/{model}:generateContent
+Ollama | (has api_key=None) | /api/chat
+Azure | openai.azure.com | (无 - 使用完整 URL)
+其他 | (其他任何) | /chat/completions
+```
+
+**示例：**
+```python
+# 输入
+base_url = "https://api.openai.com/v1"
+
+# 实际请求 URL
+# https://api.openai.com/v1/chat/completions
+```
+
+## 错误处理
+
+HttpLLM 提供全面的错误处理：
+
+```python
+oxy.HttpLLM(
+    name="resilient_llm",
+    api_key=os.getenv("API_KEY"),
+    base_url="https://api.example.com",
+    model_name="gpt-4",
+    timeout=120,  # 2 分钟超时
+    retries=3,  # 失败时重试 3 次
+    delay=2.0,  # 重试之间延迟 2 秒
+    friendly_error_text="AI 暂时不可用。请稍后再试。"
+)
+```
+
+**处理的错误类型：**
+- 网络超时
+- API 错误（速率限制、无效密钥）
+- 格式错误的响应
+- 连接失败
+
+**用户体验：**
+- 技术错误对用户隐藏
+- 显示友好的错误消息
+- 自动重试减少瞬时失败
+
+## API 参考
+
+完整的 API 文档（包括所有构造函数参数、方法和详细的参数描述），请参考：
+
+**[HttpLLM API 参考](/oxyapi/llms-http-api)** - 完整的 API 文档
+
+## 示例
+
+探索实际实现：
+
+- **[基本 LLM 使用](/examples/agents/demo_workflow_agent.py)** - 在工作流中直接调用 LLM
+- **[多提供商设置](/examples/agents/demo_heterogeneous_agents.py)** - 一个系统中的多个 LLM
+- **[自定义请求头](/examples/tools/demo_mcp_with_headers.py)** - 动态请求头配置
+
+## 相关文档
+
+- **[Chat 智能体](/docs/agents-chat)** - 使用 LLM 的对话智能体
+- **[ReAct 智能体](/docs/agents-react)** - 使用 LLM 的推理智能体
+- **[工作流智能体](/docs/agents-workflow)** - 从工作流直接调用 LLM
+- **[配置](/docs/configuration)** - 全局 LLM 配置
+- **[OxyRequest & 上下文](/docs/context)** - 理解调用 API

@@ -1,0 +1,269 @@
+---
+title: 多智能体系统（MAS）
+description: OxyGent 多智能体系统的核心模块，用于管理智能体生命周期、注册和交互
+icon: Network
+---
+
+本模块是 OxyGent 框架多智能体系统（MAS）的核心模块，实现了 MAS 的整体管理和运行逻辑。其主要内容和职责包括：
+
+- **MAS 系统核心类：** 定义 MAS 类，负责整个多智能体平台的生命周期管理，包括初始化、启动、关闭、资源回收等。
+- **智能体和工具注册管理：** 支持智能体和工具的注册、批量注册和动态管理，通过名称映射实现统一管理
+- **组织结构构建：** 自动构建和显示智能体及其下属工具的组织结构树，便于可视化和逻辑分层管理
+- **数据库和资源管理：** 集成各种数据库客户端，包括 Elasticsearch、Redis、Vearch 等，实现数据存储、检索和消息流，自动创建所需的索引和表结构
+- **任务和会话管理：** 维护活动任务、异步操作、消息队列等，支持批量处理和并发执行，适应 SSE、CLI 和 Web API 等各种交互模式
+- **Web 服务和 API 接口：** 基于 FastAPI 框架，提供 RESTful 和 SSE 异步接口，支持 Web 前端集成、组织结构查询、欢迎消息和初始对话
+- **运行辅助功能：** 包括欢迎消息显示、Banner 启动、动态属性设置、智能体调用和消息推送等，实现灵活可扩展的多智能体协作机制
+
+## 初始化
+
+### 必需参数
+
+无参数。
+
+### 返回值
+
+无返回值。
+
+### 执行流程
+
+![Initialization Process](/images/oxygent/Intinalization%20Process.png)
+
+#### Oxy 智能体注册
+
+1. 将默认 Oxy 空间批量注入系统（相当于执行"资源声明"），为后续实例初始化做准备
+2. 如果检测到 Vearch 配置已启用，将注册一个额外的检索能力实体（用于后续集成向量检索功能）。这在实例初始化之前完成，以确保在后续加载期间可以被发现
+
+#### 初始化数据库连接
+
+1. 与 Elasticsearch 建立连接，用于日志、检索或结构化数据存储和查询
+2. 与 Redis 建立连接，用于缓存、队列、限流或会话等场景
+3. 当 Vearch 配置启用时，为后续步骤中与向量检索相关的表/索引创建做准备（与数据库阶段密切相关）
+
+#### 初始化 Oxy 实例
+
+1. 遍历所有已注册的 Oxy 项，逐个构建它们的实例，执行它们的初始化钩子（如果有），并完成依赖注入
+2. 确保实例化顺序符合依赖拓扑（如果某些 Oxy 依赖于其他 Oxy 或底层服务，则在第二步中保证它们的预初始化）
+
+#### 初始化主智能体名称
+
+1. 从配置或默认规则解析主智能体名称。如果未明确配置，使用约定的默认名称
+2. 将主智能体名称注入 MAS 的上下文中，作为路由、显示和组织结构构建的关键元数据
+
+#### 初始化智能体组织
+
+1. 根据就绪的 Oxy 实例和主智能体名称生成分层或图状组织结构
+2. 建立智能体之间关系和职责分工的"目录"，为任务编排和消息路由提供结构化基础
+3. 最后，打印或显示组织结构作为启动成功的可视化确认
+
+## 与智能体交互
+
+在 MAS 中，与智能体的交互主要通过 `chat_with_agent` 函数进行。
+
+### 必需参数
+
+| 名称 | 类型 | 默认值 | 描述 |
+|:------------:|:----:|:------:|:------------------------:|
+| payload | dict | None | 与智能体交互所需的信息 |
+| send_msg_key | str | "" | Redis 存储键 |
+
+### 返回值
+
+| 类 | 描述 |
+|:-----------:|:--------------:|
+| OxyResponse | Oxy 响应类 |
+
+### 执行流程
+
+![Chat with Agent Process](/images/oxygent/chat_with_agent%20interact%20process.png)
+
+#### 初始化共享数据
+
+1. 如果 payload 中没有 `shared_data`，初始化一个空字典
+2. 将用户查询 `payload["query"]` 存储在 `shared_data` 中，以确保此核心信息在后续流程中可访问
+
+#### 处理节点重启逻辑
+
+当 payload 包含 `restart_node_id` 时，通过 Elasticsearch (ES) 查询节点的历史数据：
+
+1. 如果找到节点数据，检查 `reference_trace_id`（参考跟踪 ID）是否与节点的 `trace_id` 匹配：
+ - 如果匹配，记录节点的更新时间（`restart_node_order`）以进行会话恢复
+ - 如果不匹配，记录警告日志
+
+2. 如果未指定 `reference_trace_id`，自动将节点的 `trace_id` 设置为参考 ID 并记录更新时间
+
+3. 如果未找到节点数据，记录警告日志
+
+#### 构造 OxyRequest 对象
+
+1. 初始化 `OxyRequest`（系统的内部请求对象）并将其与当前 MAS 实例关联
+2. 从 payload 中提取 `group_data`（组数据）并将其分配给请求对象
+3. 如果 payload 包含 `current_trace_id`（当前跟踪 ID），在请求对象中设置它以进行会话跟踪
+
+#### 继承历史会话数据
+
+当 payload 包含 `from_trace_id` 时，通过 ES 查询与此跟踪 ID 对应的历史会话：
+
+1. 如果找到历史数据，提取 `group_id`（组 ID）和 `group_data`（历史组数据）：
+ - 如果历史 `group_data` 是字符串，尝试将其解析为字典；如果解析失败则使用空字典
+ - 将历史 `group_data` 与当前 `group_data` 合并并更新到请求对象，以确保会话上下文连续性
+2. 如果未找到历史数据，记录警告日志
+
+#### 填充请求参数
+
+遍历 payload 中的键值对并将它们映射到 OxyRequest 对象：
+
+1. 如果键是 OxyRequest 的固有字段（例如 `callee`、`trace_id`），直接将其设置为对象属性
+2. 否则，将其存储在请求对象的 `arguments` 字典中（作为智能体的输入参数）
+
+#### 确定目标智能体
+
+如果请求对象未指定 `callee`（目标智能体名称），默认使用系统的主智能体（`master_agent_name`）。
+
+#### 执行请求并返回结果
+
+1. 调用 `oxy_request.start()` 异步执行请求并获取智能体的响应 `oxy_response`
+2. 如果指定了 `send_msg_key`，向 Redis 发送结束事件（`{"event": "close", "data": "done"}`）以通知 SSE 客户端会话已结束
+3. 返回完整的 `OxyResponse` 对象
+
+## 与用户交互
+
+MAS 中定义了三种与用户交互的方式：命令行交互、网页交互和批量处理交互。
+
+### MAS.start_cli_mode
+
+#### 必需参数
+
+| 名称 | 类型 | 默认值 | 描述 |
+|:-----------:|:------:|:------:|:----------------:|
+| first_query | string | None | 要询问的问题 |
+
+#### 返回值
+
+无返回值。
+
+#### 执行流程
+
+1. 将 `trace_id` 初始化为空。如果是第一个问题（即不存在上下文），继续步骤 2 ；否则继续步骤 3
+2. 将 `query` 和 `trace_id` 传递给 `MAS.chat_with_agent` 函数，获取答案，打印答案，然后继续步骤 3
+3. 判断输入：
+ - 如果输入是（"exit"、"quit"、"bye"），退出模式
+ - 如果输入是（"reset"、"clear"），清除上下文（即将 `trace_id` 设置为空）
+ - 如果是正常问题，继续步骤 2
+
+#### 使用示例
+
+```python
+async def main():
+ async with MAS(oxy_space=oxy_space) as mas:
+ await mas.start_cli_mode(
+ first_query="你好！"
+ )
+```
+
+### MAS.start_web_service
+
+#### 接口设计
+
+| 名称 | 模式 | 请求参数 | 返回值 | 描述 |
+|:----------------------:|:-------:|:---------------------------------------:|:---------------------------------------------------------------------------------------------------------------:|:----------------------------------------------------------------------------------------------------:|
+| `/get_organization` | GET | - | `{ "id_dict": {...}, "organization": {...} }` | 返回智能体/工具组织结构（在组织树中包含路径字段） |
+| `/get_first_query` | GET | - | `{ "first_query": "..." }` | 返回第一次对话内容 |
+| `/get_welcome_message` | GET | - | `{ "welcome_message": "..." }` | 返回欢迎消息 |
+| `/chat` | GET/POST| query, payload, current_trace_id | output: any | 常规异步对话，支持请求拦截和智能体响应 |
+| `/sse/chat` | GET/POST| query, payload, current_trace_id | `{ "data": "..." }` | 用于实时消息推送的 SSE 事件流。结束时发送 `{ "event": "close", "data": "done" }` |
+| `/async/chat` | GET/POST| query, payload, current_trace_id | `{}` | 异步对话接口，返回空响应，实际处理在后台进行 |
+
+#### 执行流程
+
+1. **参数和配置初始化：**
+ - 处理传入参数：first_query、welcome_message、host、port
+ - 默认配置取自 Config
+ - 如果主智能体未注册，记录警告日志
+
+2. **FastAPI 应用程序和中间件初始化：**
+ - 创建 FastAPI 实例
+ - 添加 CORS 中间件
+ - 挂载自定义中间件和路由
+ - 挂载 Web 前端资源目录 `/web` 和静态上传目录 `/static` 以确保页面和文件访问
+
+3. **统一请求处理：**
+ - `request_to_payload()` 负责 GET/POST 解析、JSON 转换，并完成 query、trace_id、headers 等
+ - 适配后续方法调用
+
+4. **服务启动和自动网页打开：**
+ - 异步启动 Uvicorn 服务
+ - 自动打开前端页面（如果配置允许）
+ - 记录相关日志
+
+#### 使用示例
+
+```python
+import asyncio
+from oxygent import MAS, oxy
+from oxygent.utils.env_utils import get_env_var
+
+master_prompt = """
+你是一位文档分析专家。用户将向你提供文档，
+请为用户提供简要的文档摘要。
+摘要可以是 markdown 格式。
+"""
+
+oxy_space = [
+ oxy.HttpLLM(
+ name="default_llm",
+ api_key=get_env_var("DEFAULT_LLM_API_KEY"),
+ base_url=get_env_var("DEFAULT_LLM_BASE_URL"),
+ model_name=get_env_var("DEFAULT_LLM_MODEL_NAME"),
+ llm_params={"temperature": 0.01},
+ semaphore=4,
+ timeout=240,
+ ),
+ oxy.ReActAgent(
+ name="master_agent",
+ prompt=master_prompt,
+ is_master=True,
+ llm_model="default_llm",
+ ),
+]
+
+async def main():
+ async with MAS(oxy_space=oxy_space) as mas:
+ await mas.start_web_service(
+ first_query="你好！"
+ )
+
+if __name__ == "__main__":
+ asyncio.run(main())
+```
+
+### MAS.start_batch_processing
+
+#### 必需参数
+
+| 名称 | 类型 | 默认值 | 描述 |
+|:---------------:|:----:|:------:|:------------------------------:|
+| querys | 列表 | - | 问题列表 |
+| return_trace_id | bool | False | 控制是否返回跟踪 ID |
+
+#### 返回值
+
+| 名称 | 类型 | 默认值 | 描述 |
+|:-------:|:----:|:------:|:--------:|
+| results | 列表 | - | 答案列表 |
+
+#### 执行流程
+
+1. 为每个查询创建一个异步任务。对于每个任务，执行以下步骤：
+ - 将 `trace_id` 设置为 `""`
+ - 将 `query` 和 `trace_id` 传递给 `MAS.chat_with_agent` 函数，将 `"extra_arg"` 设置为 `"value"`
+ - 获取并返回此查询的答案
+2. 等待所有查询处理完成，然后返回所有输出
+
+#### 使用示例
+
+```python
+async def main():
+ async with MAS(oxy_space=oxy_space) as mas:
+ outs = await mas.start_batch_processing(["你好！"] * 10, return_trace_id=True)
+ print(outs)
+```

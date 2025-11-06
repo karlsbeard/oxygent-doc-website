@@ -1,0 +1,552 @@
+---
+title: 生命周期管理
+description: 理解 OxyGent 的组件生命周期、状态管理和资源清理模式
+icon: LifeBuoy
+---
+
+OxyGent 实现了一个全面的生命周期管理系统，管理组件（智能体、工具、流程）如何初始化、执行和清理。理解这个生命周期对于构建可靠、资源高效的多智能体系统至关重要。
+
+## 概述
+
+OxyGent 生命周期系统在两个主要级别运行：
+
+1. **MAS（多智能体系统）生命周期**：应用程序级初始化和清理
+2. **组件执行生命周期**：智能体和工具的请求级处理
+
+### 关键特性
+
+- **异步上下文管理**：使用 `async with` 自动设置和清理资源
+- **结构化执行流程**：预处理 → 执行 → 后处理钩子
+- **状态跟踪**：用于监控执行的全面状态管理
+- **资源清理**：即使发生错误也保证清理
+- **数据库持久化**：自动保存追踪和执行历史
+
+### 组件状态
+
+OxyGent 通过`OxyState` 枚举跟踪执行状态：
+
+| 状态 | 描述 | 何时应用 |
+|-------|-------------|--------------|
+| `CREATED` | 组件已实例化但未启动 | 初始状态 |
+| `RUNNING` | 当前正在执行 | 执行期间 |
+| `COMPLETED` | 成功完成 | 正常完成 |
+| `FAILED` | 执行错误发生 | 抛出异常 |
+| `PAUSED` | 临时暂停 | 手动暂停 |
+| `SKIPPED` | 未执行（条件性）| 工作流跳过 |
+| `CANCELED` | 完成前中止 | 用户取消 |
+
+## 快速开始
+
+### 基本 MAS 生命周期
+
+MAS 生命周期通过 Python 的异步上下文管理器协议管理：
+
+```python
+import asyncio
+from oxygent import MAS, oxy
+from oxygent.utils.env_utils import get_env_var
+
+oxy_space = [
+ oxy.HttpLLM(
+ name="default_llm",
+ api_key=get_env_var("DEFAULT_LLM_API_KEY"),
+ base_url=get_env_var("DEFAULT_LLM_BASE_URL"),
+ model_name=get_env_var("DEFAULT_LLM_MODEL_NAME"),
+ ),
+ oxy.ReActAgent(
+ name="assistant",
+ is_master=True,
+ llm_model="default_llm",
+ ),
+]
+
+async def main():
+ # __aenter__: Initialization phase
+ async with MAS(oxy_space=oxy_space) as mas:
+ # MAS is fully initialized here
+ # - All components registered
+ # - Databases connected
+ # - Agent organization built
+
+ result = await mas.call(
+ callee="assistant",
+ arguments={"messages": [{"role": "user", "content": "Hello"}]}
+ )
+ print(result.output)
+
+ # __aexit__: Cleanup phase (automatic)
+ # - Close database connections
+ # - Wait for background tasks
+ # - Release resources
+
+if __name__ == "__main__":
+ asyncio.run(main())
+```
+
+### 组件执行生命周期
+
+每个组件的执行都遵循带有钩子的结构化流程：
+
+```python
+from oxygent.oxy import LocalAgent
+from oxygent.schemas import OxyRequest, OxyResponse
+
+class CustomAgent(LocalAgent):
+    async def _pre_process(self, oxy_request: OxyRequest) -> OxyRequest:
+        """预处理钩子：在执行前准备请求。"""
+        # 访问父类预处理
+        oxy_request = await super()._pre_process(oxy_request)
+
+        # 添加自定义预处理逻辑
+        print(f"[PRE] 正在处理 {oxy_request.callee} 的请求")
+        oxy_request.arguments["timestamp"] = "2025-10-29"
+
+        return oxy_request
+
+    async def _execute(self, oxy_request: OxyRequest) -> OxyResponse:
+        """主执行逻辑。"""
+        # 您的智能体实现
+        user_query = oxy_request.arguments.get("messages", [])
+
+        # 处理查询
+        result = f"已处理：{user_query}"
+
+        return OxyResponse(
+            output=result,
+            oxy_request=oxy_request
+        )
+
+    async def _post_process(self, oxy_response: OxyResponse) -> OxyResponse:
+        """后处理钩子：在执行后修改响应。"""
+        # 访问父类后处理
+        oxy_response = await super()._post_process(oxy_response)
+
+        # 添加自定义后处理逻辑
+        print(f"[POST] 已完成，输出长度：{len(oxy_response.output)}")
+
+        return oxy_response
+```
+
+## MAS 生命周期阶段
+
+### 阶段 1：初始化（`__aenter__` / `init()`）
+
+进入 MAS 上下文时，会发生以下步骤：
+
+```
+1. 注册 Oxy 组件
+ ↓
+2. 初始化数据库连接
+ - Elasticsearch（追踪、历史）
+ - Redis（缓存、队列）
+ - Vearch（向量搜索）
+ ↓
+3. 初始化所有 Oxy 实例
+ - 调用每个组件的 init() 方法
+ - 执行依赖注入
+ ↓
+4. 确定主智能体
+ - 查找 is_master=True 的智能体
+ - 设置为入口点
+ ↓
+5. 构建智能体组织
+ - 创建层级结构
+ - 将智能体映射到工具
+ - 显示组织树
+```
+
+**代码示例**：
+
+```python
+async def init(self):
+    """MAS 初始化序列。"""
+    # 1. 显示横幅
+    self.show_banner()
+    self.show_mas_info()
+
+    # 2. 注册默认和自定义组件
+    self.register_oxy_list(self.default_oxy_space)
+    self.register_oxy_list(self.oxy_space)
+
+    # 3. 初始化数据库
+    await self.init_db()
+
+    # 4. 初始化所有 Oxy 组件
+    await self.init_all_oxy()
+
+    # 5. 设置主智能体
+    await self.init_master_agent_name()
+
+    # 6. 构建组织结构
+    await self.init_agent_organization()
+```
+
+### 阶段 2：执行（运行时）
+
+在执行期间，每个组件请求流程如下：
+
+```
+用户/父请求
+ ↓
+┌──────────────────────┐
+│ _pre_process() │ 准备请求
+│ - 加载上下文 │
+│ - 验证输入 │
+│ - 设置资源 │
+└──────────────────────┘
+ ↓
+┌──────────────────────┐
+│ _pre_save_data() │ 保存预执行状态
+│ - 存储追踪 │
+│ - 记录请求 │
+└──────────────────────┘
+ ↓
+┌──────────────────────┐
+│ _execute() │ 核心逻辑
+│ - 处理请求 │
+│ - 调用子智能体 │
+│ - 生成响应 │
+└──────────────────────┘
+ ↓
+┌──────────────────────┐
+│ _post_process() │ 修改响应
+│ - 格式化输出 │
+│ - 更新状态 │
+└──────────────────────┘
+ ↓
+┌──────────────────────┐
+│ _post_save_data() │ 保存结果
+│ - 存储追踪 │
+│ - 记录响应 │
+│ - 更新历史 │
+└──────────────────────┘
+ ↓
+返回 OxyResponse
+```
+
+### 阶段 3：清理（`__aexit__`）
+
+退出 MAS 上下文时：
+
+```
+1. 等待后台任务
+ - 完成所有异步操作
+ - 完成数据库写入
+ ↓
+2. 关闭数据库连接
+ - Elasticsearch 优雅关闭
+ - Redis 连接清理
+ ↓
+3. 清理 MCP 服务器
+ - 停止运行的 MCP 进程
+ - 释放文件句柄
+ ↓
+4. 释放资源
+ - 清除活动任务
+ - 释放内存
+```
+
+**代码示例**：
+
+```python
+async def __aexit__(self, exc_type, exc_val, exc_tb):
+    """MAS 清理序列。"""
+    # 1. 等待所有后台任务
+    await asyncio.gather(*self.background_tasks)
+
+    # 2. 记录退出
+    logger.info("=" * 64)
+    logger.info("🪂 OxyGent MAS 应用程序退出")
+    logger.info("=" * 64)
+
+    # 3. 关闭数据库
+    await self.es_client.close()
+    await self.redis_client.close()
+
+    # 4. 清理服务器
+    await self.cleanup_servers()
+```
+
+## 组件执行生命周期
+
+### 执行钩子
+
+每个组件执行都提供用于自定义的钩子：
+
+#### 1. `_pre_process(oxy_request)` → `OxyRequest`
+
+**用途**：在执行前准备请求
+
+**常见用途**：
+- 从数据库加载历史上下文
+- 验证输入参数
+- 设置临时资源
+- 注入默认值
+
+**示例**：
+
+```python
+async def _pre_process(self, oxy_request: OxyRequest) -> OxyRequest:
+    oxy_request = await super()._pre_process(oxy_request)
+
+    # 加载对话历史
+    if oxy_request.from_trace_id:
+        history = await self.load_history(oxy_request.from_trace_id)
+        oxy_request.shared_data["history"] = history
+
+    # 验证必填字段
+    if "query" not in oxy_request.arguments:
+        raise ValueError("缺少必填字段：query")
+
+    return oxy_request
+```
+
+#### 2. `_execute(oxy_request)` → `OxyResponse`
+
+**用途**：核心业务逻辑
+
+**常见用途**：
+- 处理用户查询
+- 调用 LLM 或工具
+- 协调子智能体
+- 生成响应
+
+**示例**：
+
+```python
+async def _execute(self, oxy_request: OxyRequest) -> OxyResponse:
+    messages = oxy_request.arguments["messages"]
+
+    # 调用 LLM
+    llm = oxy_request.get_oxy("default_llm")
+    response = await llm.call(messages=messages)
+
+    return OxyResponse(
+        output=response.output,
+        oxy_request=oxy_request
+    )
+```
+
+#### 3. `_post_process(oxy_response)` → `OxyResponse`
+
+**用途**：修改或丰富响应
+
+**常见用途**：
+- 格式化输出
+- 添加元数据
+- 更新共享状态
+- 记录指标
+
+**示例**：
+
+```python
+async def _post_process(self, oxy_response: OxyResponse) -> OxyResponse:
+    oxy_response = await super()._post_process(oxy_response)
+
+    # 添加元数据
+    oxy_response.metadata = {
+        "agent": self.name,
+        "tokens": len(oxy_response.output.split()),
+        "timestamp": get_format_time()
+    }
+
+    # 为下游智能体更新共享数据
+    oxy_response.oxy_request.shared_data["last_agent"] = self.name
+
+    return oxy_response
+```
+
+### 数据持久化钩子
+
+#### `_pre_save_data(oxy_request)`
+
+**用途**：在处理前保存初始追踪
+
+**保存的内容**：
+- 请求 ID 和追踪 ID
+- 输入参数
+- 共享数据和组数据
+- 时间戳
+
+**存储位置**：Elasticsearch `{app_name}_trace` 索引
+
+#### `_post_save_data(oxy_response)`
+
+**用途**：用结果更新追踪
+
+**保存的内容**：
+- 输出响应
+- 执行状态
+- 对话历史（可选）
+- 完成时间戳
+
+## 状态管理
+
+### 状态转换
+
+组件在执行期间转换状态：
+
+```
+CREATED
+ ↓ (开始执行)
+RUNNING
+ ↓
+ ├─ (成功) → COMPLETED
+ ├─ (错误) → FAILED
+ ├─ (暂停) → PAUSED
+ ├─ (跳过) → SKIPPED
+ └─ (取消) → CANCELED
+```
+
+### 追踪状态
+
+通过请求访问组件状态：
+
+```python
+async def _execute(self, oxy_request: OxyRequest) -> OxyResponse:
+    # 组件在这里处于 RUNNING 状态
+
+    try:
+        result = await self.process(oxy_request)
+        # 自动转换为 COMPLETED
+        return OxyResponse(output=result, oxy_request=oxy_request)
+
+    except Exception as e:
+        # 自动转换为 FAILED
+        logger.error(f"执行失败：{e}")
+        raise
+```
+
+## 资源管理
+
+### 数据库连接
+
+OxyGent 自动管理数据库生命周期：
+
+```python
+# 数据库在 MAS.__aenter__ 中初始化
+async with MAS(oxy_space=oxy_space) as mas:
+    # Elasticsearch、Redis、Vearch 已连接
+
+    # 在执行期间使用数据库
+    result = await mas.es_client.search(...)
+
+    # 数据库在 MAS.__aexit__ 中关闭
+```
+
+### 后台任务
+
+正确管理长时间运行的任务：
+
+```python
+async def start_background_task(self):
+    """启动由 MAS 跟踪的后台任务。"""
+    task = asyncio.create_task(self.long_running_operation())
+    self.mas.background_tasks.add(task)
+    task.add_done_callback(self.mas.background_tasks.discard)
+```
+
+### MCP 服务器生命周期
+
+MCP 服务器由 MAS 管理：
+
+```python
+from oxygent.oxy.mcp_tools import StdioMCPClient
+
+mcp_client = StdioMCPClient(
+    name="mcp_filesystem",
+    command="npx",
+    args=["-y", "@modelcontextprotocol/server-filesystem", "/tmp"]
+)
+
+# 服务器在 MAS 初始化时启动
+async with MAS(oxy_space=[mcp_client, ...]) as mas:
+    # 使用 MCP 工具
+    result = await mas.call(...)
+
+    # 服务器在 MAS 退出时停止
+```
+
+## 示例
+
+实际示例和使用模式，请参考：
+
+- [基础生命周期](/examples/core-concepts/lifecycle-basics) - 理解 MAS 生命周期
+- [自定义钩子](/examples/core-concepts/custom-hooks) - 实现执行钩子
+- [资源管理](/examples/core-concepts/resource-management) - 管理数据库和连接
+- [状态追踪](/examples/core-concepts/state-tracking) - 监控组件状态
+
+查看 [示例库](/examples) 中的所有示例。
+
+## 最佳实践
+
+### 1. 始终使用上下文管理器
+
+```python
+# ✅ 好：自动清理
+async with MAS(oxy_space=oxy_space) as mas:
+    result = await mas.call(...)
+
+# ❌ 差：需要手动清理
+mas = await MAS.create(oxy_space=oxy_space)
+result = await mas.call(...)
+await mas.cleanup()  # 容易忘记！
+```
+
+### 2. 调用父类钩子
+
+```python
+# ✅ 好：保留父类行为
+async def _pre_process(self, oxy_request: OxyRequest) -> OxyRequest:
+    oxy_request = await super()._pre_process(oxy_request)
+    # 添加自定义逻辑
+    return oxy_request
+
+# ❌ 差：跳过父类处理
+async def _pre_process(self, oxy_request: OxyRequest) -> OxyRequest:
+    # 仅自定义逻辑
+    return oxy_request
+```
+
+### 3. 优雅地处理错误
+
+```python
+async def _execute(self, oxy_request: OxyRequest) -> OxyResponse:
+    try:
+        result = await self.risky_operation()
+        return OxyResponse(output=result, oxy_request=oxy_request)
+
+    except SpecificError as e:
+        logger.error(f"已知错误：{e}")
+        # 返回后备响应而不是崩溃
+        return OxyResponse(
+            output="操作失败，请重试",
+            oxy_request=oxy_request,
+            state=OxyState.FAILED
+        )
+
+    finally:
+        # 清理临时资源
+        await self.cleanup_temp_files()
+```
+
+### 4. 追踪后台任务
+
+```python
+# ✅ 好：注册后台任务
+async def start_monitoring(self):
+    task = asyncio.create_task(self.monitor_loop())
+    self.mas.background_tasks.add(task)
+    task.add_done_callback(self.mas.background_tasks.discard)
+
+# ❌ 差：孤立的后台任务
+async def start_monitoring(self):
+    asyncio.create_task(self.monitor_loop())  # 未追踪！
+```
+
+## 相关链接
+
+- [MAS（多智能体系统）](/docs/mas) - MAS 架构和 API
+- [四级作用域系统](/docs/four-scope) - 理解数据作用域
+- [配置](/docs/configuration) - 全局配置选项
+- [ReAct 智能体](/docs/agents-react) - 智能体实现示例

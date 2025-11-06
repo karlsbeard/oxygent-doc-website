@@ -1,0 +1,371 @@
+---
+title: 工作流
+description: 自定义工作流执行流程，支持灵活的用户定义逻辑集成
+icon: 工作流
+---
+
+工作流是 OxyGent的灵活流程组件，支持在流程框架内执行自定义工作流函数。它作为流程系统和用户定义逻辑之间的桥梁，允许您实现任何自定义工作流模式。
+
+## 概述
+
+工作流流程提供了实现自定义执行模式的最大灵活性。与其他具有预定义行为的流程（Parallel流程、PlanAndSolve、Reflexion）不同，工作流通过自定义函数让您完全控制执行逻辑。
+
+**关键特性:**
+
+- **自定义逻辑**: 执行任何用户定义的工作流函数
+- **流程集成**: 与OxyGent的流程系统无缝集成
+- **灵活的模式**: 实现任何工作流模式（顺序、条件、循环等）
+- **上下文访问**: 完全访问 OxyRequest 以获取上下文和智能体通信
+- **简单的接口**: 最少的样板代码，专注于您的工作流逻辑
+
+**何时使用:**
+
+- 当现有流程（Parallel流程、PlanAndSolve、Reflexion）不符合您的需求时
+-需要特定控制流的自定义编排逻辑
+- 实验性工作流模式或原型
+- 具有独特需求的特定领域工作流
+
+## 快速开始
+
+### 基本用法
+
+创建一个简单的工作流来处理请求并返回结果：
+
+```python
+import asyncio
+from oxygent import MAS, oxy
+from oxygent.schemas import OxyRequest
+
+async def my_custom_workflow(oxy_request: OxyRequest) -> str:
+ """Simple custom workflow function."""
+ query = oxy_request.get_query()
+
+ # Your custom logic here
+ result = f"已处理的查询： {query}"
+
+ return result
+
+oxy_space = [
+ oxy.HttpLLM(
+ name="default_llm",
+ api_key="your_api_key",
+ base_url="your_base_url",
+ model_name="your_model"
+ ),
+ oxy.flows.Workflow(
+ name="custom_flow",
+ desc="My custom workflow",
+ func_workflow=my_custom_workflow
+ ),
+]
+
+async def main():
+ async with MAS(oxy_space=oxy_space) as mas:
+ result = await mas.call(
+ callee="custom_flow",
+ arguments={"query": "你好，工作流！"}
+ )
+ print(result.output)
+
+asyncio.run(main())
+```
+
+### With 智能体调用
+
+在工作流中访问其他智能体和工具：
+
+```python
+async def multi_agent_workflow(oxy_request: OxyRequest) -> str:
+ """Workflow that orchestrates multiple agents."""
+ query = oxy_request.get_query()
+
+ # Call first agent for analysis
+ analysis_result = await oxy_request.call(
+ callee="analyzer_agent",
+ arguments={"query": query}
+ )
+
+ # Call second agent for processing
+ final_result = await oxy_request.call(
+ callee="processor_agent",
+ arguments={"query": analysis_result.output}
+ )
+
+ return f"Analysis: {analysis_result.output}\nResult: {final_result.output}"
+
+oxy_space = [
+ oxy.HttpLLM(name="default_llm", ...),
+ oxy.ReActAgent(name="analyzer_agent", ...),
+ oxy.ReActAgent(name="processor_agent", ...),
+ oxy.flows.Workflow(
+ name="orchestrator_flow",
+ desc="Orchestrates analysis and processing agents",
+ func_workflow=multi_agent_workflow
+ ),
+]
+```
+
+## 配置选项
+
+### 核心参数
+
+#### `func_workflow` (Callable, 必需)
+
+要执行的自定义工作流函数。必须是接受 `OxyRequest` 并返回字符串的异步函数。
+
+```python
+from oxygent.schemas import OxyRequest
+
+async def my_workflow(oxy_request: OxyRequest) -> str:
+ # Your workflow logic
+ return "result"
+
+oxy.flows.Workflow(
+ name="my_flow",
+ func_workflow=my_workflow
+)
+```
+
+**Function Signature:**
+- **输入**: `oxy_request: Oxy请求` - 包含查询、上下文和调用其他智能体的方法
+- **Output**: `str` - 您的工作流的最终结果
+
+**何时调整**: 始终必需 - 这是您的工作流实现。
+
+### Base流程参数
+
+工作流继承所有标准的Base流程参数：
+
+#### `name` (str, 必需)
+
+MAS中流程的唯一标识符。
+
+```python
+oxy.flows.Workflow(
+ name="data_pipeline_flow",
+ func_workflow=my_workflow
+)
+```
+
+#### `desc` (str, 可选)
+
+该工作流的描述。
+
+```python
+oxy.flows.Workflow(
+ name="validation_flow",
+ desc="Validates and processes user input through multiple stages",
+ func_workflow=my_workflow
+)
+```
+
+#### `timeout` (int, default: 100)
+
+最大执行时间（秒）。
+
+```python
+oxy.flows.Workflow(
+ name="long_workflow",
+ timeout=300, # 5 minutes for complex workflows
+ func_workflow=my_workflow
+)
+```
+
+#### `llm_model` (str, default: "default_llm")
+
+用于回退操作的LLM 模型。
+
+```python
+oxy.flows.Workflow(
+ name="smart_flow",
+ llm_model="gpt-4",
+ func_workflow=my_workflow
+)
+```
+
+## 理解工作流执行
+
+工作流流程遵循简单的执行模式：
+
+```
+User Request
+ ↓
+OxyRequest Created
+ ↓
+func_workflow(oxy_request) Called
+ ↓
+Custom Logic 执行s
+ ↓ (may call agents/tools)
+[Agent Calls via oxy_request.call()]
+ ↓
+Return String Result
+ ↓
+OxyResponse Created (state=COMPLETED)
+ ↓
+Result Returned to User
+```
+
+**关键点:**
+
+1. **异步执行**: 工作流函数必须是异步的2. **上下文访问**: 完全访问 OxyRequest 以获取上下文和通信
+3. **智能体调用**:使用`await oxy_request.call()` 调用其他智能体
+4. **简单的Return**: 只需返回一个字符串 - 流程会处理 OxyResponse的创建
+
+## API 参考
+
+完整的API 文档包括所有构造函数参数、方法和详细的参数描述，请参考：
+
+**[工作流 API 参考](/oxyapi/flows-workflow-api)** - 完整的API 文档
+
+##示例
+
+实际使用示例和模式请参考：
+
+- [Custom Sequential 工作流](/examples/flows/custom-sequential) - 多步骤顺序处理
+- [条件性 工作流](/examples/flows/conditional-logic) - 分支逻辑和条件
+- [Loop-based 工作流](/examples/flows/iterative-processing) - 迭代执行模式
+- [Multi-智能体 Orchestration](/examples/flows/agent-orchestration) - 复杂智能体协调
+
+查看所有示例：[示例 Gallery](/examples)。
+
+## 高级功能
+
+### 条件逻辑
+
+基于条件实现分支逻辑：
+
+```python
+async def conditional_workflow(oxy_request: OxyRequest) -> str:
+ query = oxy_request.get_query()
+
+ # Determine which path to take
+ if "urgent" in query.lower():
+ result = await oxy_request.call(
+ callee="urgent_handler",
+ arguments={"query": query}
+ )
+ elif "analysis" in query.lower():
+ result = await oxy_request.call(
+ callee="analyst_agent",
+ arguments={"query": query}
+ )
+ else:
+ result = await oxy_request.call(
+ callee="general_agent",
+ arguments={"query": query}
+ )
+
+ return result.output
+```
+
+### 迭代处理
+
+实现循环和迭代：
+
+```python
+async def iterative_workflow(oxy_request: OxyRequest) -> str:
+ query = oxy_request.get_query()
+ max_iterations = 3
+
+ current_result = query
+ for i in range(max_iterations):
+ # Refine result through multiple iterations
+ response = await oxy_request.call(
+ callee="refiner_agent",
+ arguments={"query": current_result}
+ )
+ current_result = response.output
+
+ # Check if result is satisfactory
+ if "DONE" in current_result:
+ break
+
+ return f"Final result after {i+1} iterations: {current_result}"
+```
+
+### 错误处理
+
+实现健壮的错误处理：
+
+```python
+async def robust_workflow(oxy_request: OxyRequest) -> str:
+ query = oxy_request.get_query()
+
+ try:
+ # Primary agent
+ result = await oxy_request.call(
+ callee="primary_agent",
+ arguments={"query": query}
+ )
+ return result.output
+
+ except Exception as e:
+ # Fallback to backup agent
+ try:
+ result = await oxy_request.call(
+ callee="backup_agent",
+ arguments={"query": query}
+ )
+ return f"Fallback result: {result.output}"
+
+ except Exception as fallback_error:
+ return f"错误： Unable to process request - {str(fallback_error)}"
+```
+
+### 并行执行
+
+并行组合多个智能体调用：
+
+```python
+import asyncio
+
+async def parallel_workflow(oxy_request: OxyRequest) -> str:
+ query = oxy_request.get_query()
+
+ # 执行 multiple agents in parallel
+ results = await asyncio.gather(
+ oxy_request.call(callee="agent_1", arguments={"query": query}),
+ oxy_request.call(callee="agent_2", arguments={"query": query}),
+ oxy_request.call(callee="agent_3", arguments={"query": query}),
+ )
+
+ # Combine results
+ combined = "\n".join([f"Agent {i+1}: {r.output}" for i, r in enumerate(results)])
+ return combined
+```
+
+### 状态管理
+
+在工作流执行过程中维护状态：
+
+```python
+async def stateful_workflow(oxy_request: OxyRequest) -> str:
+ query = oxy_request.get_query()
+
+ # Access shared data for state
+ state = oxy_request.shared_data.get("workflow_state", {})
+
+ # Process and update state
+ step_count = state.get("steps", 0) + 1
+
+ result = await oxy_request.call(
+ callee="processor_agent",
+ arguments={"query": query}
+ )
+
+ # Update state
+ state["steps"] = step_count
+ state["last_result"] = result.output
+ oxy_request.shared_data["workflow_state"] = state
+
+ return f"Step {step_count}: {result.output}"
+```
+
+## 相关链接
+
+- [Parallel流程](/docs/flows-parallel) - 并行执行流
+- [PlanAndSolve](/docs/flows-plan-and-solve) - 计划执行流
+- [Reflexion](/docs/flows-reflexion) - 自我评估流
+- [流程对比指南](/docs/flows-comparison) - 对比所有流程类型
+- [ReAct智能体](/docs/agents-react) - 推理和执行智能体
+- [Oxy请求上下文](/docs/context) - 理解请求上下文和数据流

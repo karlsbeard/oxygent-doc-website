@@ -1,0 +1,346 @@
+---
+title: 工作流智能体
+description: 执行自定义工作流函数，提供对智能体行为的完全程序化控制
+icon: Workflow
+---
+
+## 概述
+
+**工作流智能体** 是一个专门的智能体，执行自定义工作流函数，提供对智能体行为的完全程序化控制。与依赖 LLM 推理的 ReAct 或 Chat 智能体不同，工作流智能体允许您使用 Python 代码定义显式逻辑流程，同时与其他智能体、工具和 LLM 无缝集成。
+
+### 关键特性
+
+- **自定义逻辑流程**：使用 Python 异步函数定义显式控制流
+- **OxyRequest API**：完全访问内存、查询、消息和智能体调用
+- **无缝集成**：从工作流内调用其他智能体、工具和 LLM
+- **主智能体支持**：可以作为主智能体编排多个子智能体
+- **内存访问**：访问本地和主级别的内存上下文
+- **灵活组合**：将确定性逻辑与 AI 能力相结合
+
+### 使用场景
+
+```
+┌─────────────────────────────────────────────────────┐
+│ WorkflowAgent Use Cases │
+├─────────────────────────────────────────────────────┤
+│ │
+│ ┌──────────────────┐ ┌──────────────────┐ │
+│ │ Complex Logic │ │ Multi-step │ │
+│ │ Orchestration │ │ Pipelines │ │
+│ └──────────────────┘ └──────────────────┘ │
+│ │
+│ ┌──────────────────┐ ┌──────────────────┐ │
+│ │ Data Processing │ │ Agent │ │
+│ │ Workflows │ │ Coordination │ │
+│ └──────────────────┘ └──────────────────┘ │
+│ │
+│ ┌──────────────────┐ ┌──────────────────┐ │
+│ │ Conditional │ │ Hybrid AI + │ │
+│ │ Branching │ │ Deterministic │ │
+│ └──────────────────┘ └──────────────────┘ │
+└─────────────────────────────────────────────────────┘
+```
+
+## 快速开始
+
+### Basic 工作流
+
+Create a simple 工作流智能体 that calls other components:
+
+```python
+import os
+from oxygent import MAS, OxyRequest, oxy
+
+async def simple_workflow(oxy_request: OxyRequest):
+ # Get the user's query
+ query = oxy_request.get_query()
+
+ # Call a tool
+ response = await oxy_request.call(
+ callee="time_tools",
+ arguments={"timezone": "Asia/Shanghai"}
+ )
+
+ return f"Current time: {response.output}"
+
+oxy_space = [
+ oxy.HttpLLM(
+ name="default_llm",
+ api_key=os.getenv("DEFAULT_LLM_API_KEY"),
+ base_url=os.getenv("DEFAULT_LLM_BASE_URL"),
+ model_name=os.getenv("DEFAULT_LLM_MODEL_NAME"),
+ ),
+ oxy.StdioMCPClient(
+ name="time_tools",
+ params={
+ "command": "uvx",
+ "args": ["mcp-server-time", "--local-timezone=Asia/Shanghai"],
+ },
+ ),
+ oxy.WorkflowAgent(
+ name="time_agent",
+ desc="A tool for time queries",
+ tools=["time_tools"],
+ func_workflow=simple_workflow,
+ ),
+]
+
+async def main():
+ async with MAS(oxy_space=oxy_space) as mas:
+ await mas.start_web_service(
+ first_query="What time is it?"
+ )
+
+if __name__ == "__main__":
+ import asyncio
+ asyncio.run(main())
+```
+
+### Advanced 工作流 with Multiple Calls
+
+Create a workflow that orchestrates multiple agents and LLMs:
+
+```python
+async def complex_workflow(oxy_request: OxyRequest):
+ # Access memory context
+ history = oxy_request.get_short_memory()
+ master_history = oxy_request.get_short_memory(master_level=True)
+
+ # Get queries at different levels
+ current_query = oxy_request.get_query()
+ master_query = oxy_request.get_query(master_level=True)
+
+ # Send intermediate messages
+ await oxy_request.send_message({
+ "type": "status",
+ "content": "Processing your request..."
+ })
+
+ # Call an agent
+ agent_response = await oxy_request.call(
+ callee="chat_agent",
+ arguments={"query": current_query}
+ )
+
+ # Call an LLM directly
+ llm_response = await oxy_request.call(
+ callee="default_llm",
+ arguments={
+ "messages": [
+ {"role": "system", "content": "You are a helpful assistant."},
+ {"role": "user", "content": f"Analyze: {agent_response.output}"}
+ ],
+ "llm_params": {"temperature": 0.2}
+ }
+ )
+
+ # Call a tool
+ tool_response = await oxy_request.call(
+ callee="calc_pi",
+ arguments={"prec": 10}
+ )
+
+ return f"Results: Agent: {agent_response.output}, LLM: {llm_response.output}, Tool: {tool_response.output}"
+
+oxy_space = [
+ # LLM configuration
+ oxy.HttpLLM(name="default_llm", ...),
+
+ # Tools
+ oxy.StdioMCPClient(name="math_tools", ...),
+
+ # Sub-agents
+ oxy.ChatAgent(name="chat_agent", llm_model="default_llm"),
+
+ # Master WorkflowAgent
+ oxy.WorkflowAgent(
+ name="master_agent",
+ is_master=True,
+ sub_agents=["chat_agent"],
+ tools=["math_tools"],
+ func_workflow=complex_workflow,
+ llm_model="default_llm",
+ ),
+]
+```
+
+### 工作流 with 条件性 Logic
+
+Implement branching logic based on runtime conditions:
+
+```python
+async def conditional_workflow(oxy_request: OxyRequest):
+ query = oxy_request.get_query()
+
+ # Extract information using regex
+ import re
+ numbers = re.findall(r'\d+', query)
+
+ if numbers:
+ # Path 1: Process numeric request
+ n = numbers[-1]
+ response = await oxy_request.call(
+ callee="calc_pi",
+ arguments={"prec": n}
+ )
+ return f"Pi to {n} places: {response.output}"
+ else:
+ # Path 2: Default response
+ return "Please specify how many decimal places you need."
+
+oxy_space = [
+ oxy.HttpLLM(name="default_llm", ...),
+ oxy.StdioMCPClient(name="math_tools", ...),
+ oxy.WorkflowAgent(
+ name="pi_agent",
+ tools=["math_tools"],
+ func_workflow=conditional_workflow,
+ ),
+]
+```
+
+## 配置选项
+
+### 核心参数
+
+| 参数 | 类型 | 必需 | 描述 |
+|-----------|------|----------|-------------|
+| `name` | `str` | 是 | Unique identifier agent |
+| `func_workflow` | `Callable` | 是 | Async function that 实现 the workflow logic |
+| `desc` | `str` | 否 | 描述 used when th是一个gent is called as a tool |
+| `llm_model` | `str` | 否 | LLM model identifier for sub-agent calls |
+
+### 智能体 Orchestration
+
+| 参数 | 类型 | 默认值 | 描述 |
+|-----------|------|---------|-------------|
+| `sub_agents` | `列表[str]` | `[]` | List of sub-agent names this workflow can call |
+| `tools` | `列表[str]` | `[]` | List of tool names available to this workflow |
+| `is_master` | `bool` | `False` | Whether th是一个gent 是 master orchestrator |
+
+### 内存 & 上下文
+
+| 参数 | 类型 | 默认值 | 描述 |
+|-----------|------|---------|-------------|
+| `is_retain_master_short_memory` | `bool` | `False` | Retain master-level memory context |
+
+### Execution Control
+
+| 参数 | 类型 | 默认值 | 描述 |
+|-----------|------|---------|-------------|
+| `timeout` | `int` | `60` | 最大执行时间（秒） |
+
+## Oxy请求 API
+
+工作流智能体 functions receive an `Oxy请求` object 使用se key methods:
+
+### 内存 Access
+
+```python
+# Get current agent's memory
+local_memory = oxy_request.get_short_memory()
+
+# Get master agent's memory
+master_memory = oxy_request.get_short_memory(master_level=True)
+```
+
+### Query Access
+
+```python
+# Get current query
+query = oxy_request.get_query()
+
+# Get master-level query
+master_query = oxy_request.get_query(master_level=True)
+```
+
+### 调用组件
+
+```python
+# Call an agent
+response = await oxy_request.call(
+ callee="agent_name",
+ arguments={"query": "..."}
+)
+
+# Call a tool
+response = await oxy_request.call(
+ callee="tool_name",
+ arguments={"param": "value"}
+)
+
+# Call an LLM
+response = await oxy_request.call(
+ callee="llm_name",
+ arguments={
+ "messages": [...],
+ "llm_params": {"temperature": 0.7}
+ }
+)
+```
+
+### 发送消息
+
+```python
+# Send intermediate messages 到 user
+await oxy_request.send_message({
+ "type": "status",
+ "content": "Processing step 2 of 5..."
+})
+```
+
+## 工作流 Execution 流程
+
+```
+┌─────────────────────────────────────────────────────┐
+│ WorkflowAgent Execution Flow │
+└─────────────────────────────────────────────────────┘
+ │
+ ▼
+ ┌───────────────────────┐
+ │ Receive OxyRequest │
+ └───────────────────────┘
+ │
+ ▼
+ ┌───────────────────────┐
+ │ Execute func_workflow│
+ └───────────────────────┘
+ │
+ ┌────────────┴────────────┐
+ │ │
+ ▼ ▼
+ ┌─────────────┐ ┌─────────────────┐
+ │ Access │ │ Call Components │
+ │ Memory/Query│ │ (Agents/Tools) │
+ └─────────────┘ └─────────────────┘
+ │ │
+ └────────────┬────────────┘
+ │
+ ▼
+ ┌───────────────────────┐
+ │ Return OxyResponse │
+ │ (state=COMPLETED) │
+ └───────────────────────┘
+```
+
+## API 参考
+
+完整的 API 文档，包括所有构造函数参数、方法和详细的参数描述，请参考：
+
+**[工作流智能体 API 参考](/oxyapi/agents-workflow-api)** - 完整的 API 文档
+
+## 示例
+
+探索实际实现：
+
+- **[Basic 工作流](/examples/agents/demo_workflow_agent.py)** - 简单的 workflow with tool calls
+- **[Heterogeneous 智能体s](/examples/agents/demo_heterogeneous_agents.py)** - Mixing 工作流智能体 with other agent types
+- **[Plan and Solve](/examples/flows/plan_and_solve_demo.py)** - Using 工作流智能体 in complex flows
+
+## 相关文档
+
+- **[ReAct智能体](/docs/agents-react)** - LLM-driven reasoning and acting agent
+- **[Chat智能体](/docs/agents-chat)** - Conversational AI agent
+- **[Oxy请求 & 上下文](/docs/context)** - 理解 the request context API
+- **[Four-域 System](/docs/four-scope)** - Data scoping and context management
+- **[生命周期 Management](/docs/lifecycle)** - Component lifecycle and hooks

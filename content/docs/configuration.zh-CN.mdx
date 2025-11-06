@@ -1,0 +1,600 @@
+---
+title: 配置
+description: 用于自定义 OxyGent 行为、日志、数据库和智能体默认值的全局配置系统
+icon: Settings
+---
+
+OxyGent 通过 `Config` 类提供全面的全局配置系统，允许您自定义应用程序行为、日志、数据库连接和默认智能体设置，而无需修改代码。
+
+## 概述
+
+配置系统按模块组织，每个模块控制 OxyGent 框架的特定方面：
+
+- **Application**：应用名称、版本和元数据
+- **Logging**：日志级别、颜色、输出格式
+- **LLM**：默认 LLM 参数
+- **Cache**：文件系统缓存
+- **Message**：消息显示和过滤
+- **Databases**：Elasticsearch、Redis、Vearch 连接
+- **Server**：Web 服务主机和端口
+- **智能体**：默认智能体参数
+- **工具**：工具和 MCP 客户端设置
+
+### 关键特性
+
+- **模块化配置**：按功能区域组织
+- **环境支持**：多环境（dev、prod、test）
+- **环境变量**：使用 `${VAR}` 语法的动态值
+- **JSON 配置**：用于复杂设置的外部配置文件
+- **运行时更新**：执行期间更改配置
+- **类型安全**：带验证的 getter/setter 方法
+
+### 配置优先级
+
+OxyGent 按以下顺序应用配置（后者覆盖前者）：
+
+1. **默认配置**：`Config` 类中的内置默认值
+2. **JSON 配置**（default）：`config.json` → `default` 部分
+3. **JSON 配置**（环境）：`config.json` → 特定环境
+4. **运行时设置**：编程方式的 `Config.set_*()` 调用
+5. **智能体特定**：每个智能体的构造函数参数
+
+## 快速开始
+
+### 基础配置
+
+```python
+from oxygent import Config
+
+# Set application name
+Config.set_app_name("my_oxygent_app")
+
+# Configure logging
+Config.set_log_level_terminal("DEBUG")
+Config.set_log_path("./logs/app.log")
+
+# Set default LLM model name
+Config.set_agent_llm_model("gpt-4")
+
+# Configure cache directory
+Config.set_cache_save_dir("./cache")
+
+# Now create your MAS
+from oxygent import MAS, oxy
+
+async def main():
+ async with MAS(oxy_space=[...]) as mas:
+ # Configuration is applied globally
+ result = await mas.call(...)
+```
+
+### 使用 JSON 配置
+
+创建 `config.json` 文件：
+
+```json
+{
+  "default": {
+    "app": {
+      "name": "my_app",
+      "version": "1.0.0"
+    },
+    "log": {
+      "level_root": "INFO",
+      "level_terminal": "DEBUG",
+      "path": "./logs/app.log"
+    },
+    "server": {
+      "host": "0.0.0.0",
+      "port": 8080,
+      "auto_open_webpage": true
+    },
+    "agent": {
+      "llm_model": "default_llm",
+      "short_memory_size": 10
+    }
+  },
+  "production": {
+    "log": {
+      "level_root": "WARNING",
+      "level_terminal": "WARNING"
+    },
+    "server": {
+      "auto_open_webpage": false
+    }
+  }
+}
+```
+
+加载配置：
+
+```python
+from oxygent import Config
+
+# 加载默认环境
+Config.load_from_json("./config.json")
+
+# 或加载特定环境
+Config.load_from_json("./config.json", env="production")
+
+# 或使用环境变量：APP_ENV=production
+import os
+os.environ["APP_ENV"] = "production"
+Config.load_from_json("./config.json")
+```
+
+### 环境变量替换
+
+在 JSON 配置中使用 `${VAR}` 语法：
+
+```json
+{
+  "default": {
+    "llm": {
+      "base_url": "${OPENAI_BASE_URL}",
+      "api_key": "${OPENAI_API_KEY}"
+    },
+    "log": {
+      "path": "${LOG_DIR}/app.log"
+    }
+  }
+}
+```
+
+设置环境变量：
+
+```bash
+export OPENAI_BASE_URL="https://api.openai.com"
+export OPENAI_API_KEY="sk-..."
+export LOG_DIR="/var/log/oxygent"
+```
+
+## 配置模块
+
+### Application 配置
+
+控制应用程序元数据和标识。
+
+| 方法 | 描述 | 默认值 |
+|--------|-------------|---------|
+| `set_app_name(name)` | 设置应用程序名称 | `"app"` |
+| `get_app_name()` | 获取应用程序名称 | - |
+| `set_app_version(version)` | 设置应用程序版本 | `"1.0.0"` |
+| `get_app_version()` | 获取应用程序版本 | - |
+
+**示例**：
+
+```python
+from oxygent import Config
+
+Config.set_app_name("customer_service_bot")
+Config.set_app_version("2.1.0")
+
+app_name = Config.get_app_name() # "customer_service_bot"
+```
+
+### Logging 配置
+
+自定义日志行为、输出格式和颜色。
+
+#### 日志级别
+
+| 方法 | 描述 | 默认值 |
+|--------|-------------|---------|
+| `set_log_level_root(level)` | 设置根日志记录器级别 | `"INFO"` |
+| `set_log_level_terminal(level)` | 设置终端输出级别 | `"INFO"` |
+| `set_log_level_file(level)` | 设置文件输出级别 | `"INFO"` |
+| `set_log_path(path)` | 设置日志文件路径 | `"./cache_dir/app.log"` |
+
+**有效级别**：`"DEBUG"`、`"INFO"`、`"WARNING"`、`"ERROR"`、`"CRITICAL"`
+
+**示例**：
+
+```python
+Config.set_log_level_terminal("DEBUG")  # 在终端显示所有日志
+Config.set_log_level_file("WARNING")    # 文件中仅记录警告及以上级别
+Config.set_log_path("/var/log/oxygent/app.log")
+```
+
+#### 日志颜色和格式化
+
+| 方法 | 描述 | 默认值 |
+|--------|-------------|---------|
+| `set_log_color_tool_call(color)` | 工具调用的颜色 | `"YELLOW"` |
+| `set_log_color_observation(color)` | 观察结果的颜色 | `"CYAN"` |
+| `set_log_is_bright(is_bright)` | 使用亮色 | `False` |
+| `set_log_only_message_color(only)` | 仅为消息着色 | `True` |
+| `set_log_is_detailed_tool_call(detailed)` | 显示完整工具调用 | `True` |
+| `set_log_is_detailed_observation(detailed)` | 显示完整观察结果 | `True` |
+
+**可用颜色**：`"BLACK"`、`"RED"`、`"GREEN"`、`"YELLOW"`、`"BLUE"`、`"MAGENTA"`、`"CYAN"`、`"WHITE"`
+
+**示例**：
+
+```python
+# 自定义日志外观
+Config.set_log_color_tool_call("GREEN")
+Config.set_log_color_observation("BLUE")
+Config.set_log_is_bright(True)
+
+# 在生产环境中简化日志
+Config.set_log_is_detailed_tool_call(False)
+Config.set_log_is_detailed_observation(False)
+```
+
+### LLM 配置
+
+设置 LLM 组件的默认参数。
+
+| 方法 | 描述 | 默认值 |
+|--------|-------------|---------|
+| `set_llm_config(config)` | 设置完整的 LLM 配置 | 见下文 |
+| `get_llm_config()` | 获取 LLM 配置字典 | - |
+
+**默认 LLM 配置**：
+
+```python
+{
+ "cls": "oxygent.llms.OllamaLLM",
+ "base_url": "http://localhost:11434",
+ "temperature": 0.1,
+ "max_tokens": 4096,
+ "top_p": 1
+}
+```
+
+**注意**：单个 LLM 实例可以覆盖这些默认值。
+
+### Cache 配置
+
+配置文件系统缓存。
+
+| 方法 | 描述 | 默认值 |
+|--------|-------------|---------|
+| `set_cache_save_dir(dir)` | 设置缓存目录 | `"./cache_dir"` |
+| `get_cache_save_dir()` | 获取缓存目录（不存在则创建） | - |
+
+**示例**：
+
+```python
+Config.set_cache_save_dir("/tmp/oxygent_cache")
+cache_dir = Config.get_cache_save_dir()  # 如果不存在则创建目录
+```
+
+### Message 配置
+
+控制显示或发送哪些消息类型。
+
+| 方法 | 描述 | 默认值 |
+|--------|-------------|---------|
+| `set_message_is_send_tool_call(send)` | 发送工具调用消息 | `True` |
+| `set_message_is_send_observation(send)` | 发送观察消息 | `True` |
+| `set_message_is_send_think(send)` | 发送思考消息 | `True` |
+| `set_message_is_send_answer(send)` | 发送答案消息 | `True` |
+| `set_message_is_stored(stored)` | 在数据库中存储消息 | `False` |
+| `set_message_is_show_in_terminal(show)` | 在终端显示 | `False` |
+| `set_message_is_send_full_arguments(send)` | 发送完整的工具参数 | `False` |
+
+**示例**：
+
+```python
+# 最小输出模式（仅答案）
+Config.set_message_is_send_tool_call(False)
+Config.set_message_is_send_observation(False)
+Config.set_message_is_send_think(False)
+
+# 调试模式（显示所有内容）
+Config.set_message_is_send_full_arguments(True)
+Config.set_message_is_show_in_terminal(True)
+```
+
+### Database 配置
+
+配置 Elasticsearch、Redis 和 Vearch 连接。
+
+#### Elasticsearch
+
+| 方法 | 描述 |
+|--------|-------------|
+| `set_es_enabled(enabled)` | 启用/禁用 Elasticsearch |
+| `set_es_config(config)` | 设置 ES 连接配置 |
+| `get_es_config()` | 获取 ES 配置 |
+| `set_es_schema_shared_data(schema)` | 设置 shared_data 架构 |
+| `set_es_schema_group_data(schema)` | 设置 group_data 架构 |
+| `set_es_settings(settings)` | 设置索引设置 |
+
+**示例**：
+
+```python
+Config.set_es_enabled(True)
+Config.set_es_config({
+ "hosts": ["http://localhost:9200"],
+ "username": "elastic",
+ "password": "changeme"
+})
+
+# 为结构化数据定义架构
+Config.set_es_schema_shared_data({
+ "type": "object",
+ "properties": {
+ "user_id": {"type": "keyword"},
+ "session_id": {"type": "keyword"},
+ "metadata": {"type": "text"}
+ }
+})
+```
+
+#### Redis
+
+| 方法 | 描述 |
+|--------|-------------|
+| `set_redis_enabled(enabled)` | 启用/禁用 Redis |
+| `set_redis_config(config)` | 设置 Redis 连接配置 |
+| `get_redis_config()` | 获取 Redis 配置 |
+| `set_redis_param(param, value)` | 设置 Redis 参数 |
+
+**示例**：
+
+```python
+Config.set_redis_enabled(True)
+Config.set_redis_config({
+ "host": "localhost",
+ "port": 6379,
+ "password": "redis_password"
+})
+
+# 设置 Redis 参数
+Config.set_redis_param("expire_time", 86400)  # 24 小时
+Config.set_redis_param("max_size", 2048)
+```
+
+#### Vearch（向量数据库）
+
+| 方法 | 描述 |
+|--------|-------------|
+| `set_vearch_enabled(enabled)` | 启用/禁用 Vearch |
+| `set_vearch_config(config)` | 设置 Vearch 连接配置 |
+| `get_vearch_config()` | 获取 Vearch 配置 |
+
+### Server 配置
+
+配置 Web 服务接口。
+
+| 方法 | 描述 | 默认值 |
+|--------|-------------|---------|
+| `set_web_host(host)` | 设置 Web 服务器主机 | `"127.0.0.1"` |
+| `get_web_host()` | 获取 Web 服务器主机 | - |
+| `set_web_port(port)` | 设置 Web 服务器端口 | `8080` |
+| `get_web_port()` | 获取 Web 服务器端口 | - |
+| `set_web_auto_open(auto)` | 自动打开浏览器 | `True` |
+| `get_web_auto_open()` | 获取自动打开设置 | - |
+
+**示例**：
+
+```python
+# 生产环境服务器配置
+Config.set_web_host("0.0.0.0")  # 监听所有接口
+Config.set_web_port(8000)
+Config.set_web_auto_open(False)  # 不打开浏览器
+
+# 开发环境配置
+Config.set_web_host("127.0.0.1")  # 仅 localhost
+Config.set_web_port(8080)
+Config.set_web_auto_open(True)
+```
+
+### 智能体配置
+
+设置所有智能体的默认参数。
+
+| 方法 | 描述 | 默认值 |
+|--------|-------------|---------|
+| `set_agent_prompt(prompt)` | 设置默认系统提示 | `""` |
+| `get_agent_prompt()` | 获取默认提示 | - |
+| `set_agent_llm_model(model)` | 设置默认 LLM 模型名称 | `"default_llm"` |
+| `get_agent_llm_model()` | 获取默认模型名称 | - |
+| `set_agent_input_schema(schema)` | 设置输入架构 | 见下文 |
+| `get_agent_input_schema()` | 获取输入架构 | - |
+| `set_agent_short_memory_size(size)` | 设置默认内存大小 | `10` |
+| `get_agent_short_memory_size()` | 获取内存大小 | - |
+| `set_agent_welcome_message(msg)` | 设置欢迎消息 | 见下文 |
+| `get_agent_welcome_message()` | 获取欢迎消息 | - |
+
+**默认值**：
+
+```python
+{
+ "prompt": "",
+ "llm_model": "default_llm",
+ "input_schema": {
+ "properties": {"query": {"description": "Query question"}},
+ "required": ["query"]
+ },
+ "short_memory_size": 10,
+ "welcome_message": "Hi, I'm OxyGent. How can I assist you?"
+}
+```
+
+**示例**：
+
+```python
+Config.set_agent_llm_model("gpt-4")
+Config.set_agent_short_memory_size(20)
+Config.set_agent_welcome_message("Welcome! I'm your AI assistant.")
+```
+
+### 工具配置
+
+配置工具和 MCP 客户端行为。
+
+| 方法 | 描述 | 默认值 |
+|--------|-------------|---------|
+| `set_tool_mcp_is_keep_alive(keep)` | 保持 MCP 连接活动 | `True` |
+| `get_tool_mcp_is_keep_alive()` | 获取保持活动设置 | - |
+| `set_tool_is_concurrent_init(concurrent)` | 并发初始化工具 | `True` |
+| `get_tool_is_concurrent_init()` | 获取并发初始化设置 | - |
+
+**示例**：
+
+```python
+# 在调用之间保持 MCP 服务器运行
+Config.set_tool_mcp_is_keep_alive(True)
+
+# 并行初始化所有工具以加快启动速度
+Config.set_tool_is_concurrent_init(True)
+```
+
+## 配置模式
+
+### 环境特定配置
+
+```python
+import os
+from oxygent import Config
+
+# 确定环境
+env = os.environ.get("APP_ENV", "development")
+
+if env == "production":
+ Config.set_log_level_terminal("WARNING")
+ Config.set_web_auto_open(False)
+ Config.set_es_enabled(True)
+elif env == "development":
+ Config.set_log_level_terminal("DEBUG")
+ Config.set_web_auto_open(True)
+    Config.set_es_enabled(False)  # 在开发环境中使用本地文件
+```
+
+### 配置工厂函数
+
+```python
+def configure_oxygent(env="production"):
+    """为特定环境配置 OxyGent。"""
+ Config.set_app_name("my_app")
+
+ if env == "production":
+ Config.set_log_level_root("INFO")
+ Config.set_log_level_terminal("WARNING")
+ Config.set_web_host("0.0.0.0")
+ Config.set_web_port(8000)
+ Config.set_web_auto_open(False)
+
+        # 启用数据库
+ Config.set_es_enabled(True)
+ Config.set_redis_enabled(True)
+
+ elif env == "development":
+ Config.set_log_level_root("DEBUG")
+ Config.set_log_level_terminal("DEBUG")
+ Config.set_web_host("127.0.0.1")
+ Config.set_web_port(8080)
+ Config.set_web_auto_open(True)
+
+        # 为本地开发禁用数据库
+ Config.set_es_enabled(False)
+ Config.set_redis_enabled(False)
+
+# 使用它
+configure_oxygent("production")
+```
+
+### 动态配置更新
+
+```python
+from oxygent import Config, MAS
+
+async def main():
+    # 初始配置
+ Config.set_log_level_terminal("INFO")
+
+ async with MAS(oxy_space=oxy_space) as mas:
+ result1 = await mas.call(...)
+
+        # 运行时更新配置
+ Config.set_log_level_terminal("DEBUG")
+
+        result2 = await mas.call(...)  # 现在使用 DEBUG 日志记录
+```
+
+## 示例
+
+实际示例和使用模式，请参考：
+
+- [基础配置](/examples/core-concepts/config-basics) - 设置配置
+- [环境管理](/examples/core-concepts/config-environments) - 多环境配置
+- [JSON 配置](/examples/core-concepts/config-json) - 使用配置文件
+- [数据库配置](/examples/core-concepts/config-databases) - 设置数据库
+
+查看所有示例：[示例库](/examples)。
+
+## 最佳实践
+
+### 1. 在创建 MAS 之前配置
+
+```python
+# ✅ 好：在创建 MAS 之前配置
+Config.set_app_name("my_app")
+Config.set_log_level_terminal("DEBUG")
+
+async with MAS(oxy_space=oxy_space) as mas:
+    # 配置已应用
+
+# ❌ 差：在创建 MAS 之后配置可能不起作用
+async with MAS(oxy_space=oxy_space) as mas:
+    Config.set_app_name("my_app")  # 对某些设置来说太晚了
+```
+
+### 2. 使用环境变量存储敏感信息
+
+```python
+# ❌ 差：硬编码凭据
+Config.set_es_config({
+ "hosts": ["http://localhost:9200"],
+    "password": "my_secret_password"  # 不要这样做！
+})
+
+# ✅ 好：使用环境变量
+import os
+Config.set_es_config({
+ "hosts": [os.getenv("ES_HOST", "http://localhost:9200")],
+ "password": os.getenv("ES_PASSWORD")
+})
+```
+
+### 3. 记录您的配置
+
+```python
+def configure_app():
+ """
+    配置 OxyGent 应用程序。
+
+    所需的环境变量：
+        - DEFAULT_LLM_API_KEY：LLM 服务的 API 密钥
+        - ES_PASSWORD：Elasticsearch 密码（仅生产环境）
+
+    配置：
+        - 日志：开发环境为 DEBUG，生产环境为 WARNING
+        - Web 服务器：端口 8080（开发），8000（生产）
+        - 数据库：开发环境禁用，生产环境启用
+ """
+ env = os.getenv("APP_ENV", "development")
+    # ... 配置代码
+```
+
+### 4. 对复杂配置使用 JSON
+
+```python
+# 对于简单设置：使用代码
+Config.set_log_level_terminal("DEBUG")
+Config.set_app_name("simple_app")
+
+# 对于复杂设置：使用 JSON
+Config.load_from_json("./config.json", env="production")
+```
+
+## 相关链接
+
+- [四级作用域系统](/docs/four-scope) - 理解数据作用域
+- [生命周期](/docs/lifecycle) - 组件生命周期和初始化
+- [可视化](/docs/visualization) - Web 界面配置
+- [MAS（多智能体系统）](/docs/mas) - MAS 配置选项

@@ -1,0 +1,562 @@
+---
+title: Function Hub
+description: Convert Python functions into OxyGent tools using decorators
+icon: Wrench
+---
+
+## 概述
+
+**FunctionHub**是一个基于装饰器的工具注册表，将常规 Python 函数转换为 OxyGent 系统中的可执行工具。它提供用于创建自定义工具的简单 Pythonic 接口，无需理解底层工具架构。函数可以是同步或异步的，FunctionHub 会自动处理转换。
+
+### 关键特性
+
+- **Decorator-Based**: 简单的 `@tool()`用于函数注册的装饰器
+- **Auto-Conversion**: 同步函数自动包装为异步
+- **类型 Inspection**: 从函数签名和类型提示自动提取模式
+- **Pydantic Integration**: 完全支持 Pydantic `Field()` 描述
+- **Dynamic Registration**: 工具在MAS 初始化期间在运行时创建
+- **Multiple Functions**: 在单个中心注册多个相关工具
+
+### 何时使用 FunctionHub
+
+```
+┌─────────────────────────────────────────────────────┐
+│ FunctionHub vs. MCP Tools │
+├─────────────────────────────────────────────────────┤
+│ │
+│ Use FunctionHub when: │
+│ ✓ Writing custom business logic │
+│ ✓ Integrating internal APIs │
+│ ✓ Quick prototyping and testing │
+│ ✓ Functions are simple and Python-native │
+│ ✓ Need tight coupling with your code │
+│ │
+│ Use MCP Tools when: │
+│ ✓ Using external services (filesystem, search) │
+│ ✓ Need cross-language support │
+│ ✓ Want to reuse existing MCP servers │
+│ ✓ Need standardized protocols │
+│ ✓ Sharing tools across multiple projects │
+└─────────────────────────────────────────────────────┘
+```
+
+## 快速开始
+
+### 基本函数注册
+
+将简单的Python 函数注册为工具：
+
+```python
+from oxygent import MAS, oxy
+from pydantic import Field
+
+# 创建 FunctionHub 实例
+math_tools = oxy.FunctionHub(name="math_tools")
+
+# 使用装饰器注册函数
+@math_tools.tool(description="Calculate the sum of two numbers")
+def add(a: int = Field(description="First number"),
+ b: int = Field(description="Second number")):
+ return a + b
+
+@math_tools.tool(description="Calculate the product of two numbers")
+def multiply(a: int, b: int):
+ return a * b
+
+# Use in MAS
+oxy_space = [
+ oxy.HttpLLM(name="default_llm", ...),
+ math_tools, # 将中心添加到 oxy_space
+ oxy.ReActAgent(
+ name="calculator",
+ tools=["math_tools"], # 通过中心名称引用工具
+ llm_model="default_llm"
+ )
+]
+
+async def main():
+ async with MAS(oxy_space=oxy_space) as mas:
+ await mas.start_web_service(first_query="5 + 3 等于多少？")
+```
+
+### 异步函数
+
+为 I/O 操作注册异步函数:
+
+```python
+import aiohttp
+from oxygent import oxy
+from pydantic import Field
+
+api_tools = oxy.FunctionHub(name="api_tools")
+
+@api_tools.tool(description="Fetch data from a URL")
+async def fetch_url(url: str = Field(description="The URL to fetch")):
+ async with aiohttp.ClientSession() as session:
+ async with session.get(url) as response:
+ return await response.text()
+
+@api_tools.tool(description="Search for information online")
+async def search(query: str = Field(description="Search query")):
+ # Async implementation
+ results = await perform_search(query)
+ return results
+```
+
+### 多个相关工具
+
+将相关函数分组到单个中心:
+
+```python
+from oxygent import oxy
+from pydantic import Field
+import random
+import datetime
+
+utility_tools = oxy.FunctionHub(name="utility_tools")
+
+@utility_tools.tool(description="Get current timestamp")
+def get_timestamp():
+ return datetime.datetime.now().isoformat()
+
+@utility_tools.tool(description="Generate a random number")
+def random_number(min_val: int = 1, max_val: int = 100):
+ return random.randint(min_val, max_val)
+
+@utility_tools.tool(description="Format text to uppercase")
+def to_uppercase(text: str = Field(description="Text to convert")):
+ return text.upper()
+
+@utility_tools.tool(description="Count words in text")
+def word_count(text: str = Field(description="Text to analyze")):
+ return len(text.split())
+```
+
+## 配置选项
+
+### 核心参数
+
+| 参数 | 类型 | 必需 | 默认值 | 描述 |
+|-----------|------|----------|---------|-------------|
+| `name` | `str` | **是** | - | 此 FunctionHub的唯一标识符 (由智能体用于引用工具) |
+| `desc` | `str` | 否 | `""` | 此工具集合的描述 |
+
+### 继承的参数
+
+FunctionHub 继承自 BaseTool 并支持这些参数:
+
+| 参数 | 类型 | 默认值 | 描述 |
+|-----------|------|---------|-------------|
+| `is_permission_required` | `bool` | `True` | 智能体是否需要权限来调用这些工具 |
+| `timeout` | `float` | `60` | 每个工具的最大执行时间（秒） |
+| `semaphore` | `int` | `16` | 最大并发执行数 |
+| `retries` | `int` | `2` | 失败时的重试次数 |
+| `delay` | `float` | `1.0` | 重试之间的延迟（秒） |
+
+**带参数的示例:**
+```python
+tools = oxy.FunctionHub(
+ name="custom_tools",
+ desc="Collection of custom business logic tools",
+ timeout=30,
+ is_permission_required=True
+)
+```
+
+## 装饰器 API
+
+### @tool()
+
+将函数注册为工具在中心中。
+
+```python
+@function_hub.tool(description: str)
+def my_function(...):
+ ...
+```
+
+**参数：**
+- `description` (str): **必需** - 工具功能的可读描述。在LLM 选择工具时显示。
+
+**行为：**
+- 自动将同步函数转换为异步
+- 从函数签名提取参数模式
+- 在中心的内部字典中注册函数
+- 返回函数的异步版本
+
+**示例：**
+```python
+@tools.tool(description="Send an email to a recipient")
+def send_email(to: str, subject: str, body: str):
+ # Implementation
+ return "邮件已发送"
+```
+
+## 函数签名模式
+
+### 基本类型
+
+使用 Python 类型提示进行自动模式生成:
+
+```python
+@tools.tool(description="示例 with basic types")
+def basic_example(
+ text: str,
+ number: int,
+ decimal: float,
+ flag: bool
+):
+ return f"{text}: {number}, {decimal}, {flag}"
+```
+
+### Pydantic 字段
+
+Use `Field()`用于详细的参数描述:
+
+```python
+from pydantic import Field
+
+@tools.tool(description="示例 with Pydantic Fields")
+def detailed_example(
+ query: str = Field(description="The search query"),
+ max_results: int = Field(default=10, description="Maximum number of results"),
+ include_metadata: bool = Field(default=False, description="Include metadata")
+):
+ return perform_search(query, max_results, include_metadata)
+```
+
+### 可选参数
+
+为可选参数使用默认值:
+
+```python
+@tools.tool(description="示例 with optional parameters")
+def optional_example(
+ required_param: str, # 必需 (no default)
+ optional_param: str = "default", # Optional with default
+ optional_number: int = 42 # Optional with default
+):
+ return f"{required_param}, {optional_param}, {optional_number}"
+```
+
+### 复杂类型
+
+支持列表、字典和嵌套类型:
+
+```python
+@tools.tool(description="示例 with complex types")
+def complex_example(
+ items: list = Field(description="List of items to process"),
+ config: dict = Field(description="Configuration dictionary"),
+ tags: list[str] = Field(default=[], description="Optional tags")
+):
+ return process_items(items, config, tags)
+```
+
+### OxyRequest 访问
+
+Access the full context by包括`Oxy请求` 参数:
+
+```python
+from oxygent import OxyRequest
+
+@tools.tool(description="示例 with context access")
+async def context_aware_tool(
+ oxy_request: OxyRequest, # Automatically injected, not in schema
+ param1: str = Field(description="First parameter")
+):
+ # 访问请求上下文
+ query = oxy_request.get_query()
+ history = oxy_request.get_short_memory()
+ data = oxy_request.get_shared_data("key")
+
+ # 您的逻辑
+ return f"Processed {param1} with context"
+```
+
+**重要:** `Oxy请求` 参数 is **excluded**从tool schema - LLM 看不到它.
+
+## 使用模式
+
+### 文件操作
+
+创建文件操作工具:
+
+```python
+import os
+import aiofiles
+from oxygent import oxy, OxyRequest
+from pydantic import Field
+
+file_tools = oxy.FunctionHub(name="file_tools")
+
+@file_tools.tool(description="Read content from a file")
+async def read_file(
+ file_path: str = Field(description="Path to the file")
+):
+ async with aiofiles.open(file_path, 'r') as f:
+ return await f.read()
+
+@file_tools.tool(description="Write content to a file")
+async def write_file(
+ file_path: str = Field(description="Path to the file"),
+ content: str = Field(description="Content to write")
+):
+ async with aiofiles.open(file_path, 'w') as f:
+ await f.write(content)
+ return f"已写入 {file_path}"
+
+@file_tools.tool(description="List files in a directory")
+def list_files(
+ directory: str = Field(description="Directory path")
+):
+ return os.listdir(directory)
+```
+
+### API 集成
+
+包装外部 API 调用:
+
+```python
+import aiohttp
+from oxygent import oxy
+from pydantic import Field
+
+api_tools = oxy.FunctionHub(name="weather_api")
+
+@api_tools.tool(description="Get weather for a city")
+async def get_weather(
+ city: str = Field(description="City name"),
+ units: str = Field(default="metric", description="Temperature units")
+):
+ api_key = os.getenv("WEATHER_API_KEY")
+ url = f"https://api.weather.com/data?q={city}&units={units}&key={api_key}"
+
+ async with aiohttp.ClientSession() as session:
+ async with session.get(url) as response:
+ data = await response.json()
+ return f"Weather in {city}: {data['temp']}°C, {data['condition']}"
+```
+
+### 数据库操作
+
+创建数据库查询工具:
+
+```python
+import asyncpg
+from oxygent import oxy
+from pydantic import Field
+
+db_tools = oxy.FunctionHub(name="db_tools")
+
+@db_tools.tool(description="Query user information from database")
+async def get_user(
+ user_id: int = Field(description="User ID to query")
+):
+ conn = await asyncpg.connect(os.getenv("DATABASE_URL"))
+ try:
+ row = await conn.fetchrow("SELECT * FROM users WHERE id = $1", user_id)
+ return dict(row) if row else "未找到用户"
+ finally:
+ await conn.close()
+
+@db_tools.tool(description="Search users by name")
+async def search_users(
+ name: str = Field(description="Name to search for"),
+ limit: int = Field(default=10, description="Maximum results")
+):
+ conn = await asyncpg.connect(os.getenv("DATABASE_URL"))
+ try:
+ rows = await conn.fetch(
+ "SELECT * FROM users WHERE name LIKE $1 LIMIT $2",
+ f"%{name}%", limit
+ )
+ return [dict(row) for row in rows]
+ finally:
+ await conn.close()
+```
+
+### 业务逻辑
+
+实现特定领域的操作:
+
+```python
+from oxygent import oxy
+from pydantic import Field
+
+business_tools = oxy.FunctionHub(name="order_tools")
+
+@business_tools.tool(description="Calculate order total with tax")
+def calculate_total(
+ subtotal: float = Field(description="Order subtotal"),
+ tax_rate: float = Field(default=0.08, description="Tax rate"),
+ discount: float = Field(default=0, description="Discount amount")
+):
+ tax = subtotal * tax_rate
+ total = subtotal + tax - discount
+ return {"subtotal": subtotal, "tax": tax, "discount": discount, "total": total}
+
+@business_tools.tool(description="Check if product is in stock")
+def check_stock(
+ product_id: str = Field(description="Product ID"),
+ quantity: int = Field(description="Quantity needed")
+):
+ # Your stock checking logic
+ available = get_stock_level(product_id)
+ return {
+ "product_id": product_id,
+ "requested": quantity,
+ "available": available,
+ "in_stock": available >= quantity
+ }
+```
+
+## 工具生命周期
+
+```
+┌─────────────────────────────────────────────────────┐
+│ FunctionHub Lifecycle │
+└─────────────────────────────────────────────────────┘
+ │
+ 1. Create FunctionHub instance
+ │
+ ▼
+ ┌───────────────────────────┐
+ │ fh = oxy.FunctionHub() │
+ └───────────────────────────┘
+ │
+ 2. Register functions with @tool()
+ │
+ ▼
+ ┌───────────────────────────┐
+ │ @fh.tool(desc="...") │
+ │ def my_func(...): │
+ │ ... │
+ └───────────────────────────┘
+ │
+ 3. Add hub to oxy_space
+ │
+ ▼
+ ┌───────────────────────────┐
+ │ oxy_space = [fh, ...] │
+ └───────────────────────────┘
+ │
+ 4. MAS init() converts to FunctionTools
+ │
+ ▼
+ ┌───────────────────────────┐
+ │ For each function: │
+ │ - Create FunctionTool │
+ │ - Extract schema │
+ │ - Register with MAS │
+ └───────────────────────────┘
+ │
+ 5. Agents can call individual tools
+ │
+ ▼
+ ┌───────────────────────────┐
+ │ Agent calls "my_func" │
+ │ (not "math_tools") │
+ └───────────────────────────┘
+```
+
+**关键点:**
+- FunctionHub是一个**工厂**，在MAS 初始化期间创建 FunctionTool
+- 智能体s reference the **hub name** 在其 `tools` 列表
+- LLMs see and call **individual function names** (而不是中心名称)
+- 模式提取自动从类型提示和...发生 Field()
+
+## 高级功能
+
+### 错误处理
+
+在工具中实现健壮的错误处理:
+
+```python
+@tools.tool(description="Safe division operation")
+def safe_divide(
+ a: float = Field(description="Numerator"),
+ b: float = Field(description="Denominator")
+):
+ try:
+ if b == 0:
+ return "错误：除以零"
+ return a / b
+ except Exception as e:
+ return f"错误： {str(e)}"
+```
+
+### 日志记录和调试
+
+向工具添加日志记录:
+
+```python
+import logging
+
+logger = logging.getLogger(__name__)
+
+@tools.tool(description="Tool with logging")
+async def logged_operation(
+ oxy_request: OxyRequest,
+ param: str = Field(description="Parameter")
+):
+ logger.info(
+ f"工具调用，参数={param}",
+ extra={
+ "trace_id": oxy_request.current_trace_id,
+ "node_id": oxy_request.node_id
+ }
+ )
+
+ result = perform_operation(param)
+
+ logger.info(f"工具完成，结果={result}")
+ return result
+```
+
+### 上下文感知工具
+
+Use Oxy请求用于上下文感知操作:
+
+```python
+@tools.tool(description="Personalized greeting")
+async def personalized_greeting(
+ oxy_request: OxyRequest,
+ name: str = Field(description="Person's name")
+):
+ # Access conversation history
+ history = oxy_request.get_short_memory()
+ conversation_count = len(history)
+
+ # Access shared data
+ user_preference = oxy_request.get_shared_data("greeting_style", "formal")
+
+ # Generate contextual response
+ if conversation_count > 10:
+ return f"我们聊了很多！再次问好, {name}!"
+ elif user_preference == "casual":
+ return f"嘿 {name}!"
+ else:
+ return f"你好, {name}. 今天我能为您做些什么？"
+```
+
+## API 参考
+
+完整的API 文档包括所有构造函数参数、方法和详细的参数描述，请参考：
+
+**[FunctionHub API 参考](/oxyapi/tools-function-hub-api)** - 完整的API 文档
+
+##示例
+
+探索 practical implementations:
+
+- **[Basic FunctionHub](/examples/tools/demo_functionhub.py)** - 简单的函数注册和使用
+- **[Plan and Solve](/examples/flows/plan_and_solve_demo.py)** - Using FunctionHub in complex flows
+- **[Application Demo](/examples/application/demo.py)** - Practical application with multiple tools
+
+## 相关文档
+
+- **[ReAct智能体](/docs/agents-react)** - 在推理智能体中使用工具
+- **[MCP 工具s](/docs/tools-mcp)** -通过MCP 进行外部工具集成
+- **[Oxy请求 & 上下文](/docs/context)** - 在工具中访问请求上下文
+- **[配置](/docs/configuration)** - 全局工具配置

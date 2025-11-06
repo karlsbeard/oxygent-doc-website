@@ -1,0 +1,686 @@
+---
+title: OxyRequest & 上下文
+description: 理解 OxyGent 中的 OxyRequest API 和上下文管理
+icon: Network
+---
+
+## 概述
+
+**OxyRequest** 是流经整个 OxyGent 系统的核心上下文对象。它既是智能体间通信的消息信封，也是提供访问内存、数据作用域和执行功能的上下文管理器。每个智能体、工具和工作流都接收一个 OxyRequest 并使用它与系统的其余部分交互。
+
+### 什么是 OxyRequest？
+
+OxyRequest 封装了：
+- **查询和内存**：当前查询文本和对话历史
+- **数据作用域**：四级数据共享（arguments、shared_data、group_data、global_data）
+- **追踪信息**：对话 DAG 结构和父级关系
+- **执行 API**：调用智能体/工具和发送消息的方法
+- **身份**：用于跟踪和恢复请求的唯一 ID
+
+```
+┌─────────────────────────────────────────────────────┐
+│ OxyRequest Structure │
+├─────────────────────────────────────────────────────┤
+│ │
+│ ┌─────────────────────────────────────────────┐ │
+│ │ Query & Memory API │ │
+│ │ • get_query() / set_query() │ │
+│ │ • get_short_memory() / set_short_memory() │ │
+│ └─────────────────────────────────────────────┘ │
+│ │
+│ ┌─────────────────────────────────────────────┐ │
+│ │ Four-Scope Data System │ │
+│ │ • arguments (node scope) │ │
+│ │ • shared_data (request scope) │ │
+│ │ • group_data (session scope) │ │
+│ │ • global_data (MAS scope) │ │
+│ └─────────────────────────────────────────────┘ │
+│ │
+│ ┌─────────────────────────────────────────────┐ │
+│ │ Execution API │ │
+│ │ • call() - Invoke agents/tools/LLMs │ │
+│ │ • send_message() - Stream to user │ │
+│ │ • break_task() - Cancel execution │ │
+│ └─────────────────────────────────────────────┘ │
+│ │
+│ ┌─────────────────────────────────────────────┐ │
+│ │ Identity & Tracing │ │
+│ │ • request_id, group_id │ │
+│ │ • current_trace_id, root_trace_ids │ │
+│ │ • caller/callee, call_stack │ │
+│ └─────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────┘
+```
+
+## 快速开始
+
+### 访问查询和内存
+
+最常见的用例是访问用户的查询和对话历史：
+
+```python
+async def my_workflow(oxy_request: OxyRequest):
+ # Get the current query
+ query = oxy_request.get_query()
+ print(f"User asked: {query}")
+
+ # Get conversation history
+ history = oxy_request.get_short_memory()
+ print(f"Previous {len(history)} messages")
+
+ # Access master-level (user-level) context
+ master_query = oxy_request.get_query(master_level=True)
+ master_history = oxy_request.get_short_memory(master_level=True)
+
+ return f"Processed query: {query}"
+```
+
+### 调用其他组件
+
+使用 `call()` 调用智能体、工具和 LLM：
+
+```python
+async def orchestration_workflow(oxy_request: OxyRequest):
+ query = oxy_request.get_query()
+
+ # Call an agent
+ agent_response = await oxy_request.call(
+ callee="chat_agent",
+ arguments={"query": query}
+ )
+
+ # Call a tool
+ tool_response = await oxy_request.call(
+ callee="search_tool",
+ arguments={"query": query, "max_results": 5}
+ )
+
+ # Call an LLM directly
+ llm_response = await oxy_request.call(
+ callee="default_llm",
+ arguments={
+ "messages": [
+ {"role": "system", "content": "You are a helpful assistant."},
+ {"role": "user", "content": query}
+ ],
+ "llm_params": {"temperature": 0.7}
+ }
+ )
+
+ return f"Combined results: {agent_response.output}, {tool_response.output}"
+```
+
+### 发送消息
+
+将中间结果流式传输给用户：
+
+```python
+async def long_running_workflow(oxy_request: OxyRequest):
+ # Step 1
+ await oxy_request.send_message({
+ "type": "status",
+ "content": "Analyzing your request..."
+ })
+
+ analysis = await oxy_request.call(
+ callee="analyzer_agent",
+ arguments={"query": oxy_request.get_query()}
+ )
+
+ # Step 2
+ await oxy_request.send_message({
+ "type": "progress",
+ "content": "Found 15 relevant results, processing..."
+ })
+
+ results = await oxy_request.call(
+ callee="processor_agent",
+ arguments={"data": analysis.output}
+ )
+
+ # Final result
+ return results.output
+```
+
+## Query API
+
+### get_query()
+
+检索当前请求的查询文本。
+
+```python
+def get_query(self, master_level: bool = False) -> str
+```
+
+**参数：**
+- `master_level` (bool)：如果为 `True`，返回主级（原始用户）查询；如果为 `False`，返回当前节点的查询
+
+**返回值：** `str` - 查询字符串，可能包含作为 markdown 链接的附件
+
+**行为：**
+- 附件自动转换为 markdown 链接（图像以 `!` 为前缀）
+- 附件路径解析为绝对文件路径
+- 支持 `arguments["query"]`（本地）和 `shared_data["query"]`（主级）
+
+**示例：**
+```python
+async def query_example(oxy_request: OxyRequest):
+ # Get local query (for this agent)
+ local_query = oxy_request.get_query()
+
+ # Get original user query (from master agent)
+ user_query = oxy_request.get_query(master_level=True)
+
+ print(f"Local: {local_query}")
+ print(f"Master: {user_query}")
+```
+
+### set_query()
+
+设置用于下游处理的查询文本。
+
+```python
+def set_query(self, query: str, master_level: bool = False) -> None
+```
+
+**参数：**
+- `query` (str)：新的查询文本
+- `master_level` (bool)：如果为 `True`，设置 `shared_data["query"]`；如果为 `False`，设置 `arguments["query"]`
+
+**示例：**
+```python
+async def query_rewriter(oxy_request: OxyRequest):
+ original = oxy_request.get_query()
+
+ # Rewrite query for better results
+ improved = f"Detailed analysis of: {original}"
+ oxy_request.set_query(improved)
+
+ # Now call downstream agent with improved query
+ response = await oxy_request.call(
+ callee="search_agent",
+ arguments={} # Will use the new query from context
+ )
+```
+
+## 内存 API
+
+### get_short_memory()
+
+检索作为消息列表的对话历史。
+
+```python
+def get_short_memory(self, master_level: bool = False) -> list[Message]
+```
+
+**参数：**
+- `master_level` (bool)：如果为 `True`，返回主级（用户级）对话历史；如果为 `False`，返回当前智能体的历史
+
+**返回值：** `list[Message]` - 包含 `role` 和 `content` 字段的 Message 对象列表
+
+**Message 结构：**
+```python
+class Message:
+ role: Literal["system", "user", "assistant", "tool"]
+ content: Optional[str | list | dict]
+ tool_calls: Optional[list[ToolCall]]
+ name: Optional[str]
+ tool_call_id: Optional[str]
+```
+
+**示例：**
+```python
+async def context_aware_workflow(oxy_request: OxyRequest):
+ # Get local agent's history
+ local_history = oxy_request.get_short_memory()
+
+ # Get user-level history (master)
+ user_history = oxy_request.get_short_memory(master_level=True)
+
+ # Analyze conversation
+ if len(user_history) > 10:
+ return "We've been chatting a lot! Need a summary?"
+
+ # Check last message
+ if local_history:
+ last_msg = local_history[-1]
+ print(f"Last role: {last_msg.role}, content: {last_msg.content}")
+```
+
+### set_short_memory()
+
+更新对话历史。
+
+```python
+def set_short_memory(self, short_memory: list[Message], master_level: bool = False) -> None
+```
+
+**参数：**
+- `short_memory` (list[Message])：新的对话历史
+- `master_level` (bool)：如果为 `True`，更新主级历史；如果为 `False`，更新本地历史
+
+### has_short_memory()
+
+检查内存是否存在。
+
+```python
+def has_short_memory(self, master_level: bool = False) -> bool
+```
+
+**返回值：** `bool` - 如果指定级别存在内存则为 True
+
+## 数据作用域 API
+
+OxyGent 提供四级数据作用域系统。详细信息请参考 **[四级作用域系统](/docs/four-scope)**。
+
+### Arguments（节点作用域）
+
+特定于单个智能体/工具执行的数据：
+
+```python
+# Get
+value = oxy_request.get_arguments("key", default=None)
+all_args = oxy_request.get_arguments() # Get all arguments
+
+# Set
+oxy_request.set_arguments("key", value)
+
+# Check
+if oxy_request.has_arguments("key"):
+ ...
+```
+
+### Shared Data（请求作用域）
+
+在单个请求追踪中跨所有节点共享的数据：
+
+```python
+# 获取
+value = oxy_request.get_shared_data("key", default=None)
+all_data = oxy_request.get_shared_data()
+
+# 设置
+oxy_request.set_shared_data("intermediate_result", data)
+
+# 检查
+if oxy_request.has_shared_data("key"):
+    ...
+```
+
+**示例 - 在智能体之间传递数据：**
+```python
+async def step1_workflow(oxy_request: OxyRequest):
+ result = await expensive_computation()
+
+ # Save for downstream agents
+ oxy_request.set_shared_data("computation_result", result)
+
+ response = await oxy_request.call(
+ callee="step2_agent",
+ arguments={}
+ )
+ return response.output
+
+async def step2_workflow(oxy_request: OxyRequest):
+ # Reuse computation from step1
+ result = oxy_request.get_shared_data("computation_result")
+
+ return f"Processing: {result}"
+```
+
+### Group Data（会话作用域）
+
+在会话组中跨多个请求持久化的数据：
+
+```python
+# 获取
+value = oxy_request.get_group_data("key", default=None)
+all_data = oxy_request.get_group_data()
+
+# 设置
+oxy_request.set_group_data("user_preference", value)
+
+# 检查
+if oxy_request.has_group_data("key"):
+    ...
+```
+
+**示例 - 会话状态：**
+```python
+async def stateful_workflow(oxy_request: OxyRequest):
+ # Track conversation count
+ count = oxy_request.get_group_data("conversation_count", default=0)
+ count += 1
+ oxy_request.set_group_data("conversation_count", count)
+
+ # Remember user preferences
+ if "preference" in oxy_request.get_query():
+ pref = extract_preference(oxy_request.get_query())
+ oxy_request.set_group_data("user_style", pref)
+
+ style = oxy_request.get_group_data("user_style", default="formal")
+ return f"Response #{count} in {style} style"
+```
+
+### Global Data（MAS 作用域）
+
+跨整个多智能体系统共享的数据：
+
+```python
+# 获取
+value = oxy_request.get_global_data("key", default=None)
+all_data = oxy_request.get_global_data()
+
+# 设置
+oxy_request.set_global_data("system_config", value)
+
+# 检查
+if oxy_request.has_global_data("key"):
+    ...
+```
+
+**示例 - 系统范围缓存：**
+```python
+async def cached_workflow(oxy_request: OxyRequest):
+ query = oxy_request.get_query()
+ cache_key = f"cache_{hash(query)}"
+
+ # Check global cache
+ if oxy_request.has_global_data(cache_key):
+ return oxy_request.get_global_data(cache_key)
+
+ # Compute result
+ result = await expensive_operation(query)
+
+ # Cache for all agents
+ oxy_request.set_global_data(cache_key, result)
+
+ return result
+```
+
+## Execution API
+
+### call()
+
+调用另一个智能体、工具或 LLM。
+
+```python
+async def call(self, **kwargs) -> OxyResponse
+```
+
+**参数：**
+- `callee` (str)：要调用的组件名称
+- `arguments` (dict)：要传递的参数
+- 其他 OxyRequest 字段可以被覆盖（高级用法）
+
+**返回值：** `OxyResponse`，包含 `state` 和 `output` 字段
+
+**特性：**
+- 自动权限检查
+- 超时保护
+- 追踪 DAG 构建
+- 重试逻辑（可按组件配置）
+
+**示例：**
+```python
+async def orchestration_example(oxy_request: OxyRequest):
+ # Call agent
+ agent_resp = await oxy_request.call(
+ callee="search_agent",
+ arguments={"query": "python async", "max_results": 5}
+ )
+
+ if agent_resp.state == OxyState.COMPLETED:
+ # Process results
+ return agent_resp.output
+ else:
+ # Handle error
+ return f"Error: {agent_resp.output}"
+```
+
+### send_message()
+
+向用户发送中间消息（流式传输）。
+
+```python
+async def send_message(self, message: dict) -> None
+```
+
+**参数：**
+- `message` (dict)：包含 `type` 和 `content`（或其他字段）的消息字典
+
+**使用场景：**
+- 长时间运行工作流中的进度更新
+- 状态通知
+- 中间结果
+- 调试信息
+
+**示例：**
+```python
+async def multi_step_workflow(oxy_request: OxyRequest):
+ steps = ["analyze", "process", "summarize"]
+
+ for i, step in enumerate(steps):
+ await oxy_request.send_message({
+ "type": "progress",
+ "content": f"Step {i+1}/{len(steps)}: {step}..."
+ })
+
+ result = await oxy_request.call(
+ callee=f"{step}_agent",
+ arguments={"query": oxy_request.get_query()}
+ )
+
+ return "All steps completed!"
+```
+
+### break_task()
+
+取消当前任务执行。
+
+```python
+async def break_task(self) -> None
+```
+
+**行为：**
+- 发送关闭事件消息
+- 取消此追踪的 MAS 任务
+- 用于提前终止
+
+**示例：**
+```python
+async def conditional_workflow(oxy_request: OxyRequest):
+ query = oxy_request.get_query()
+
+ if "cancel" in query.lower():
+ await oxy_request.send_message({
+ "type": "info",
+ "content": "Task cancelled by user"
+ })
+ await oxy_request.break_task()
+ return "Cancelled"
+
+ # Continue normal processing
+ ...
+```
+
+## Identity API
+
+### 请求 ID
+
+```python
+# 获取
+request_id = oxy_request.get_request_id()
+
+# 设置（很少需要）
+oxy_request.set_request_id("custom_id")
+```
+
+**用途：** 用于追踪和恢复请求的客户端 ID（默认 22 个字符）
+
+### Group ID
+
+```python
+# 获取
+group_id = oxy_request.get_group_id()
+
+# 设置
+oxy_request.set_group_id("session_123")
+```
+
+**用途：** 追踪树的静态组标识符（会话分组）
+
+### Trace IDs
+
+```python
+# 当前追踪 ID（此节点）
+current_id = oxy_request.current_trace_id
+
+# 父追踪 ID
+parent_id = oxy_request.from_trace_id
+
+# 根追踪 ID（对话层次结构）
+roots = oxy_request.root_trace_ids
+```
+
+**用途：** 构建对话 DAG 并追踪执行流程
+
+## OxyResponse
+
+每个 `call()` 返回一个 OxyResponse：
+
+```python
+class OxyResponse:
+ state: OxyState # Execution state
+ output: Any # Result or error message
+ extra: dict # Metadata (tokens, latency, etc.)
+ oxy_request: Optional[OxyRequest] # Echo of request (for logging)
+```
+
+### OxyState Enum
+
+```python
+class OxyState(str, Enum):
+ CREATED = "created" # Initial state
+ RUNNING = "running" # Executing
+ COMPLETED = "completed" # Success
+ FAILED = "failed" # Error occurred
+ PAUSED = "paused" # Paused (for human-in-loop)
+ SKIPPED = "skipped" # Permission denied
+ CANCELED = "canceled" # Cancelled by user/system
+```
+
+### 处理响应
+
+```python
+async def response_handling(oxy_request: OxyRequest):
+    response = await oxy_request.call(
+        callee="some_agent",
+        arguments={"query": "test"}
+    )
+
+    # 检查状态
+    if response.state == OxyState.COMPLETED:
+        return f"Success: {response.output}"
+    elif response.state == OxyState.FAILED:
+        return f"Error: {response.output}"
+    elif response.state == OxyState.SKIPPED:
+        return "Permission denied"
+    else:
+        return f"Unexpected state: {response.state}"
+```
+
+## 高级用法
+
+### 克隆并修改
+
+创建 OxyRequest 的修改副本：
+
+```python
+new_request = oxy_request.clone_with(
+    callee="new_agent",
+    arguments={"query": "modified query"}
+)
+# 原始请求保持不变
+```
+
+### 访问 MAS 实例
+
+```python
+# 获取 MAS 引用
+mas = oxy_request.mas
+
+# 检查组件是否存在
+if oxy_request.has_oxy("some_agent"):
+    oxy = oxy_request.get_oxy("some_agent")
+```
+
+### 会话信息
+
+```python
+# 获取会话名称（caller__callee）
+session = oxy_request.session_name
+
+# 获取调用者/被调用者信息
+caller = oxy_request.caller
+callee = oxy_request.callee
+caller_category = oxy_request.caller_category  # "user"、"agent" 等
+```
+
+## 上下文流程图
+
+```
+┌─────────────────────────────────────────────────────┐
+│ OxyRequest Flow Through System │
+└─────────────────────────────────────────────────────┘
+ │
+ User Query arrives as OxyRequest
+ │
+ ▼
+ ┌───────────────────────┐
+ │ Master Agent │
+ │ (receives request) │
+ └───────────────────────┘
+ │
+ ┌─────────────┴─────────────┐
+ │ │
+ ▼ ▼
+ ┌─────────────┐ ┌─────────────┐
+ │ Sub-Agent 1 │ │ Sub-Agent 2 │
+ │ (cloned │ │ (cloned │
+ │ request) │ │ request) │
+ └─────────────┘ └─────────────┘
+ │ │
+ │ shared_data flows │
+ └─────────────┬─────────────┘
+ │
+ ▼
+ ┌───────────────────────┐
+ │ OxyResponse │
+ │ (returns to master) │
+ └───────────────────────┘
+ │
+ ▼
+ User receives result
+```
+
+**关键点：**
+- 每个 `call()` 创建一个带有更新追踪 ID 的克隆 OxyRequest
+- `shared_data` 是**共享引用**（不复制）
+- `group_data` 在同一会话的请求间持久化
+- 主级方法访问原始用户的上下文
+
+## 示例
+
+探索实际实现：
+
+- **[基础工作流](/examples/agents/demo_workflow_agent.py)** - 在工作流中使用 OxyRequest
+- **[异构智能体](/examples/agents/demo_heterogeneous_agents.py)** - 跨不同智能体类型的上下文
+- **[Plan and Solve](/examples/flows/plan_and_solve_demo.py)** - 复杂的多智能体协调
+
+## 相关文档
+
+- **[四级作用域系统](/docs/four-scope)** - 数据作用域的详细说明
+- **[工作流智能体](/docs/agents-workflow)** - 在自定义工作流中使用 OxyRequest
+- **[生命周期管理](/docs/lifecycle)** - 组件执行生命周期
+- **[MAS 架构](/docs/mas)** - 多智能体系统结构

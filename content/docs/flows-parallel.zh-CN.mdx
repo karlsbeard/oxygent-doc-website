@@ -1,0 +1,146 @@
+---
+title: ParallelFlow
+description: 管理并行执行流程，用于并发工具和智能体操作
+icon: Workflow
+---
+
+## 概述
+
+<Callout type="info">
+`ParallelFlow` 是一个更基础的并行执行组件，适用于需要简单聚合多个工具输出的场景。如果需要智能汇总，建议使用 `ParallelAgent`。
+</Callout>
+
+OxyGent 提供了一个预设的 `ParallelFlow` 类来管理并行执行流程。`ParallelFlow` 允许多个工具或智能体并发运行，并将它们的输出整合到一个统一的响应中。
+
+当涉及的工具或智能体之间没有相互依赖时，使用 `ParallelFlow`，因为它支持任务的并行执行并减少总体处理时间。
+
+在其核心，`ParallelFlow` 同时将相同的请求分派给所有可用的工具或智能体，使用 `asyncio.gather` 并行执行这些调用，并将所有结果聚合到一个响应中。
+
+## 完整示例：并行获取收入数据
+
+假设同时获取多家公司的收入数据：
+
+- **Revenue Agent 1**：获取公司 A 收入的工具
+- **Revenue Agent 2**：获取公司 B 收入的工具
+- **Revenue Agent 3**：获取公司 C 收入的工具
+
+这些获取收入的任务是独立的。使用 ParallelFlow 允许它们并发运行，与顺序运行相比，大大减少了总等待时间。所有智能体完成后，收集结果并按收入从高到低排序。
+
+```python
+import asyncio
+import os
+
+from pydantic import Field
+
+from oxygent import MAS, Config, OxyRequest, OxyResponse, oxy
+from oxygent.prompts import INTENTION_PROMPT
+
+Config.set_agent_llm_model("default_llm")
+
+fh = oxy.FunctionHub(name="revenue_tools")
+
+async def get_random_revenue():
+    import random
+    revenue = random.randint(1000000, 100000000)
+    sleep_time = random.randint(1, 5)
+    print(f"随机暂停 {sleep_time} 秒...")
+    await asyncio.sleep(sleep_time)
+    return revenue
+
+@fh.tool(description="获取公司 A 收入的工具")
+async def get_j_revenue():
+    return f'公司 A 的收入是 {await get_random_revenue()}'
+
+@fh.tool(description="获取公司 B 收入的工具")
+async def get_a_revenue():
+    return f'公司 B 的收入是 {await get_random_revenue()}'
+
+@fh.tool(description="获取公司 C 收入的工具")
+async def get_p_revenue():
+    return f'公司 C 的收入是 {await get_random_revenue()}'
+
+def update_query(oxy_request: OxyRequest) -> OxyRequest:
+    print(oxy_request.shared_data)
+    user_query = oxy_request.get_query(master_level=True)
+    current_query = oxy_request.get_query()
+    print(user_query + "\n" + current_query)
+    oxy_request.arguments["who"] = oxy_request.callee
+    return oxy_request
+
+def format_output(oxy_response: OxyResponse) -> OxyResponse:
+    oxy_response.output = "答案：" + oxy_response.output
+    return oxy_response
+
+oxy_space = [
+    oxy.HttpLLM(
+        name="default_llm",
+        api_key=os.getenv("DEFAULT_LLM_API_KEY"),
+        base_url=os.getenv("DEFAULT_LLM_BASE_URL"),
+        model_name=os.getenv("DEFAULT_LLM_MODEL_NAME"),
+        llm_params={"temperature": 0.01},
+        semaphore=4,
+    ),
+    oxy.ChatAgent(name="intent_agent", prompt=INTENTION_PROMPT),
+    fh,
+    oxy.flows.ParallelFlow(
+        name="revenue_parallel_flow",
+        desc="并行获取三家公司的收入数据",
+        permitted_tool_name_list=[
+            "get_j_revenue",
+            "get_a_revenue",
+            "get_p_revenue",
+        ]
+    ),
+    oxy.ReActAgent(
+        name="master_agent",
+        sub_agents=["revenue_parallel_flow"],
+        additional_prompt="你是一个数据分析助手，负责分析和排序公司收入数据。",
+        is_master=True,
+        func_format_output=format_output,
+        timeout=100,
+        llm_model="default_llm",
+    ),
+]
+
+async def main():
+    async with MAS(oxy_space=oxy_space) as mas:
+        await mas.start_web_service(
+            first_query="请获取公司 A、B 和 C 的收入数据，并按收入从高到低排序",
+            welcome_message="你好，我是 OxyGent。我能帮您什么？",
+        )
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+## 使用场景
+
+- **独立数据获取**：同时从多个源检索数据
+- **批量操作**：并发执行多个独立操作
+- **性能优化**：减少可并行任务的总处理时间
+- **简单聚合**：收集多个工具的结果，无需复杂汇总
+
+## API 参考
+
+完整的 API 文档包括所有构造函数参数、方法和详细的参数描述，请参考：
+
+**[ParallelFlow API 参考](/oxyapi/flows-parallel-api)** - 完整的 API 文档
+
+## 示例
+
+实际使用示例和模式请参考：
+
+- [并行数据获取](/examples/flows/parallel-data-fetch) - 从多个源获取数据
+- [多智能体并行执行](/examples/flows/multi-agent-parallel) - 并发运行智能体
+- [冗余 API 调用](/examples/flows/redundant-parallel) - 通过冗余提高可靠性
+
+查看所有示例：[示例库](/examples)。
+
+## 相关链接
+
+- [工作流](/docs/flows-workflow) - 自定义工作流执行流程
+- [PlanAndSolve](/docs/flows-plan-and-solve) - 计划并执行工作流模式
+- [Reflexion](/docs/flows-reflexion) - 自我评估和迭代改进
+- [流程对比指南](/docs/flows-comparison) - 对比所有流程类型
+- [ParallelAgent](/docs/agents-parallel) - 带汇总的智能并行执行
+- [ReActAgent](/docs/agents-react) - 推理和行动智能体

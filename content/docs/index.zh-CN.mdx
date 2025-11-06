@@ -1,0 +1,256 @@
+---
+title: 欢迎使用 OxyGent
+description: 一个先进的 Python 框架，帮助开发者快速构建生产就绪的智能系统
+icon: BookOpen
+---
+
+<p align="center">
+ <a href="https://github.com/jd-opensource/OxyGent/pulls">
+ <img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square" alt="PRs Welcome" />
+ </a>
+ <a href="https://github.com/jd-opensource/OxyGent/blob/v4/LICENSE">
+ <img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="license" />
+ </a>
+ <a href="https://pypi.org/project/oxygent/">
+ <img src="https://img.shields.io/pypi/v/oxygent.svg?logo=pypi&logoColor=white" alt="pip" />
+ </a>
+</p>
+
+<div align="center">
+ <img src="https://storage.jd.com/ai-gateway-routing/prod_data/oxygent_github_images/banner.jpg" width="100%" alt="OxyGent Banner" />
+ 访问我们的网站：[OxyGent](http://oxygent.jd.com)
+</div>
+
+## 项目概述
+
+**OxyGent** 是一个开源框架，将工具、模型和智能体统一为模块化的 Oxy 。通过透明的端到端管道赋能开发者，OxyGent 使多智能体系统的构建、运行和演进变得无缝且可无限扩展。
+
+## 核心特性
+
+### 🏎️ 高效开发
+
+OxyGent 是一个模块化的多智能体框架，让您能够以前所未有的效率构建、部署和演进 AI 团队。其标准化的 Oxy 组件像乐高积木一样拼接在一起，实现智能体的快速组装，同时支持热插拔和跨场景复用 - 所有这些都通过简洁的 Python 接口完成，无需繁琐的配置。
+
+### 🤝 智能协作
+
+该框架通过动态规划范式增强协作能力，智能体能够智能地分解任务、协商解决方案，并实时适应变化。与刚性的工作流系统不同，OxyGent 的智能体能够自然地处理突发挑战，同时保持每个决策的完全可审计性。
+
+### 🕸️ 弹性架构
+
+在底层，弹性架构支持任何智能体拓扑结构 - 从简单的 ReAct 到复杂的混合规划模式。自动化的依赖映射和可视化调试工具使得跨分布式系统优化性能变得容易。
+
+### 🔁 持续演进
+
+每次交互都成为学习机会 - 得益于内置的评估引擎自动生成训练数据。您的智能体通过知识反馈循环持续改进，同时保持完全的透明度。
+
+### 📈 可扩展性
+
+扩展遵循梅特卡夫定律 - OxyGent 的分布式调度器实现线性成本增长，同时在协作智能方面提供指数级收益。系统能够轻松处理任何规模的域范围优化和实时决策。
+
+OxyGent 的最新版本（2025年7月15日）在 [GAIA](https://huggingface.co/spaces/gaia-benchmark/leaderboard) 基准测试中获得 59.14 分，目前排名最高的开源系统 OWL 获得 60.8 分。
+
+![GAIA Benchmark Results](https://storage.jd.com/ai-gateway-routing/prod_data/oxygent_github_images/points.png)
+
+## 框架核心类
+
+![Framework Structure](https://storage.jd.com/ai-gateway-routing/prod_data/oxygent_github_images/structure.png)
+
+## 特性亮点
+
+**对于开发者**：专注于业务逻辑，无需重复造轮子。
+
+**对于企业**：用统一的框架替代孤立的 AI 系统，降低沟通开销。
+
+**对于用户**：体验来自智能体生态系统的无缝团队协作。
+
+## 快速开始
+
+### 步骤 1：创建并激活 Python 环境
+
+- **方法 1: conda**
+ ```bash
+ conda create -n oxy_env python==3.10
+ conda activate oxy_env
+ ```
+
+- **方法 2: uv**
+ ```bash
+ curl -LsSf https://astral.sh/uv/install.sh | sh
+ uv python install 3.10
+ uv venv .venv --python 3.10
+ source .venv/bin/activate
+ ```
+
+### 步骤 2：安装所需的 Python 包
+
+- **方法 1: conda**
+ ```bash
+ pip install oxygent
+ ```
+
+- **方法 2: uv**
+ ```bash
+ uv pip install oxygent
+ ```
+
+- **方法 3: 设置开发环境**
+ ```bash
+ git clone https://github.com/jd-opensource/OxyGent.git
+ cd OxyGent
+ pip install -r requirements.txt # 或在 uv 中
+ brew install coreutils # 可能是必需的
+ ```
+
+### 步骤 3：Node.js 环境（如果使用 MCP）
+
+下载并安装 **[Node.js](https://nodejs.org)**
+
+### 步骤 4：编写示例 Python 脚本
+
+创建一个名为 `demo.py` 的文件：
+
+```python
+import os
+from oxygent import MAS, Config, oxy, preset_tools
+
+Config.set_agent_llm_model("default_llm")
+
+oxy_space = [
+ oxy.HttpLLM(
+ name="default_llm",
+ api_key=os.getenv("DEFAULT_LLM_API_KEY"),
+ base_url=os.getenv("DEFAULT_LLM_BASE_URL"),
+ model_name=os.getenv("DEFAULT_LLM_MODEL_NAME"),
+ ),
+ preset_tools.time_tools,
+ oxy.ReActAgent(
+ name="time_agent",
+ desc="A tool that can query the time",
+ tools=["time_tools"],
+ ),
+ preset_tools.file_tools,
+ oxy.ReActAgent(
+ name="file_agent",
+ desc="A tool that can operate the file system",
+ tools=["file_tools"],
+ ),
+ preset_tools.math_tools,
+ oxy.ReActAgent(
+ name="math_agent",
+ desc="A tool that can perform mathematical calculations.",
+ tools=["math_tools"],
+ ),
+ oxy.ReActAgent(
+ is_master=True,
+ name="master_agent",
+ sub_agents=["time_agent", "file_agent", "math_agent"],
+ ),
+]
+
+async def main():
+ async with MAS(oxy_space=oxy_space) as mas:
+ await mas.start_web_service(
+ first_query="What time is it now? Please save it into time.txt."
+ )
+
+if __name__ == "__main__":
+ import asyncio
+ asyncio.run(main())
+```
+
+### 步骤 5：设置环境变量
+
+- **方法 1: 在终端中声明**
+ ```bash
+ export DEFAULT_LLM_API_KEY="your_api_key"
+ export DEFAULT_LLM_BASE_URL="your_base_url"
+ export DEFAULT_LLM_MODEL_NAME="your_model_name"
+ ```
+
+- **方法 2: 创建 .env 文件**
+ ```bash
+ DEFAULT_LLM_API_KEY="your_api_key"
+ DEFAULT_LLM_BASE_URL="your_base_url"
+ DEFAULT_LLM_MODEL_NAME="your_model_name"
+ ```
+
+### 步骤 6：运行示例
+
+启动多智能体系统：
+```bash
+python demo.py
+```
+
+### 步骤 7：查看输出
+
+![Visualization Output](https://storage.jd.com/ai-gateway-routing/prod_data/oxygent_github_images/vision.png)
+
+## 贡献
+
+您可以通过以下几种方式为 OxyGent 做出贡献：
+
+1. 报告问题（错误和异常）
+2. 提出改进建议
+3. 改进文档
+ - Fork 仓库
+ - 在文档中添加您的观点
+ - 发送您的 pull request
+4. 编写代码
+ - Fork 仓库
+ - 创建新分支
+ - 添加您的功能或改进
+ - 发送您的 pull request
+
+我们感谢所有类型的贡献！🎉🎉🎉
+
+如果您在开发过程中遇到问题，请查看我们的文档：[文档](http://oxygent.jd.com/docs/)
+
+## 社区与支持
+
+如果您在使用过程中遇到任何问题，欢迎在项目的 Issues 区域提交可重现的步骤和日志片段，或通过您的内部 Slack 直接联系 OxyGent 核心团队。
+
+欢迎联系我们：
+
+<div align="center">
+ <img src="https://pfst.cf2.poecdn.net/base/image/b1e96084336a823af7835f4fe418ff49da6379570f0c32898de1ffe50304d564?w=1760&h=2085&pmaid=425510216" alt="contact" width="50%" />
+</div>
+
+## 关于贡献者
+
+感谢所有以下[开发者](https://github.com/jd-opensource/OxyGent/graphs/contributors)对 OxyGent 的贡献。
+
+<a href="https://github.com/jd-opensource/OxyGent/graphs/contributors">
+ <img src="https://contrib.rocks/image?repo=jd-opensource/OxyGent" />
+</a>
+
+## 了解更多
+
+### 核心概念
+
+深入了解 OxyGent 的架构和设计：
+
+- **[可视化](/docs/visualization)** - 交互式 Web 界面和流程图生成
+- **[四域系统](/docs/four-scope)** - 理解数据域和上下文管理
+- **[生命周期管理](/docs/lifecycle)** - 组件生命周期和资源管理
+- **[配置](/docs/configuration)** - 全局配置系统
+
+### 组件
+
+探索 OxyGent 的构建模块：
+
+- **[智能体](/docs/agents-react)** - 用于复杂任务的自主智能体
+- **[工具](/docs/tools-function-hub)** - 可扩展的工具系统
+- **[流程](/docs/flows-parallel)** - 编排模式
+- **[大语言模型](/docs/llms-openai)** - 语言模型集成
+
+### 入门指南
+
+- **[快速开始](/docs/quick-start)** - 构建您的第一个多智能体系统
+- **[MAS（多智能体系统）](/docs/mas)** - 核心 MAS 架构
+
+## 许可证
+
+[Apache License 2.0](https://github.com/jd-opensource/OxyGent/blob/v4/LICENSE)
+
+#### OxyGent 由京东氧气供应
+#### 感谢您的贡献！

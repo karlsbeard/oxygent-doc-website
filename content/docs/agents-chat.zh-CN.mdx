@@ -1,0 +1,99 @@
+---
+title: ChatAgent
+description: 用于处理与语言模型对话交互的基础对话智能体
+icon: MessageSquare
+---
+
+## 概述
+
+`ChatAgent` 是 OxyGent 框架中的对话智能体模块，旨在处理与语言模型的对话交互。它继承自 `LocalAgent` 类，提供管理对话记忆、处理用户查询以及协调语言模型生成响应的功能。
+
+## 功能
+
+`ChatAgent` 是 OxyGent 框架中最基础的对话智能体，具有以下关键特性：
+
+1. **对话管理**：维护对话历史，支持多轮对话
+2. **提示词配置**：默认提示词为"You are a helpful assistant."，可以自定义
+3. **语言模型交互**：协调与底层语言模型的通信
+4. **参数传递**：支持向语言模型传递自定义参数
+
+## ChatAgent 能为您做什么
+
+ChatAgent 适用于以下场景：
+
+1. **简单的问答系统**：构建基础问答机器人来响应用户查询
+2. **客服机器人**：处理常见问题和用户咨询
+3. **个人助手**：提供信息查询、简单任务协助等
+4. **原型开发和测试**：快速构建 AI 对话系统原型来验证概念
+5. **教育应用**：创建交互式学习助手以支持教学
+6. **复杂系统中的组件**：作为更大系统中的对话处理模块
+7. **内容生成**：生成文案、摘要等文本内容
+
+## 为什么使用 ChatAgent
+
+1. **简单易用**：作为基础智能体，它具有简洁的接口，易于学习和集成
+2. **灵活性**：支持自定义提示词和参数，允许根据需要调整行为
+3. **轻量级**：简单的实现，没有复杂的逻辑或依赖，确保高效运行
+4. **多轮对话支持**：维护对话历史，提供连贯的对话体验
+5. **可扩展性**：可以作为更复杂智能体的基础组件
+
+## ChatAgent 不适用的场景
+
+1. 需要复杂推理和规划的任务
+2. 需要多步骤工作流的应用
+3. 需要并行处理多个任务的系统
+4. 需要高度自定义行为的智能体
+
+## API 参考
+
+**完整 API 文档请参考：**
+
+**[ChatAgent API Reference](/oxyapi/agents-chat-api)** - 包含完整的构造函数参数、方法签名和详细的参数描述
+
+## 使用示例
+
+```python
+from oxygent import MAS, OxySpace
+from oxygent.oxy import ChatAgent
+
+# 创建 OxySpace 并注册 ChatAgent
+oxy_space = OxySpace()
+oxy_space.register_agent(
+ ChatAgent(
+ name="chat_agent",
+ desc="Basic chat agent",
+ llm_model="default_llm",
+ prompt="You are a helpful assistant."
+ )
+)
+
+# 使用 ChatAgent 进行对话
+async def main():
+ async with MAS(oxy_space=oxy_space) as mas:
+ result = await mas.chat_with_agent(
+ payload={"query": "你好，请介绍一下自己。"}
+ )
+ print(result.output)
+
+if __name__ == "__main__":
+ import asyncio
+ asyncio.run(main())
+```
+
+## 示例
+
+实际使用示例和模式请参考：
+
+- [基础聊天示例](/examples/agents/basic-chat) - ChatAgent 基本用法
+- [客服机器人](/examples/application/customer-service) - 客服场景应用
+- [多轮对话](/examples/agents/multi-turn-chat) - 对话历史管理
+
+查看所有示例：[示例库](/examples)
+
+## 相关链接
+
+- [快速开始](/docs/quick-start) - 快速开始指南
+- [ReActAgent](/docs/agents-react) - 更复杂的推理任务
+- [ParallelAgent](/docs/agents-parallel) - 并行任务执行
+- [配置](/docs/configuration) - 配置选项
+- [上下文](/docs/context) - 上下文管理

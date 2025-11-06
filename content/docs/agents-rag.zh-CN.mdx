@@ -1,0 +1,145 @@
+---
+title: Rag智能体
+description: 检索增强生成（RAG）对话智能体，通过外部知识增强响应
+icon: Database
+---
+
+Rag智能体（检索增强生成）对话智能体。在使用大语言模型生成响应之前，通过搜索函数检索相关的外部知识并注入到提示中，以提高答案的准确性和可控性。
+
+## 概述
+
+该模块提供Chat智能体类，通过管理对话记忆、处理用户查询并与语言模型协调生成响应，来处理对话式AI交互。
+
+## 快速开始
+
+### 基本用法
+
+OxyGent 支持通过 knowledge 参数将知识注入提示。以下是一个简单的RAG 示例：
+
+您需要首先创建一个检索方法：
+
+```python
+def retrieval(query):
+ # 替换为实际的数据库
+ return "\n".join(["knowledge1", "knowledge2", "knowledge3"])
+```
+
+接下来，您需要在update_query 中注入检索到的知识：
+
+```python
+def update_query(oxy_request: OxyRequest):
+ current_query = oxy_request.get_query()
+
+ def retrieval(query):
+ return "\n".join(["knowledge1", "knowledge2", "knowledge3"])
+
+ oxy_request.arguments["knowledge"] = retrieval(current_query) # 关键方法
+ return oxy_request
+```
+
+## 完整可运行示例
+
+以下是一个完整的可运行代码示例：
+
+```python
+import asyncio
+
+from oxygent import MAS, OxyRequest, oxy
+from oxygent.utils.env_utils import get_env_var
+
+INSTRUCTION = """
+您是一个有帮助的助手，可以使用这些工具：
+${tools_description}
+
+选择工具的经验：
+${knowledge}
+
+根据用户的问题选择合适的工具。
+如果不需要工具，请直接回复。
+如果回答用户的问题需要调用多个工具，请一次只调用一个工具。用户收到工具结果后，会给您工具调用结果的反馈。
+
+重要提示：
+1. 当您收集到足够的信息来回答用户的问题时，请使用以下格式响应：
+<think>您的推理（如果需要分析）</think>
+您的响应内容
+2. 当您发现用户的问题缺少某些条件时，您可以反问他们。请使用以下格式响应：
+<think>您的推理（如果需要分析）</think>
+您对用户的后续问题
+3. 当您需要使用工具时，必须**仅**使用以下精确的 JSON 对象格式响应，不要添加其他内容：
+
+{
+ "think": "您的推理（如果需要分析）",
+ "tool_name": "工具名称",
+ "arguments": {
+ "参数名称": "参数值"
+ }
+}
+"""
+
+def update_query(oxy_request: OxyRequest):
+ current_query = oxy_request.get_query()
+
+ def retrieval(query):
+ return "\n".join(["knowledge1", "knowledge2", "knowledge3"])
+
+ oxy_request.arguments["knowledge"] = retrieval(current_query)
+ return oxy_request
+
+oxy_space = [
+ oxy.HttpLLM(
+ name="default_llm",
+ api_key=get_env_var("DEFAULT_LLM_API_KEY"),
+ base_url=get_env_var("DEFAULT_LLM_BASE_URL"),
+ model_name=get_env_var("DEFAULT_LLM_MODEL_NAME"),
+ llm_params={"temperature": 0.01},
+ semaphore=4,
+ ),
+ oxy.ReActAgent(
+ name="master_agent",
+ is_master=True,
+ llm_model="default_llm",
+ timeout=100,
+ prompt=INSTRUCTION,
+ func_process_input=update_query,
+ ),
+]
+
+async def main():
+ async with MAS(oxy_space=oxy_space) as mas:
+ await mas.start_web_service(
+ first_query="这是一个 RAG 示例。请根据具体需求进行修改",
+ )
+
+if __name__ == "__main__":
+ asyncio.run(main())
+```
+
+## API 参考
+
+**完整 API 文档请参考：**
+
+**[RAG 智能体 API 参考](/oxyapi/agents-rag-api)** - 包含完整的知识注入模式、检索函数接口和实现方法
+
+##示例
+
+实际使用示例和模式请参考：
+
+- [基础 RAG 实现](/examples/agents/basic-rag) - 简单的知识检索增强
+- [文档问答系统](/examples/application/document-qa) - 基于文档库的问答
+- [技术支持机器人](/examples/application/tech-support) - 知识库驱动的技术支持
+
+查看所有示例：[示例 Gallery](/examples)
+
+## 使用场景
+
+- **知识增强对话**: 用领域特定信息增强 AI 响应
+- **文档问答**: 基于您的文档数据库回答问题
+- **技术支持**: 从知识库提供准确的答案
+- **研究辅助**: 在生成响应之前检索相关信息
+
+## 相关链接
+
+- [ReAct智能体](/docs/agents-react) - 基础推理代理
+- [上下文](/docs/context) - 上下文管理系统
+- [工具 Function Hub](/docs/tools-function-hub) - 工具集成
+- [配置](/docs/configuration) - 配置选项

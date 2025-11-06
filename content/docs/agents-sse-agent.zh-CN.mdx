@@ -1,0 +1,252 @@
+---
+title: SSEOxy智能体
+description: 通过服务器发送事件（SSE）协议与远程服务通信的智能体
+icon: Radio
+---
+
+## 简介
+
+该智能体是一个基本代理，旨在提供与远程服务通信的功能。具体来说，不同的智能体通过服务器发送事件（SSE）协议与远程服务交互。该智能体接收一个 `OxyRequest` 对象，在完成通信任务后（通过 `execute` 方法），返回一个 `OxyResponse` 对象。以下是该功能的详细说明。
+
+## 快速开始
+
+```python
+oxy_space = [
+ oxy.HttpLLM(
+ name="default_name",
+ api_key=get_env_var("DEFAULT_LLM_API_KEY"),
+ base_url=get_env_var("DEFAULT_LLM_BASE_URL"),
+ model_name=get_env_var("DEFAULT_LLM_MODEL_NAME"),
+ llm_params={"temperature": 0.01},
+ semaphore=4,
+ ),
+ oxy.SSEOxyGent(
+ name="xxx_agent",
+ desc="=======================",
+ server_url="http://xxxxxxxxxxx",
+ is_share_call_stack=False,
+ )
+]
+
+async def main():
+ async with MAS(oxy_space=oxy_space) as mas:
+ result = await mas.call(
+ callee="xxx_agent", arguments={"query": "打印您的问题"}
+ )
+ print(result)
+
+asyncio.run(main())
+```
+
+## 完整示例
+
+该示例是一个 `math_agent`，它使用 `SSEOxy智能体` 与`time_agent` 通信以执行数学计算任务。以下是 `math_agent` 和 `time_agent` 的图示和实现源代码。`math_agent` 包括一个 `workflow智能体`，它可以调用 `SSEOxy智能体` 与`time_agent` 通信，作为其步骤的一部分。
+
+![SSE 智能体 Communication](/images/oxygent/SSEOxyAgentUsingExampleFigure.png)
+
+### math_agent
+
+```python
+import json
+
+from oxygent import MAS, Config, OxyRequest, oxy
+from oxygent.utils.env_utils import get_env_var
+
+Config.set_app_name("app-math")
+Config.set_server_port(8081)
+
+with open("config.json", "r") as f:
+ config = json.load(f)
+
+async def workflow(oxy_request: OxyRequest):
+ short_memory = oxy_request.get_short_memory()
+ print("--- History record --- :", short_memory)
+ master_short_memory = oxy_request.get_short_memory(master_level=True)
+ print("--- History record: User Layer --- :", master_short_memory)
+ print("user query:", oxy_request.get_query(master_level=True))
+ oxy_response = await oxy_request.call(
+ callee="time_agent", arguments={"query": "What time is it now?"}
+ )
+ print("--- Current time --- :", oxy_response.output)
+ import re
+
+ numbers = re.findall(r"\d+", oxy_request.get_query())
+ if numbers:
+ n = numbers[-1]
+ oxy_response = await oxy_request.call(callee="calc_pi", arguments={"prec": n})
+ return f"Save {n} positions: {oxy_response.output}"
+ else:
+ return "Save 2 positions: 3.14, or you could ask me to save how many positions you want."
+
+oxy_space = [
+ oxy.HttpLLM(
+ name="default_name",
+ api_key=get_env_var("DEFAULT_LLM_API_KEY"),
+ base_url=get_env_var("DEFAULT_LLM_BASE_URL"),
+ model_name=get_env_var("DEFAULT_LLM_MODEL_NAME"),
+ llm_params={"temperature": 0.01},
+ semaphore=4,
+ ),
+ oxy.StdioMCPClient(
+ name="my_tools",
+ params={
+ "command": "uv",
+ "args": ["--directory", "./mcp_servers", "run", "my_tools.py"],
+ },
+ ),
+ oxy.SSEOxyGent(
+ name="time_agent",
+ desc="An tool for time query",
+ server_url="http://127.0.0.1:8082",
+ ),
+ oxy.WorkflowAgent(
+ name="math_agent",
+ desc="An tool for pi query",
+ is_master=True,
+ sub_agents=["time_agent"],
+ tools=["my_tools"],
+ func_workflow=workflow,
+ llm_model="default_name",
+ is_retain_master_short_memory=True,
+ ),
+]
+
+async def main():
+ async with MAS(oxy_space=oxy_space) as mas:
+ await mas.start_web_service(first_query="The 30 positions of pi")
+
+if __name__ == "__main__":
+ import asyncio
+ asyncio.run(main())
+```
+
+### time_agent
+
+```python
+from oxygent import MAS, Config, oxy
+from oxygent.utils.env_utils import get_env_var
+
+Config.set_app_name("app-time")
+Config.set_server_port(8082)
+
+oxy_space = [
+ oxy.HttpLLM(
+ name="default_name",
+ api_key=get_env_var("DEFAULT_LLM_API_KEY"),
+ base_url=get_env_var("DEFAULT_LLM_BASE_URL"),
+ model_name=get_env_var("DEFAULT_LLM_MODEL_NAME"),
+ llm_params={"temperature": 0.01},
+ semaphore=4,
+ ),
+ oxy.StdioMCPClient(
+ name="time",
+ params={
+ "command": "uvx",
+ "args": ["mcp-server-time", "--local-timezone=Asia/Shanghai"],
+ },
+ ),
+ oxy.ReActAgent(
+ name="time_agent",
+ desc="A tool for time query",
+ is_master=True,
+ tools=["time"],
+ llm_model="default_name",
+ timeout=10,
+ ),
+]
+```
+
+## API 参考
+
+**完整 API 文档请参考：**
+
+**[SSEOxy智能体 API 参考](/oxyapi/agents-sse-agent-api)** - 包含完整的构造函数参数、SSE 通信方法和远程代理集成
+
+## SSEOxy智能体原理
+
+### 通信过程
+
+`sse_oxy_agent` 通过以下步骤完成通信功能：
+
+1. 接受一个 OxyRequest
+2. 构造一个 SSE 请求
+3. 执行异步 HTTP 请求
+4. 处理不同类型的数据
+5. 返回一个 OxyResponse
+
+首先，在接收到OxyRequest 后，智能体开始根据 SSE 协议构造请求体。具体来说，这包括构建 URL 和设置 HTTP 头，其中 HTTP 头包括 `"Accept": "text/event-stream"` and `"Content-类型": "application"`.
+
+接下来，`sse_oxy_agent`使用`aiohttp.ClientSession` 执行异步 HTTP POST 请求，启动异步请求。此时，它逐行读取 SSE 流数据。当接收到的数据为 "done" 时，智能体会记录日志并终止连接。对于其他类型的数据，`sse_oxy_agent` 会以不同方式处理：如果 `data["type"]` 是 "answer"，它会提取答案内容；如果是 "tool_call"或"observation"，并且调用者或被调用者的类别不是 "user"，它会根据是否共享调用堆栈进行处理并发送消息。对于其他类型的数据，智能体直接发送消息。
+
+### is_share_call_stack
+
+在`SSEOxyGent` 类中，`is_share_call_stack`是一个布尔属性，用于控制在与远程服务通信时是否共享调用堆栈信息。其具体作用如下：
+
+- 当该属性为 `True` 时，它允许共享调用堆栈信息。在这种情况下，代码会保留调用堆栈和遍历的节点 ID。这种处理方法可以简化或保护部分调用路径信息，同时为远程服务保留足够的上下文。
+- 当该属性为 `False` 时，表示不共享调用堆栈信息。此时，代码会删除调用堆栈和遍历的节点 ID，完全不传递这些信息。选择不共享调用堆栈可能用于保护隐私或安全需求，或在不需要调用堆栈信息时简化数据传输。
+
+设置该属性可能取决于具体的应用场景和需求：
+
+- **调试和跟踪**: 在某些场景中，保留调用堆栈可以帮助调试和跟踪请求的流程和历史。
+- **隐私和安全**: 在涉及敏感信息的场景中，选择不共享调用堆栈可能保护隐私。
+- **性能和简化**: 当不需要调用堆栈信息时，删除这些信息可以减少数据传输量并提高性能。
+
+### SSE 协议说明
+
+SSE（服务器发送事件）是一种服务器到客户端的单向实时数据更新技术，通常用于需要实时数据更新的Web 应用程序。SSE 是 HTML5 规范的一部分，提供了一种在浏览器和服务器之间建立持久连接以接收事件的方式。
+
+### SSEOxyGent 与工作流智能体的关系
+
+`SSEOxyGent` 和 `工作流智能体` 都是在OxyGent 框架中定义的智能体类，但它们具有不同的功能和应用场景。以下是它们的关系和区别：
+
+- **工作流智能体**:
+ - 继承自 `Local智能体`，这意味着它主要用于在本地环境中执行自定义工作流函数。
+ - 专注于执行用户定义的工作流逻辑，通常在本地运行或独立于其他远程服务。
+
+- **SSEOxyGent**:
+ - 继承自 `Remote智能体`，表示它用于处理远程服务交互，特别是通过服务器发送事件（SSE）的通信。
+ - 主要用于与远程服务器建立 SSE 连接，接收和处理事件流。
+
+### 功能对比
+
+- **工作流智能体**:
+ - 专注于执行自定义工作流函数。
+ - 用户可以通过 `func_workflow` 属性定义他们的业务逻辑。
+ - 适用于需要在本地执行逻辑的场景。
+
+- **SSEOxyGent**:
+ - 专注于通过 SSE 与远程服务器通信。
+ -支持异步初始化和执行，通过 SSE 接收实时数据或事件。
+ - 适用于需要与远程服务交互并处理实时事件的场景。
+
+### 使用场景
+
+- **工作流智能体**:
+ - 适用于需要灵活集成自定义逻辑的场景，例如数据处理、任务自动化等。
+ - 主要在本地环境中运行，不涉及与远程服务的直接通信。
+ - `workflow智能体`可以集成不同的智能体以逻辑地执行不同的任务。
+
+- **SSEOxyGent**:
+ - 适用于需要实时数据更新和处理的场景，例如实时监控、通知系统等。
+ -通过SSE 与远程服务器保持连接，接收和处理实时事件。
+
+### Summary
+
+`工作流智能体`可以与`SSEOxy智能体` 集成以完成特定任务。
+
+##示例
+
+实际使用示例和模式请参考：
+
+- [SSE 通信基础](/examples/agents/sse-basic) - SSEOxy智能体 基本用法
+- [数学计算服务](/examples/agents/sse-math-service) - 完整的数学代理示例
+- [分布式代理系统](/examples/application/distributed-agents) - 多服务 SSE 通信
+
+查看所有示例：[示例 Gallery](/examples)
+
+## 相关链接
+
+- [工作流智能体](/docs/agents-workflow) - 工作流代理集成
+- [Remote智能体](/docs/agents-remote) - 远程代理基类
+- [配置](/docs/configuration) - 配置选项
+- [可视化](/docs/visualization) - 可视化工具

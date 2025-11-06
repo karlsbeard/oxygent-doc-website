@@ -1,10 +1,10 @@
 ---
 title: SSEMCPClient API 参考
-description: 完整 API 文档： SSEMCPClient 类
+description: SSEMCPClient 类的完整 API 参考文档
 icon: Code
 ---
 
-## Class Definition
+## 类定义
 
 ```python
 from oxygent import oxy
@@ -20,46 +20,46 @@ client = oxy.SSEMCPClient(
 
 ## 构造函数参数
 
-### 必需 参数s
+### 必需参数
 
 |参数|类型|必需|默认值|描述|
 |-----------|------|----------|---------|-------------|
-| `name` | `str` | **Yes** | - | Unique identifier for this MCP client. Agents reference this name in their `tools` list |
-| `sse_url` | `AnyUrl` | **Yes** | `""` | SSE endpoint URL (e.g., "http://localhost:9000/sse") |
+| `name` | `str` | **是** | - | MCP 客户端的唯一标识符。代理在其 `tools` 列表中引用此名称 |
+| `sse_url` | `AnyUrl` | **是** | `""` | SSE 端点 URL（例如 "http://localhost:9000/sse"） |
 
-### 可选 参数s
-
-|参数|类型|默认值|描述|
-|-----------|------|---------|-------------|
-| `middlewares` | `list[Any]` | `[]` | List of client-side MCP middlewares for request/response processing |
-
-### Inherited from BaseMCPClient
+### 可选参数
 
 |参数|类型|默认值|描述|
 |-----------|------|---------|-------------|
-| `headers` | `dict[str, str]` | `{}` | HTTP headers to send 包含 all requests |
-| `is_dynamic_headers` | `bool` | `False` | Enable dynamic header updates per request |
-| `is_inherit_headers` | `bool` | `False` | Inherit headers from OxyRequest._headers |
-| `is_keep_alive` | `bool` | 配置默认值 | Keep SSE connection alive between calls |
+| `middlewares` | `list[Any]` | `[]` | 用于请求/响应处理的客户端 MCP 中间件列表 |
 
-### Inherited from BaseTool
+### 从 BaseMCPClient 继承
 
 |参数|类型|默认值|描述|
 |-----------|------|---------|-------------|
-| `timeout` | `float` | `60` | Maximum execution time per tool call in seconds |
-| `semaphore` | `int` | `16` | 最大数量 concurrent tool executions |
-| `retries` | `int` | `2` | Number of retry attempts on failure |
-| `delay` | `float` | `1.0` | Delay between retry attempts in seconds |
-| `is_permission_required` | `bool` | `True` | Whether agents need permission to call tools |
-| `is_save_data` | `bool` | `True` | Whether to save execution traces |
+| `headers` | `dict[str, str]` | `{}` | 随所有请求发送的 HTTP 头 |
+| `is_dynamic_headers` | `bool` | `False` | 启用每个请求的动态头更新 |
+| `is_inherit_headers` | `bool` | `False` | 从 OxyRequest._headers 继承头 |
+| `is_keep_alive` | `bool` | 配置默认值 | 在调用之间保持 SSE 连接活动 |
 
-### Internal Attributes
+### 从 BaseTool 继承
 
-|Attribute|类型|描述|
+|参数|类型|默认值|描述|
+|-----------|------|---------|-------------|
+| `timeout` | `float` | `60` | 每次工具调用的最大执行时间（秒） |
+| `semaphore` | `int` | `16` | 最大并发工具执行数 |
+| `retries` | `int` | `2` | 失败时的重试次数 |
+| `delay` | `float` | `1.0` | 重试尝试之间的延迟（秒） |
+| `is_permission_required` | `bool` | `True` | 代理是否需要权限来调用工具 |
+| `is_save_data` | `bool` | `True` | 是否保存执行跟踪 |
+
+### 内部属性
+
+|属性|类型|描述|
 |-----------|------|-------------|
-| `included_tool_name_list` | `list[str]` | 工具名称列表 discovered from the MCP server |
-| `_session` | `ClientSession` | MCP protocol session (initialized during `init()`) |
-| `_exit_stack` | `AsyncExitStack` | Resource management context for cleanup |
+| `included_tool_name_list` | `list[str]` | 从 MCP 服务器发现的工具名称列表 |
+| `_session` | `ClientSession` | MCP 协议会话（在 `init()` 期间初始化） |
+| `_exit_stack` | `AsyncExitStack` | 用于清理的资源管理上下文 |
 
 ## 参数详情
 
@@ -321,38 +321,38 @@ oxy.SSEMCPClient(
 
 ### init()
 
-Initialize the SSE connection to the MCP server.
+初始化到 MCP 服务器的 SSE 连接。
 
 ```python
 async def init(self, is_fetch_tools: bool = True) -> None
 ```
 
 **参数:**
-- `is_fetch_tools` (bool): Whether to automatically discover 和 register tools after initialization. 默认: `True`
+- `is_fetch_tools` (bool): 初始化后是否自动发现和注册工具。默认: `True`
 
-**Behavior:**
+**行为：**
 
-The behavior depends on `is_dynamic_headers` 和 `is_keep_alive`:
+行为取决于 `is_dynamic_headers` 和 `is_keep_alive`：
 
-**Case 1: Persistent Connection (`is_keep_alive=True` and `not is_dynamic_headers`)**
-1. Establishes SSE connection to `sse_url` 包含 `headers`
-2. Creates MCP `ClientSession` over SSE transport
-3. Adds all `middlewares` to the session
-4. Initializes MCP protocol
-5. If `is_fetch_tools=True`, discovers tools via `list_tools()`
+**情况 1：持久连接（`is_keep_alive=True` 且 `not is_dynamic_headers`）**
+1. 使用 `headers` 建立到 `sse_url` 的 SSE 连接
+2. 通过 SSE 传输创建 MCP `ClientSession`
+3. 将所有 `middlewares` 添加到会话
+4. 初始化 MCP 协议
+5. 如果 `is_fetch_tools=True`，通过 `list_tools()` 发现工具
 
-**Case 2: Transient Connection (`is_keep_alive=False` or `is_dynamic_headers=True`)**
-1. Creates temporary SSE connection
-2. Discovers tools via `list_tools()`
-3. Closes connection immediately
-4. Subsequent tool calls create new connections
+**情况 2：临时连接（`is_keep_alive=False` 或 `is_dynamic_headers=True`）**
+1. 创建临时 SSE 连接
+2. 通过 `list_tools()` 发现工具
+3. 立即关闭连接
+4. 后续工具调用创建新连接
 
 **错误处理:**
-- Logs error 包含 server name if initialization fails
-- Calls `cleanup()` automatically on error
-- Raises `Exception` 包含 message "Server \{name\} error"
+- 如果初始化失败，记录包含服务器名称的错误
+- 出错时自动调用 `cleanup()`
+- 抛出包含消息"Server \{name\} error"的 `Exception`
 
-**Example (internal use):**
+**示例（内部使用）：**
 ```python
 # Called automatically by MAS during initialization
 async with MAS(oxy_space=[client, ...]) as mas:
@@ -362,7 +362,7 @@ async with MAS(oxy_space=[client, ...]) as mas:
 
 ### call_tool()
 
-Execute a tool on the SSE MCP server.
+在 SSE MCP 服务器上执行工具。
 
 ```python
 async def call_tool(
@@ -374,24 +374,24 @@ async def call_tool(
 ```
 
 **参数:**
-- `tool_name` (str): Name of the tool to call
-- `arguments` (dict): Tool-specific parameters
-- `headers` (dict, optional): Override/merge headers for this call
+- `tool_name` (str): 要调用的工具名称
+- `arguments` (dict): 工具特定的参数
+- `headers` (dict, optional): 为此调用覆盖/合并的头
 
-**Returns:** MCP response 对象 使用 tool execution results
+**返回：** 包含工具执行结果的 MCP 响应对象
 
-**Behavior:**
-1. Builds URL using `build_url(sse_url)`
-2. Establishes SSE client connection 包含 provided/merged headers
-3. Creates temporary ClientSession
-4. Initializes MCP protocol
-5. Calls the specified tool 包含 arguments
-6. Returns response
-7. Connection closed automatically
+**行为：**
+1. 使用 `build_url(sse_url)` 构建 URL
+2. 使用提供的/合并的头建立 SSE 客户端连接
+3. 创建临时 ClientSession
+4. 初始化 MCP 协议
+5. 使用参数调用指定的工具
+6. 返回响应
+7. 自动关闭连接
 
-**Note:** This method is used when `is_keep_alive=False` or `is_dynamic_headers=True`. For persistent connections, `_execute()` uses the existing session.
+**注意：** 当 `is_keep_alive=False` 或 `is_dynamic_headers=True` 时使用此方法。对于持久连接，`_execute()` 使用现有会话。
 
-**Example (internal use):**
+**示例（内部使用）：**
 ```python
 # Called internally when creating new connection per request
 response = await client.call_tool(
@@ -403,24 +403,24 @@ response = await client.call_tool(
 
 ### list_tools()
 
-Discover 和 register tools from the SSE MCP server.
+从 SSE MCP 服务器发现并注册工具。
 
 ```python
 async def list_tools(self) -> None
 ```
 
-**Behavior:**
-1. Checks that `_session` is initialized (persistent mode)
-2. Calls `_session.list_tools()` via MCP protocol
-3. Calls `add_tools()` to create `MCPTool` wrappers
-4. Registers each tool 包含 the MAS
+**行为：**
+1. 检查 `_session` 是否已初始化（持久模式）
+2. 通过 MCP 协议调用 `_session.list_tools()`
+3. 调用 `add_tools()` 创建 `MCPTool` 包装器
+4. 在 MAS 中注册每个工具
 
-**Raises:**
-- `RuntimeError` if server not initialized (persistent mode only)
+**抛出：**
+- 如果服务器未初始化（仅持久模式），抛出 `RuntimeError`
 
-**Note:** In transient mode, this method is called 使用 a temporary session during `init()`.
+**注意：** 在临时模式下，此方法在 `init()` 期间使用临时会话调用。
 
-**Example (internal use):**
+**示例（内部使用）：**
 ```python
 # Called automatically during init() if is_fetch_tools=True
 await client.list_tools()
@@ -428,27 +428,27 @@ await client.list_tools()
 
 ### add_tools()
 
-Create MCPTool wrappers for discovered tools.
+为发现的工具创建 MCPTool 包装器。
 
 ```python
 def add_tools(self, tools_response) -> None
 ```
 
 **参数:**
-- `tools_response`: Response from `list_tools()` containing tool definitions
+- `tools_response`: 来自 `list_tools()` 的响应，包含工具定义
 
-**Behavior:**
-1. Extracts model dump excluding sensitive 字段
-2. Iterates through tools in response
-3. For each tool, creates an `MCPTool` instance 包含:
-   - Tool name 和 description
-   - Reference to this SSE MCP client
-   - Input schema
-   - Hook functions (if configured)
-4. Registers each `MCPTool` 包含 the MAS
-5. Adds tool name to `included_tool_name_list`
+**行为：**
+1. 提取排除敏感字段的模型转储
+2. 遍历响应中的工具
+3. 为每个工具创建一个 `MCPTool` 实例，包含:
+   - 工具名称和描述
+   - 对此 SSE MCP 客户端的引用
+   - 输入模式
+   - 钩子函数（如果已配置）
+4. 在 MAS 中注册每个 `MCPTool`
+5. 将工具名称添加到 `included_tool_name_list`
 
-**Excluded 字段 from model dump:**
+**从模型转储中排除的字段：**
 - `sse_url`
 - `server_url`
 - `headers`
@@ -460,7 +460,7 @@ def add_tools(self, tools_response) -> None
 - `server_name`
 - `input_schema`
 
-**Example (internal use):**
+**示例（内部使用）：**
 ```python
 # Called by list_tools()
 tools_response = await session.list_tools()
@@ -469,25 +469,25 @@ client.add_tools(tools_response)
 
 ### cleanup()
 
-Clean up SSE MCP server resources 和 connections.
+清理 SSE MCP 服务器资源和连接。
 
 ```python
 async def cleanup(self) -> None
 ```
 
-**Behavior:**
-1. Acquires cleanup lock to prevent concurrent cleanup
-2. Closes the `AsyncExitStack` (closes SSE connection 和 sessions)
-3. H和les `asyncio.CancelledError` gracefully
-4. Suppresses other exceptions to prevent cascading failures
-5. Sets `_session` 和 `_stdio_context` to `None`
+**行为：**
+1. 获取清理锁以防止并发清理
+2. 关闭 `AsyncExitStack`（关闭 SSE 连接和会话）
+3. 优雅地处理 `asyncio.CancelledError`
+4. 抑制其他异常以防止级联失败
+5. 将 `_session` 和 `_stdio_context` 设置为 `None`
 
-**When Called:**
-- Automatically 当 MAS exits
-- Automatically on initialization errors
-- Can be called manually if needed
+**何时调用：**
+- MAS 退出时自动调用
+- 初始化错误时自动调用
+- 如果需要可以手动调用
 
-**Example (usually automatic):**
+**示例（通常自动）：**
 ```python
 # Automatic cleanup
 async with MAS(oxy_space=[client, ...]) as mas:
@@ -495,9 +495,9 @@ async with MAS(oxy_space=[client, ...]) as mas:
 # cleanup() called here automatically
 ```
 
-## Usage 示例s
+## 使用示例
 
-### Basic Remote Connection
+### 基础远程连接
 
 ```python
 from oxygent import MAS, oxy
@@ -520,7 +520,7 @@ oxy_space = [
 ]
 ```
 
-### With Authentication
+### 使用身份验证
 
 ```python
 # Authenticated remote server
@@ -534,7 +534,7 @@ secure_client = oxy.SSEMCPClient(
 )
 ```
 
-### With Dynamic Headers
+### 使用动态头
 
 ```python
 # Dynamic header support
@@ -550,7 +550,7 @@ dynamic_client = oxy.SSEMCPClient(
 )
 ```
 
-### With Middlewares
+### 使用中间件
 
 ```python
 # Custom middleware
@@ -571,7 +571,7 @@ middleware_client = oxy.SSEMCPClient(
 )
 ```
 
-### High Performance Configuration
+### 高性能配置
 
 ```python
 # Optimized for high-throughput
@@ -586,7 +586,7 @@ perf_client = oxy.SSEMCPClient(
 )
 ```
 
-### Multiple Remote Servers
+### 多个远程服务器
 
 ```python
 oxy_space = [
@@ -622,7 +622,7 @@ oxy_space = [
 
 ## 错误处理
 
-### Connection Errors
+### 连接错误
 
 ```python
 try:
@@ -637,7 +637,7 @@ except Exception as e:
     print(f"Connection error: {e}")
 ```
 
-### Authentication Errors
+### 身份验证错误
 
 ```python
 try:
@@ -653,7 +653,7 @@ except Exception as e:
     print(f"Auth error: {e}")
 ```
 
-### Timeout Errors
+### 超时错误
 
 ```python
 client = oxy.SSEMCPClient(
@@ -664,21 +664,21 @@ client = oxy.SSEMCPClient(
 # Tool calls exceeding 5 seconds will raise timeout error
 ```
 
-## Performance Considerations
+## 性能考虑
 
-### Persistent vs Transient Connections
+### 持久连接 vs 临时连接
 
 |Aspect|Persistent (`is_keep_alive=True`)|Transient (`is_keep_alive=False`)|
 |--------|-----------------------------------|-----------------------------------|
-| **Latency** | Low (no reconnection) | High (reconnect each time) |
-| **Throughput** | High | Lower |
-| **Memory** | Higher (persistent session) | Lower (temporary sessions) |
-| **Dynamic Headers** | Not supported | Supported |
-| **Use Case** | Multiple calls, production | Single calls, dynamic auth |
+| **延迟** | 低（无重连） | 高（每次重连） |
+| **吞吐量** | 高 | 较低 |
+| **内存** | 较高（持久会话） | 较低（临时会话） |
+| **动态头** | 不支持 | 支持 |
+| **使用场景** | 多次调用，生产环境 | 单次调用，动态认证 |
 
-### Concurrency
+### 并发
 
-Control concurrent tool executions:
+控制并发工具执行：
 
 ```python
 oxy.SSEMCPClient(
@@ -690,8 +690,8 @@ oxy.SSEMCPClient(
 
 ## 相关文档
 
-- **[SSEMCPClient Guide](/docs/tools-mcp-sse)** - Main documentation 和 usage patterns
-- **[StdioMCPClient API](/oxyapi/tools-mcp-stdio-api)** - Local process client API
-- **[StreamableMCPClient API](/oxyapi/tools-mcp-streamable-api)** - HTTP streamable client API
-- **[BaseMCPClient](/docs/tools-mcp-base)** - Base class documentation
-- **[MCP Protocol](https://modelcontextprotocol.io/)** - Official MCP specification
+- **[SSEMCPClient 指南](/docs/tools-mcp-sse)** - 主要文档和使用模式
+- **[StdioMCPClient API](/oxyapi/tools-mcp-stdio-api)** - 本地进程客户端 API
+- **[StreamableMCPClient API](/oxyapi/tools-mcp-streamable-api)** - HTTP 流式客户端 API
+- **[BaseMCPClient](/docs/tools-mcp-base)** - 基类文档
+- **[MCP 协议](https://modelcontextprotocol.io/)** - 官方 MCP 规范

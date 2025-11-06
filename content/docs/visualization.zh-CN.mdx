@@ -1,0 +1,290 @@
+---
+title: 可视化
+description: 用于可视化多智能体系统执行的交互式 Web 界面和流程图生成
+icon: Eye
+---
+
+OxyGent 提供强大的可视化功能，帮助开发者通过交互式 Web 界面和自动流程图生成，实时理解、调试和监控多智能体系统的执行情况。
+
+## 概述
+
+OxyGent 中的可视化系统使您能够：
+
+- **实时监控**：通过交互式 Web 界面跟踪智能体执行、消息流和系统状态
+- **组织树可视化**：查看智能体、工具及其关系的层次结构
+- **流程图生成**：自动生成智能体工作流和决策过程的可视化流程图
+- **时间线控制**：通过播放控件逐步浏览执行历史以进行调试
+- **对话历史**：查看包含上下文和状态信息的完整交互日志
+
+### 关键特性
+
+1. **交互式 Web 界面**：内置 Web 服务器，提供丰富的 UI 用于监控和交互
+2. **智能体组织显示**：多智能体系统结构的层次化可视化
+3. **自动流程图**：基于 LLM 的从文本描述生成 Mermaid 流程图
+4. **执行时间线**：逐步导航系统执行历史
+5. **文件管理**：上传和管理对话历史用于分析
+
+### 何时使用可视化
+
+- **开发和调试**：理解复杂的智能体交互并识别问题
+- **系统监控**：在测试或生产期间实时跟踪智能体执行
+- **文档编写**：为技术文档生成可视化图表
+- **分析**：查看历史执行以优化智能体性能
+- **演示**：向利益相关者展示多智能体系统功能
+
+## 快速开始
+
+### 基础 Web 界面
+
+使用 MAS 启动 Web 可视化界面：
+
+```python
+import asyncio
+from oxygent import MAS, oxy
+from oxygent.utils.env_utils import get_env_var
+
+oxy_space = [
+ oxy.HttpLLM(
+ name="default_llm",
+ api_key=get_env_var("DEFAULT_LLM_API_KEY"),
+ base_url=get_env_var("DEFAULT_LLM_BASE_URL"),
+ model_name=get_env_var("DEFAULT_LLM_MODEL_NAME"),
+ ),
+ oxy.ReActAgent(
+ name="assistant",
+ is_master=True,
+ llm_model="default_llm",
+ ),
+]
+
+async def main():
+ async with MAS(oxy_space=oxy_space) as mas:
+ # 启动带可视化的 Web 服务
+ await mas.start_web_service(
+ first_query="你好！请介绍一下自己。",
+ welcome_message="欢迎使用 OxyGent 可视化",
+ host="127.0.0.1",
+ port=8000
+ )
+
+if __name__ == "__main__":
+ asyncio.run(main())
+```
+
+在 `http://127.0.0.1:8000` 访问 Web 界面
+
+### 流程图生成
+
+使用流程图工具自动生成可视化流程图：
+
+```python
+from oxygent import MAS, oxy
+from oxygent.chart import flow_image_gen_tools
+from oxygent.utils.env_utils import get_env_var
+
+oxy_space = [
+ oxy.HttpLLM(
+ name="default_llm",
+ api_key=get_env_var("DEFAULT_LLM_API_KEY"),
+ base_url=get_env_var("DEFAULT_LLM_BASE_URL"),
+ model_name=get_env_var("DEFAULT_LLM_MODEL_NAME"),
+ ),
+ flow_image_gen_tools, # 添加流程图生成工具
+ oxy.ReActAgent(
+ name="assistant",
+ is_master=True,
+ llm_model="default_llm",
+ tools=["flow_image_gen_tools"]
+ ),
+]
+
+async def main():
+ async with MAS(oxy_space=oxy_space) as mas:
+ # 从描述生成流程图
+ result = await mas.call(
+ callee="assistant",
+ arguments={
+ "messages": [{
+ "role": "user",
+ "content": "创建一个显示用户注册流程的流程图"
+ }]
+ }
+ )
+ print(result.output)
+
+if __name__ == "__main__":
+ asyncio.run(main())
+```
+
+## 配置选项
+
+### Web 服务配置
+
+通过 `start_web_service()` 配置 Web 可视化界面：
+
+| 参数 | 类型 | 默认值 | 描述 |
+|-----------|------|---------|-------------|
+| `first_query` | str | None | 在界面中显示的初始查询 |
+| `welcome_message` | str | Config.welcome_message | 向用户显示的欢迎消息 |
+| `host` | str | Config.web_host | Web 服务器的主机地址 |
+| `port` | int | Config.web_port | Web 服务器的端口号 |
+
+### 流程图配置
+
+流程图生成使用环境变量进行 LLM 配置：
+
+```bash
+# .env 文件
+OPENAI_BASE_URL="your_base_url"
+OPENAI_API_KEY="your_api_key"
+OPENAI_MODEL_NAME="your_model_name"
+```
+
+**配置选项**：
+- **API 端点**：配置用于流程图生成的 LLM 端点
+- **输出路径**：指定生成图表的自定义输出目录
+- **自动打开**：图表在默认浏览器中自动打开
+
+## 理解可视化架构
+
+### Web 界面组件
+
+```
+┌─────────────────────────────────────────┐
+│ OxyGent Web 界面 │
+├─────────────────────────────────────────┤
+│ │
+│ ┌───────────┐ ┌──────────────────┐ │
+│ │ 头部 │ │ 时间线 │ │
+│ │ 控制 │ │ 控制 │ │
+│ └───────────┘ └──────────────────┘ │
+│ │
+│ ┌─────────────┐ ┌────────────────┐ │
+│ │ 组织树 │ │ 聊天 │ │
+│ │ 视图 │ │ 界面 │ │
+│ │ │ │ │ │
+│ │ 智能体 1 │ │ 用户: 查询 │ │
+│ │ ├─工具 1 │ │ 智能体: 回复 │ │
+│ │ └─工具 2 │ │ ... │ │
+│ │ 智能体 2 │ │ │ │
+│ └─────────────┘ └────────────────┘ │
+│ │
+└─────────────────────────────────────────┘
+```
+
+### 流程图生成过程
+
+```
+用户描述
+ ↓
+┌─────────────────────────┐
+│ LLM 处理 │
+│ (文本 → Mermaid 代码) │
+└─────────────────────────┘
+ ↓
+┌─────────────────────────┐
+│ HTML 生成 │
+│ (嵌入 Mermaid 代码) │
+└─────────────────────────┘
+ ↓
+┌─────────────────────────┐
+│ 浏览器显示 │
+│ (自动打开 + 渲染) │
+└─────────────────────────┘
+ ↓
+交互式流程图
+```
+
+## Web 界面功能
+
+### 组织树视图
+
+组织树显示：
+- **主智能体**：顶层入口点
+- **子智能体**：层次化的智能体关系
+- **工具**：每个智能体的可用工具
+- **路径**：通过智能体层次结构导航
+
+**API 端点**：`GET /get_organization`
+
+返回包含智能体结构和关系的 JSON 。
+
+### 时间线控件
+
+导航执行历史：
+- **播放/暂停**：自动推进步骤
+- **前进/后退**：手动导航
+- **跳转到开始/结束**：快速导航
+- **步骤计数器**：时间线中的当前位置
+
+### 聊天界面
+
+- **实时更新**：使用 SSE（服务器发送事件）进行流式响应
+- **历史显示**：带时间戳的完整对话日志
+- **文件上传**：上传对话历史以供重放
+- **Markdown 支持**：消息中的富文本格式
+
+## 流程图生成
+
+### 自动生成
+
+`flow_image_gen_tools` 使用 LLM 将自然语言描述转换为 Mermaid 流程图：
+
+**支持的功能**：
+- 多种节点类型（方框、菱形、圆角）
+- 带标签连接的条件分支
+- 自动样式（颜色、边框）
+- 带时间戳的自定义输出路径
+
+### 图表类型
+
+生成的图表支持：
+- **流程图**：顺序的分步工作流
+- **决策树**：带条件的分支逻辑
+- **状态图**：系统状态转换
+- **组织图**：层次结构
+
+## 示例
+
+实际示例和使用模式，请参考：
+
+- [Web 服务示例](/examples/advanced/web-visualization) - 完整的 Web 界面设置
+- [流程图生成](/examples/advanced/flowchart-generation) - 自动图表创建
+- [使用可视化调试](/examples/advanced/debugging-visualization) - 使用时间线调试
+- [组织树分析](/examples/advanced/organization-analysis) - 分析智能体结构
+
+查看所有示例：[示例库](/examples)。
+
+## 高级功能
+
+### SSE 事件流
+
+Web 界面使用服务器发送事件进行实时更新：
+
+**端点**：`/sse/chat`
+
+**事件类型**：
+- `data`：消息内容块
+- `close`：对话完成信号
+
+### 自定义样式
+
+流程图支持自定义 Mermaid 样式：
+- 节点颜色和边框
+- 连接线样式
+- 字体大小和字体系列
+- 布局方向（TD、LR 等）
+
+### 文件管理
+
+上传和管理对话历史：
+- **JSON 格式**：导出/导入对话日志
+- **历史重放**：加载和可视化过去的执行
+- **分析**：查看智能体决策和工具使用情况
+
+## 相关链接
+
+- [MAS（多智能体系统）](/docs/mas) - Web 服务 API 详情
+- [配置](/docs/configuration) - 全局配置选项
+- [快速开始](/docs/quick-start) - 入门指南
+- [ReActAgent](/docs/agents-react) - 智能体执行可视化

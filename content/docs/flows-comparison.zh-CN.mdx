@@ -1,0 +1,458 @@
+---
+title: 流程对比指南
+description: 全面对比 OxyGent 流程，帮助您为用例选择正确的流程模式
+icon: GitCompare
+---
+
+本指南通过比较每种流程类型的特征、优势和理想场景，帮助您为特定用例选择正确的流程模式。
+
+## 快速参考表
+
+| 流程 | 执行模式 | 复杂度 | 最适合 | 关键优势 |
+|------|------------------|------------|----------|--------------|
+| **工作流** | 自定义逻辑 | 可变 | 自定义模式 | 最大灵活性 |
+| **并行流程** | 并发 | 低 | 独立操作 | 通过并行化提速 |
+| **PlanAndSolve** | 顺序步骤 | 高 | 多步骤任务 | 自动规划 |
+| **Reflexion** | 迭代改进 | 中 | 质量提升 | 自我评估 |
+
+## 详细对比
+
+### 工作流
+
+**模式**：自定义执行逻辑
+
+**特征：**
+- ✅ 完全控制执行流程
+- ✅ 支持任何模式（顺序、条件、循环、并行）
+- ✅ 直接访问 OxyRequest 和智能体调用
+- ✅ 最少样板代码
+- ⚠️ 需要手动实现所有逻辑
+
+**何时使用：**
+- 其他流程未涵盖的独特工作流需求
+- 复杂的分支逻辑或条件执行
+- 实验性或原型模式
+- 需要完全控制执行流程
+
+**何时不使用：**
+- 标准并行执行（使用并行流程）
+- 带规划的多步骤任务（使用 PlanAndSolve）
+- 质量改进迭代（使用 Reflexion）
+
+**代码示例：**
+```python
+async def custom_workflow(oxy_request: OxyRequest) -> str:
+    query = oxy_request.get_query()
+
+    # 自定义逻辑 - 完全控制
+    if "urgent" in query.lower():
+        result = await oxy_request.call(callee="urgent_handler", arguments={"query": query})
+    else:
+        result = await oxy_request.call(callee="normal_handler", arguments={"query": query})
+
+    return result.output
+
+oxy.flows.Workflow(
+    name="custom_flow",
+    func_workflow=custom_workflow
+)
+```
+
+**典型使用场景：**
+- 自定义编排逻辑
+- 条件性智能体路由
+- 带自定义终止的迭代处理
+- 结合多种方法的混合模式
+
+---
+
+### 并行流程
+
+**模式**：并发执行和结果聚合
+
+**特征：**
+- ✅ 同时执行多个工具/智能体
+- ✅ 自动结果聚合
+- ✅ 独立操作的显著速度提升
+- ✅ 简单配置
+- ⚠️ 工具必须独立（无依赖关系）
+- ⚠️ 仅简单结果连接
+
+**何时使用：**
+- 从多个源独立获取数据
+- 使用不同方法的并行分析
+- 为可靠性进行冗余操作
+- 无依赖关系的批量操作
+
+**何时不使用：**
+- 工具有执行依赖关系
+- 需要智能结果摘要（改用并行智能体）
+- 需要顺序处理
+
+**代码示例：**
+```python
+oxy.flows.ParallelFlow(
+    name="multi_source_fetch",
+    desc="同时从数据库、API 和缓存获取",
+    permitted_tool_name_list=[
+        "database_reader",
+        "api_fetcher",
+        "cache_reader"
+    ]
+)
+```
+
+**性能：**
+- **顺序执行**：时间 = T1 + T2 + T3
+- **并行执行**：时间 = max(T1, T2, T3)
+- **加速**：通常快 2-3 倍
+
+**典型使用场景：**
+- 多源数据聚合
+- 并行情感/主题分析
+- 为可靠性进行冗余 API 调用
+- 批量独立操作
+
+---
+
+### PlanAndSolve
+
+**模式**：自动任务分解和顺序执行
+
+**特征：**
+- ✅ 自动规划和任务分解
+- ✅ 结构化的分步执行
+- ✅ 可选动态重新规划
+- ✅ 跨步骤保留上下文
+- ⚠️ 更高的复杂度和开销
+- ⚠️ 仅顺序执行（无并行化）
+
+**何时使用：**
+- 复杂的多步骤任务
+- 需要分解和规划的任务
+- 步骤相互依赖的工作流
+- 需要适应的动态场景（带重新规划）
+
+**何时不使用：**
+- 简单的单步任务
+- 执行计划完全已知（使用带预定义步骤的工作流）
+- 需要并行执行（使用并行流程或工作流）
+
+**代码示例：**
+```python
+oxy.flows.PlanAndSolve(
+    name="research_task",
+    planner_agent_name="planner",
+    executor_agent_name="executor",
+    enable_replanner=True,  # 根据发现进行适应
+    max_replan_rounds=30
+)
+```
+
+**执行模式：**
+
+**1. 基础模式**（`enable_replanner=False`）：
+- 固定计划执行
+- 线性分步进度
+- 更简单更快
+
+**2. 自适应模式**（`enable_replanner=True`）：
+- 动态计划调整
+- 可以适应中间结果
+- 更灵活但更慢
+
+**典型使用场景：**
+- 研究和分析任务
+- 数据处理管道
+- 多阶段工作流
+- 复杂问题解决
+
+---
+
+### Reflexion
+
+**模式**：迭代自我评估和改进
+
+**特征：**
+- ✅ 自动质量评估
+- ✅ 迭代改进直至满意
+- ✅ 内置反馈循环
+- ✅ 专门的 MathReflexion 变体
+- ⚠️ 由于多次迭代而较慢
+- ⚠️ 需要良好的评估智能体
+
+**何时使用：**
+- 高精度输出要求
+- 质量比速度更重要
+- 迭代精炼场景
+- 自我改进系统
+
+**何时不使用：**
+- 速度至关重要
+- 质量评估不可行
+- 单次通过即可
+
+**代码示例：**
+```python
+oxy.flows.Reflexion(
+    name="quality_improver",
+    worker_agent="content_writer",
+    reflexion_agent="editor",
+    max_reflexion_rounds=5  # 最多 5 轮改进周期
+)
+
+# 专门用于数学
+oxy.flows.MathReflexion(
+    name="math_solver",
+    max_reflexion_rounds=7
+)
+```
+
+**质量与速度权衡：**
+- 1-2 轮：快速改进
+- 3-5 轮：标准质量
+- 5-10 轮：高精度
+
+**典型使用场景：**
+- 内容质量改进
+- 数学问题解决
+- 代码审查和精炼
+- 技术写作
+
+## 决策树
+
+```
+开始：我需要执行工作流
+ │
+ ├─ 需要最大灵活性/自定义逻辑？
+ │ 是 → 使用工作流
+ │ 否 → 继续
+ │
+ ├─ 需要并行运行独立操作？
+ │ 是 → 使用并行流程
+ │ 否 → 继续
+ │
+ ├─ 需要自动任务规划和分解？
+ │ 是 → 使用 PlanAndSolve
+ │ 否 → 继续
+ │
+ └─ 需要迭代质量改进？
+ 是 → 使用 Reflexion
+ 否 → 考虑使用工作流实现自定义模式
+```
+
+## 详细功能对比
+
+### 执行模型
+
+| 功能 | 工作流 | 并行流程 | PlanAndSolve | Reflexion |
+|---------|----------|--------------|--------------|-----------|
+| **执行** | 自定义 | 并行 | 顺序 | 迭代 |
+| **工具依赖** | 任意 | 独立 | 依赖步骤 | 不适用 |
+| **规划** | 手动 | 不适用 | 自动 | 不适用 |
+| **评估** | 可选 | 不适用 | 不适用 | 自动 |
+| **适应** | 自定义 | 不适用 | 可选（重新规划器） | 内置 |
+
+### 性能特征
+
+| 方面 | 工作流 | 并行流程 | PlanAndSolve | Reflexion |
+|--------|----------|--------------|--------------|-----------|
+| **速度** | 可变 | 快（并行） | 中等 | 慢（迭代） |
+| **开销** | 低 | 低 | 高 | 中等 |
+| **可扩展性** | 自定义 | 高 | 中等 | 低 |
+| **复杂度** | 可变 | 低 | 高 | 中等 |
+
+### 配置复杂度
+
+| 流程 | 设置难度 | 配置选项 | 学习曲线 |
+|------|------------------|----------------------|----------------|
+| **工作流** | 低 | 最少（仅函数） | 低 |
+| **并行流程** | 低 | 工具列表 | 很低 |
+| **PlanAndSolve** | 高 | 多个参数 | 高 |
+| **Reflexion** | 中等 | 模板、智能体 | 中等 |
+
+## 用例矩阵
+
+### 按任务类型
+
+| 任务类型 | 推荐流程 | 备选方案 |
+|-----------|------------------|-------------|
+| **数据聚合** | 并行流程 | 工作流 |
+| **多步骤分析** | PlanAndSolve | 工作流 |
+| **质量精炼** | Reflexion | 工作流（手动） |
+| **条件性路由** | 工作流 | 不适用 |
+| **研究任务** | PlanAndSolve | 工作流 |
+| **内容改进** | Reflexion | 工作流 |
+| **批量操作** | 并行流程 | 工作流（手动并行） |
+| **数学求解** | MathReflexion | PlanAndSolve |
+
+### 按约束条件
+
+| 约束 | 推荐流程 | 原因 |
+|------------|------------------|--------|
+| **速度关键** | 并行流程 | 并行执行 |
+| **质量关键** | Reflexion | 迭代改进 |
+| **需要灵活性** | 工作流 | 自定义控制 |
+| **需要自动规划** | PlanAndSolve | 自动分解 |
+| **简单聚合** | 并行流程 | 低开销 |
+| **复杂编排** | 工作流 | 完全控制 |
+
+## 组合模式
+
+流程可以组合以实现高级模式：
+
+### 模式 1：并行 + Reflexion
+
+并行执行后进行质量改进：
+
+```python
+oxy_space = [
+    oxy.flows.ParallelFlow(name="parallel_draft", ...),
+    oxy.flows.Reflexion(
+        name="refine_results",
+        worker_agent="parallel_draft",  # 使用并行流程作为工作器
+        ...
+    )
+]
+```
+
+### 模式 2：PlanAndSolve + 工作流
+
+带自定义执行逻辑的规划：
+
+```python
+async def custom_executor(oxy_request: OxyRequest) -> str:
+    # 每个步骤的自定义执行逻辑
+    step = oxy_request.get_query()
+    # ... 自定义逻辑 ...
+    return result
+
+oxy_space = [
+    oxy.flows.Workflow(name="custom_exec", func_workflow=custom_executor),
+    oxy.flows.PlanAndSolve(
+        name="planner",
+        executor_agent_name="custom_exec",  # 使用自定义工作流
+        ...
+    )
+]
+```
+
+### 模式 3：嵌套工作流
+
+编排其他流程的工作流：
+
+```python
+async def orchestrator(oxy_request: OxyRequest) -> str:
+    query = oxy_request.get_query()
+
+    # 使用并行流程进行数据收集
+    data = await oxy_request.call(callee="parallel_fetcher", arguments={"query": query})
+
+    # 使用 reflexion 提升质量
+    result = await oxy_request.call(callee="quality_improver", arguments={"query": data.output})
+
+    return result.output
+
+oxy.flows.Workflow(name="orchestrator", func_workflow=orchestrator)
+```
+
+## 迁移指南
+
+### 从工作流迁移到并行流程
+
+**时机：** 您意识到正在手动执行并行操作
+
+```python
+# 之前（带手动并行化的工作流）
+async def manual_parallel(oxy_request: OxyRequest) -> str:
+    results = await asyncio.gather(
+        oxy_request.call(callee="tool1", ...),
+        oxy_request.call(callee="tool2", ...),
+        oxy_request.call(callee="tool3", ...)
+    )
+    return "\n".join([r.output for r in results])
+
+# 之后（并行流程）
+ParallelFlow(
+    name="parallel",
+    permitted_tool_name_list=["tool1", "tool2", "tool3"]
+)
+```
+
+### 从工作流迁移到 PlanAndSolve
+
+**时机：** 您正在手动分解和执行步骤
+
+```python
+# 之前（带手动规划的工作流）
+async def manual_steps(oxy_request: OxyRequest) -> str:
+    step1 = await oxy_request.call(callee="agent", arguments={"query": "step 1"})
+    step2 = await oxy_request.call(callee="agent", arguments={"query": "step 2"})
+    # ...
+
+# 之后（PlanAndSolve）
+PlanAndSolve(
+    name="planner",
+    planner_agent_name="planner",
+    executor_agent_name="executor"
+)
+```
+
+### 从工作流迁移到 Reflexion
+
+**时机：** 您正在手动实现改进循环
+
+```python
+# 之前（带手动精炼的工作流）
+async def manual_refine(oxy_request: OxyRequest) -> str:
+    result = await oxy_request.call(callee="worker", ...)
+    for i in range(3):
+        evaluation = await oxy_request.call(callee="evaluator", ...)
+        if "good" in evaluation.output:
+            break
+        result = await oxy_request.call(callee="worker", ...)
+    return result.output
+
+# 之后（Reflexion）
+Reflexion(
+    name="improver",
+    worker_agent="worker",
+    reflexion_agent="evaluator",
+    max_reflexion_rounds=3
+)
+```
+
+## 最佳实践摘要
+
+### 工作流
+- 用于其他流程未涵盖的独特模式
+- 保持工作流函数简单且专注
+- 清晰地记录自定义逻辑
+- 考虑专门的流程是否更好
+
+### 并行流程
+- 确保工具真正独立
+- 限制为 2-5 个并行操作
+- 设置适当的超时
+- 考虑使用并行智能体进行智能摘要
+
+### PlanAndSolve
+- 使用强大的 LLM 进行规划
+- 提供清晰的执行器指令
+- 工作流已知时使用预定义步骤
+- 仅在需要时启用重新规划器
+
+### Reflexion
+- 选择强大的评估智能体
+- 设置现实的 max_reflexion_rounds
+- 提供具体的评估标准
+- 对数学任务使用 MathReflexion
+
+## 相关链接
+
+- [工作流](/docs/flows-workflow) - 自定义工作流执行
+- [并行流程](/docs/flows-parallel) - 并行执行
+- [PlanAndSolve](/docs/flows-plan-and-solve) - 计划并执行模式
+- [Reflexion](/docs/flows-reflexion) - 迭代改进
+- [ReAct 智能体](/docs/agents-react) - 推理和行动智能体
+- [多智能体系统（MAS）](/docs/mas) - 智能体编排

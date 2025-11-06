@@ -1,10 +1,10 @@
 ---
 title: Workflow API 参考
-description: 完整 API 参考文档： Workflow flow 构造函数参数和方法
+description: Workflow 流程的完整 API 参考文档，包括构造函数参数和方法
 icon: Code
 ---
 
-## Class 概述
+## 类概述
 
 ```python
 from oxygent.oxy.flows import Workflow
@@ -25,32 +25,32 @@ workflow = Workflow(
 
 ## 构造函数参数
 
-### 必需 参数s
+### 必需参数
 
 |参数|类型|默认值|描述|
 |-----------|------|---------|-------------|
-| `name` | str | 必需 | Unique identifier for the workflow flow |
-| `func_workflow` | Callable | 必需 | Custom workflow function to execute |
+| `name` | str | 必需 | 工作流流程的唯一标识符 |
+| `func_workflow` | Callable | 必需 | 要执行的自定义工作流函数 |
 
-### 可选 参数s
+### 可选参数
 
 |参数|类型|默认值|描述|
 |-----------|------|---------|-------------|
-| `desc` | str | "" | Description of the workflow's purpose |
-| `timeout` | int | 100 | Maximum execution time in seconds |
-| `llm_model` | str | "default_llm" | LLM model name for fallback operations |
-| `is_permission_required` | bool | False | Whether permission is required before execution |
-| `category` | str | "flow" | Category 类ification |
-| `is_master` | bool | False | Whether this is the master entry point |
+| `desc` | str | "" | 工作流用途的描述 |
+| `timeout` | int | 100 | 最大执行时间（秒） |
+| `llm_model` | str | "default_llm" | 用于后备操作的 LLM 模型名称 |
+| `is_permission_required` | bool | False | 执行前是否需要权限 |
+| `category` | str | "flow" | 类别分类 |
+| `is_master` | bool | False | 是否为主入口点 |
 
 ## 参数详情
 
 ### `name`
-- **Type**: `str`
-- **必需**: Yes
-- **Description**: 的唯一标识符 the workflow 在多智能体系统中. 调用时使用此名称 the workflow via `mas.call(callee="workflow_name")`.
+- **类型**：`str`
+- **必需**：是
+- **描述**：工作流在多智能体系统中的唯一标识符。通过 `mas.call(callee="workflow_name")` 调用工作流时使用此名称。
 
-**Example:**
+**示例：**
 ```python
 Workflow(
     name="data_processing_workflow",
@@ -59,11 +59,11 @@ Workflow(
 ```
 
 ### `func_workflow`
-- **Type**: `可选[Callable]`
-- **必需**: Yes (in practice)
-- **Description**: The custom workflow function to execute. Must be an async function that accepts an `OxyRequest` 和 returns a string.
+- **类型**：`可选[Callable]`
+- **必需**：是（实际使用中）
+- **描述**：要执行的自定义工作流函数。必须是接受 `OxyRequest` 并返回字符串的异步函数。
 
-**Function Signature:**
+**函数签名：**
 ```python
 async def workflow_function(oxy_request: OxyRequest) -> str:
     """
@@ -96,11 +96,11 @@ Workflow(
 ```
 
 ### `desc`
-- **Type**: `str`
-- **默认**: `""`
-- **Description**: A human-readable description of what this workflow does. Useful for documentation 和 debugging.
+- **类型**：`str`
+- **默认**：`""`
+- **描述**：此工作流功能的可读描述。对文档和调试很有用。
 
-**Example:**
+**示例：**
 ```python
 Workflow(
     name="validation_workflow",
@@ -110,16 +110,16 @@ Workflow(
 ```
 
 ### `timeout`
-- **Type**: `int`
-- **默认**: `100`
-- **Description**: Maximum execution time in seconds. If the workflow exceeds this time, it will be terminated.
+- **类型**：`int`
+- **默认**：`100`
+- **描述**：最大执行时间（秒）。如果工作流超过此时间，将被终止。
 
-**使用指南:**
-- Simple workflows: 30-60 seconds
-- Multi-agent workflows: 100-200 seconds
-- Complex processing: 300+ seconds
+**使用指南：**
+- 简单工作流：30-60 秒
+- 多智能体工作流：100-200 秒
+- 复杂处理：300+ 秒
 
-**Example:**
+**示例：**
 ```python
 Workflow(
     name="long_running_workflow",
@@ -129,11 +129,11 @@ Workflow(
 ```
 
 ### `llm_model`
-- **Type**: `str`
-- **默认**: `"default_llm"`
-- **Description**: 对大语言模型组件的名称引用 in the MAS, used for any fallback LLM operations.
+- **类型**：`str`
+- **默认**：`"default_llm"`
+- **描述**：MAS 中大语言模型组件的名称引用，用于任何后备 LLM 操作。
 
-**Example:**
+**示例：**
 ```python
 Workflow(
     name="smart_workflow",
@@ -142,12 +142,12 @@ Workflow(
 )
 ```
 
-### `is_permission_必需`
-- **Type**: `bool`
-- **默认**: `False`
-- **Description**: Whether user permission is required before executing this workflow.
+### `is_permission_required`
+- **类型**：`bool`
+- **默认**：`False`
+- **描述**：执行此工作流之前是否需要用户权限。
 
-**Example:**
+**示例：**
 ```python
 Workflow(
     name="destructive_workflow",
@@ -157,16 +157,16 @@ Workflow(
 ```
 
 ### `category`
-- **Type**: `str`
-- **默认**: `"flow"`
-- **Description**: Category classification for the workflow. Inherited from BaseFlow.
+- **类型**：`str`
+- **默认**：`"flow"`
+- **描述**：工作流的类别分类。从 BaseFlow 继承。
 
 ### `is_master`
-- **Type**: `bool`
-- **默认**: `False`
-- **Description**: Whether this workflow is the master entry point for the multi-agent system.
+- **类型**：`bool`
+- **默认**：`False`
+- **描述**：此工作流是否为多智能体系统的主入口点。
 
-**Example:**
+**示例：**
 ```python
 Workflow(
     name="orchestrator_workflow",
@@ -198,13 +198,13 @@ async def _execute(self, oxy_request: OxyRequest) -> OxyResponse:
 
 **Note:** This is an internal method. Users should not call this directly - use `mas.call()` or `oxy_request.call()` instead.
 
-## OxyRequest Context
+## OxyRequest 上下文
 
-Your workflow function receives an `OxyRequest` 对象 包含 the following key methods:
+您的工作流函数接收一个包含以下关键方法的 `OxyRequest` 对象：
 
 ### `get_query(master_level: bool = False) -> str`
 
-Get the current query or the master-level query.
+获取当前查询或主级查询。
 
 ```python
 async def my_workflow(oxy_request: OxyRequest) -> str:
@@ -528,10 +528,9 @@ async def state_machine(oxy_request: OxyRequest) -> str:
     return f"State: {state} → Result: {result.output}"
 ```
 
-## Related API 参考s
+## Related API 参考
 
-- [ParallelFlow API](/oxyapi/flows-parallel-api) - Parallel execution flow API
-- [PlanAndSolve API](/oxyapi/flows-plan-和-solve-api) - Plan-和-execute flow API
-- [Reflexion API](/oxyapi/flows-reflexion-api) - Self-evaluation flow API
-- [BaseFlow API](/oxyapi/base-flow-api) - Base flow class API
-- [OxyRequest API](/oxyapi/oxy-request-api) - Request context API
+- [ParallelFlow API](/oxyapi/flows-parallel-api) - 并行执行流 API
+- [PlanAndSolve API](/oxyapi/flows-plan-and-solve-api) - 计划执行流 API
+- [Reflexion API](/oxyapi/flows-reflexion-api) - 自我评估流 API
+- [Context 文档](/docs/context) - 请求上下文 API

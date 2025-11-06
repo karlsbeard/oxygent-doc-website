@@ -1,0 +1,380 @@
+---
+title: 并行智能体
+description: 在多个团队成员之间并行执行任务以增强思维能力的智能体
+icon: Users
+---
+
+## 定义
+## 适用场景
+
+假设您需要使用智能体来完成业务需求，如果智能体模型的能力较小，您可以使用智能体集群来增强思维能力。OxyGent 原生支持智能体的并行工作，可以综合多组智能体的执行结果并自动总结和反思。您可以像真实工作组织一样安排智能体，而无需担心智能体之间的冲突。
+
+## 配置选项
+
+### 并行执行配置
+
+- `permitted_tool_name_list`: 要并行执行的工具/智能体列表
+- `llm_model`: 用于结果合并的语言模型
+
+### 结果合并配置
+
+ParallelAgent 自动生成以下格式的合并提示词：
+
+```
+You are a helpful assistant, the user's question is: {user_question}.
+Please summarize the results of the parallel execution of the above tasks.
+
+The parallel results are as following:
+1. {first_result}
+2. {second_result}
+3. {third_result}
+...
+```
+
+### 内存管理
+
+- `short_memory_size`: 影响结果合并时的上下文长度
+- 建议使用较小的值，因为并行结果已包含丰富信息
+
+## 性能特征
+
+### 并行执行优势
+
+1. **时间效率**: 所有任务同时执行，总时间等于最慢任务的时间
+2. **资源利用**: 充分利用系统并发能力
+3. **结果多样性**: 从多个角度获得分析结果
+
+### 性能注意事项
+
+1. **并发限制**: 受系统并发能力和 LLM API 限制影响
+2. **内存使用**: 同时处理多个请求会增加内存消耗
+3. **合并成本**: LLM 合并步骤会增加额外的 API 调用
+
+### 最佳实践
+
+1. **合理数量**: 建议 3-10 个并行任务
+2. **任务平衡**: 确保并行任务的执行时间相对平衡
+3. **错误处理**: 为部分任务失败设计容错机制
+
+## 错误处理
+
+### 常见错误
+
+1. **空工具列表**
+   ```python
+   # 错误：未指定并行工具
+   ParallelAgent(
+       name="agent",
+       desc="test",
+       llm_model="default_llm",
+       permitted_tool_name_list=[]  # 空列表
+   )
+   ```
+
+2. **工具未找到**
+   ```python
+   # 确保所有工具都已注册
+   ParallelAgent(
+       permitted_tool_name_list=["tool1", "tool2"],  # 确保 tool1, tool2 存在
+   )
+   ```
+
+3. **LLM 模型未配置**
+   ```python
+   # 确保 LLM 已注册用于结果合并
+   oxy_space = [
+       HttpLLM(name="merge_llm", ...),
+       ParallelAgent(llm_model="merge_llm", ...)
+   ]
+   ```
+
+### 部分失败处理
+
+ParallelAgent 使用 `asyncio.gather()` 进行并行任务执行：
+- 如果任何任务失败，整个并行执行将失败
+- 建议在各个工具/智能体中实现适当的错误处理
+- 考虑使用 `return_exceptions=True` 进行自定义实现
+
+## API 参考
+
+**完整 API 文档请参考：**
+
+**[Parallel智能体 API 参考](/oxyapi/agents-parallel-api)** - 包含完整的构造函数参数、方法签名、并行执行模式和详细的参数描述
+
+## 快速开始
+
+此代码演示了用于进行 AI 产品项目综合可行性评估的多智能体系统（MAS）的设计。该系统采用 `并行智能体` 调度多个专家团队并行工作，实现真正的智能体工作模式：
+
+- **tech_expert**: Expert in assessing the technical feasibility of AI products
+- **business_expert**: Expert in assessing the commercial value of AI products
+- **risk_expert**: Expert in AI-project risk assessment
+- **legal_expert**: Expert in legal compliance for AI products
+
+```python
+oxy_space = [
+ oxy.HttpLLM(
+ name=get_env_var("DEFAULT_LLM_MODEL_NAME"),
+ api_key=get_env_var("DEFAULT_LLM_API_KEY"),
+ base_url=get_env_var("DEFAULT_LLM_BASE_URL"),
+ model_name=get_env_var("DEFAULT_LLM_MODEL_NAME"),
+ llm_params={"temperature": 0.01},
+ semaphore=4,
+ ),
+
+ # ─────────────── Expert agents ───────────────
+
+ # Technical expert – detailed technical-feasibility framework
+ oxy.ChatAgent(
+ name="tech_expert",
+ llm_model=get_env_var("DEFAULT_LLM_MODEL_NAME"),
+ description="Expert in assessing the technical feasibility of AI products",
+ prompt="""You are a seasoned technical architect and AI-system specialist
+responsible for a comprehensive technical-feasibility analysis.
+
+**Analysis framework**
+
+1. **Technology-stack assessment**
+ - Recommended core stack (NLP models, dialog management, knowledge base, etc.)
+ - Comparison of open-source vs. commercial solutions
+ - Maturity and stability assessment
+
+2. **System-architecture design**
+ - Overall architectural recommendations
+ - Key technical components and module breakdown
+ - Data flow and processing pipeline
+ - Scalability and performance considerations
+
+3. **Technical challenges & solutions**
+ - Identification of major technical hurdles
+ - Targeted solution proposals
+ - Technical-risk estimation and mitigation strategies
+
+4. **Development-resource assessment**
+ - Required staffing profile
+ - Estimated development timeline
+ - Technology learning curve
+
+Please output in a *structured* format, including
+• A clear technical-feasibility score (1-10) and
+• Key recommendations."""
+ ),
+
+ # Business analyst – in-depth business-value analysis
+ oxy.ChatAgent(
+ name="business_expert",
+ llm_model=get_env_var("DEFAULT_LLM_MODEL_NAME"),
+ description="Expert in assessing the commercial value of AI products",
+ prompt="""You are an experienced business analyst and product-strategy
+specialist focused on evaluating the commercial value of AI products.
+
+**Analysis framework**
+
+1. **Market-opportunity analysis**
+ - Target-market size and growth potential
+ - Competitor analysis and differentiation
+ - Customer pain points and value proposition
+
+2. **Business-model design**
+ - Suggested revenue models (SaaS subscription, pay-per-use, etc.)
+ - Cost-structure analysis
+ - Profitability forecast
+
+3. **Return-on-investment analysis**
+ - Estimated initial investment
+ - Expected returns and payback period
+ - Key financial metrics (NPV, IRR, break-even)
+
+4. **Go-to-market strategy**
+ - Product-launch strategy
+ - Customer acquisition and retention
+ - Growth-path planning
+
+5. **Critical success factors**
+ - Key performance indicators (KPIs)
+ - Milestone planning
+ - Resource-allocation advice
+
+Please output in a *structured* format, including
+• A clear business-feasibility score (1-10) and
+• Key recommendations."""
+ ),
+
+ # Risk-management expert – comprehensive risk framework
+ oxy.ChatAgent(
+ name="risk_expert",
+ llm_model=get_env_var("DEFAULT_LLM_MODEL_NAME"),
+ description="Expert in AI-project risk identification, assessment and control",
+ prompt="""You are a professional risk-management expert focused solely on
+risk identification, assessment and control for AI projects.
+**Important constraint: analyse only from a risk perspective – do *not*
+cover technical, legal or business aspects.**
+
+**Risk-assessment framework**
+
+1. **Technical risks**
+ - AI-model performance below expectations
+ - Technical-complexity overruns
+ - Third-party dependency risks
+ - Data-quality and acquisition risks
+
+2. **Market risks**
+ - Changes in market demand
+ - Intensifying competition
+ - Customer-acceptance risks
+ - Technological substitution
+
+3. **Operational risks**
+ - Staff attrition
+ - Project-management risks
+ - Budget overruns
+ - Schedule delays
+
+4. **Compliance & security risks**
+ - Data privacy & security
+ - AI ethics & bias
+ - Regulatory changes
+ - Intellectual-property risks
+
+For each risk item provide:
+- Probability (Low / Medium / High)
+- Impact (Low / Medium / High)
+- Risk level (Low / Medium / High / Critical)
+- Specific mitigation measures
+- Contingency-plan suggestions
+
+Finally give an overall risk rating and core risk-control advice."""
+ ),
+
+ # Legal expert – comprehensive compliance analysis
+ oxy.ChatAgent(
+ name="legal_expert",
+ llm_model=get_env_var("DEFAULT_LLM_MODEL_NAME"),
+ description="Expert in legal compliance and IP protection for AI products",
+ prompt="""You are a professional tech lawyer focused on AI-product
+compliance and intellectual-property protection – no need to consider
+other dimensions.
+**Important constraint: analyse only from a legal perspective – do *not*
+cover technical, business or risk topics.**
+
+**Compliance-analysis framework**
+
+1. **Data compliance**
+ - Personal-Information Protection Law (PIPL) requirements
+ - Cross-border data-transfer rules
+ - User consent & transparency mechanisms
+ - Data-storage & processing norms
+
+2. **AI governance compliance**
+ - AI-algorithm recommendation regulations
+ - Applicability of deep-synthesis rules
+ - AI ethics review requirements
+ - Algorithm transparency & explainability
+
+3. **Business compliance**
+ - Sector-specific regulations for customer service
+ - Consumer-rights protection
+ - Advertising-law requirements
+ - Industry-specific compliance rules
+
+4. **Intellectual-property protection**
+ - Core-technology patent-strategy suggestions
+ - Trademark & copyright protection
+ - Open-source software compliance
+ - Third-party IP-infringement risks
+
+5. **Contracts & agreements**
+ - Key points for customer-service agreements
+ - Data-processing-agreement templates
+ - Supplier cooperation contracts
+ - Employee confidentiality agreements
+
+Provide concrete compliance advice, legal-risk assessment
+and a checklist of necessary legal documents."""
+ ),
+
+ # ParallelAgent to gather all expert opinions in parallel
+ oxy.ParallelAgent(
+ name="expert_panel",
+ llm_model=get_env_var("DEFAULT_LLM_MODEL_NAME"),
+ desc="Expert panel for parallel analysis",
+ permitted_tool_name_list=[
+ "tech_expert", "business_expert", "risk_expert", "legal_expert"
+ ],
+ is_master=True,
+ ),
+]
+
+# ─────────────── 使用示例 ───────────────
+async def main():
+ async with MAS(oxy_space=oxy_space) as mas:
+ await mas.start_web_service(
+ first_query="""
+Project background:
+We are a mid-sized e-commerce company. Our 50-person customer-service team
+handles 5,000+ inquiries per day. The main inquiry types are:
+- Order-status queries (40 %)
+- Product-information queries (30 %)
+- After-sales service (20 %)
+- Other issues (10 %)
+
+Project goals:
+Build an intelligent customer-service system that can:
+1. Automatically handle 80 %+ of common questions
+2. Provide 24 × 7 service capability
+3. Reduce labour costs by 30 %+
+4. Increase customer satisfaction to 90 %+
+
+Current resources:
+- Technical team: 10 people (including 2 AI engineers)
+- Budget: CNY 2 million
+- Timeline: MVP launch within 6 months
+- Data: ~500 k conversation records from the last 2 years
+
+Specific requirements:
+1. Support both text and voice interaction
+2. Integrate with existing CRM and order systems
+3. Support multi-turn conversation and context understanding
+4. Provide a human hand-off mechanism
+5. Require high availability (≥ 99.9 %)
+
+Please conduct a comprehensive evaluation and give a clear
+recommendation on whether to start this project.
+"""
+ )
+
+if __name__ == "__main__":
+ asyncio.run(main())
+```
+
+## 示例
+
+实际使用示例和模式，请参考：
+
+- [多专家分析](/examples/agents/parallel-experts) - 专家团队并行分析
+- [AI项目评估](/examples/application/ai-project-assessment) - 完整的项目可行性评估
+- [多维度决策](/examples/agents/multi-dimension-decision) - 多角度决策支持
+
+查看所有示例：[示例 Gallery](/examples)
+
+## 使用场景
+
+### 适用场景
+
+1. **多专家咨询**: 多个专家同时分析同一问题
+2. **多维度分析**: 从技术、业务、风险等多个角度评估
+3. **对比评估**: 并行比较多个解决方案或选项
+4. **增强决策**: 通过多样化视角提高决策质量
+
+### 不适用场景
+
+1. **顺序依赖**: 后续任务依赖前面任务的结果
+2. **资源竞争**: 多个任务竞争相同的有限资源
+3. **简单查询**: 单维度的简单问题
+4. **实时交互**: 需要快速响应的场景
+
+## 相关链接
+
+- [Chat智能体](/docs/agents-chat) - 基础聊天代理
+- [ReAct智能体](/docs/agents-react) - 推理代理
+- [工作流智能体](/docs/agents-workflow) - 工作流代理
+- [配置](/docs/configuration) - 配置选项

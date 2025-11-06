@@ -1,0 +1,270 @@
+---
+title: ReAct智能体
+description: 实现 ReAct 范式的多功能智能体，用于需要推理和工具执行的复杂任务
+icon: Zap
+---
+
+ReAct 智能体实现了 **ReAct（推理和行动）** 范式，通过在迭代循环中结合语言模型推理和工具执行来实现自主智能体行为。
+
+## 概述
+
+ReAct 智能体是 OxyGent 中用于需要多次工具交互的复杂任务的最通用智能体。它智能地在以下方面交替进行：
+
+1. **推理**：使用 LLM 分析任务并决定下一步行动
+2. **行动**：基于推理决策执行工具
+3. **观察**：处理工具结果以指导下一步推理
+
+这个循环持续进行，直到智能体达到满意的答案或达到最大迭代限制。
+
+## 快速开始
+
+### 基本用法
+
+```python
+import asyncio
+from oxygent import MAS, oxy
+
+oxy_space = [
+ oxy.HttpLLM(
+ name="default_llm",
+ base_url="your_base_url",
+ api_key="your_api_key",
+ model_name="your_model"
+ ),
+ oxy.FunctionTool(
+ name="calculator",
+ func=lambda x, y: x + y,
+ description="Add two numbers"
+ ),
+ oxy.ReActAgent(
+ name="assistant",
+ is_master=True,
+ llm_model="default_llm",
+ tools=["calculator"]
+ ),
+]
+
+async def main():
+ async with MAS(oxy_space=oxy_space) as mas:
+ result = await mas.call(
+ callee="assistant",
+ arguments={
+ "messages": [
+ {"role": "user", "content": "What is 25 + 17?"}
+ ]
+ }
+ )
+ print(result.output)
+
+asyncio.run(main())
+```
+
+### With Multiple 工具s
+
+```python
+from oxygent import preset_tools
+
+oxy_space = [
+ oxy.HttpLLM(name="default_llm", ...),
+ preset_tools.math_tools,
+ preset_tools.time_tools,
+ preset_tools.http_tools,
+ oxy.ReActAgent(
+ name="multi_tool_agent",
+ is_master=True,
+ llm_model="default_llm",
+ tools=["math_tools", "time_tools", "http_tools"],
+ max_react_rounds=10
+ ),
+]
+```
+
+## 配置选项
+
+### 核心参数
+
+#### `max_react_rounds` (int, default: 16)
+
+Maximum number of reasoning-acting iterations before fallback mechanism activates.
+
+```python
+oxy.ReActAgent(
+ name="patient_agent",
+ max_react_rounds=25, # Allow more iterations for complex tasks
+ ...
+)
+```
+
+**When to adjust**:
+- Increase for complex multi-step tasks
+- Decrease for simple tasks to save costs
+- Monitor actual rounds used via logs
+
+#### `llm_model` (str, required)
+
+Name 的LLM component to use for reasoning.
+
+```python
+oxy_space = [
+ oxy.HttpLLM(name="fast_model", model_name="gpt-3.5-turbo", ...),
+ oxy.HttpLLM(name="smart_model", model_name="gpt-4", ...),
+ oxy.ReActAgent(
+ name="agent",
+ llm_model="smart_model", # Use more capable model
+ ...
+ ),
+]
+```
+
+#### `tools` (列表[str])
+
+List of tool names the agent can use. 工具 必须 registered same MAS.
+
+```python
+oxy.ReActAgent(
+ name="agent",
+ tools=["web_search", "calculator", "file_reader"],
+ ...
+)
+```
+
+### 内存 Management
+
+#### `is_discard_react_memory` (bool, default: True)
+
+Controls how conversation history is stored:
+
+- **True**：简单模式 - 只保留最终的问答对
+- **False**：高级模式 - 保留详细的 ReAct 推理步骤和加权评分
+
+```python
+# Simple mode (recommended for most use cases)
+oxy.ReActAgent(
+ name="simple_agent",
+ is_discard_react_memory=True, # Clean history
+ ...
+)
+
+# Advanced mode (for debugging or complex reasoning chains)
+oxy.ReActAgent(
+ name="detailed_agent",
+ is_discard_react_memory=False, # Keep full reasoning trace
+ memory_max_tokens=30000,
+ weight_short_memory=5,
+ weight_react_memory=1,
+ ...
+)
+```
+
+有关更详细的配置选项和高级功能，请参考源文档。
+
+## 理解 ReAct 执行流程
+
+### Normal Execution Cycle
+
+```
+User Query
+ ↓
+┌─────────────────────────┐
+│ 1. Reasoning (LLM) │ ← System Prompt + History + Query
+│ Decides next action │
+└─────────────────────────┘
+ ↓
+┌─────────────────────────┐
+│ 2. Action (Tool Call) │ ← Execute tool(s)
+│ or Final Answer │
+└─────────────────────────┘
+ ↓
+┌─────────────────────────┐
+│ 3. Observation │ ← Tool results
+│ Add to ReAct memory │
+└─────────────────────────┘
+ ↓
+ Repeat until answer or max_react_rounds
+ ↓
+Final Answer
+```
+
+## 最佳实践
+
+### 1. Choose Appropriate max_react_rounds
+
+```python
+# Simple single-tool tasks
+oxy.ReActAgent(name="simple", max_react_rounds=3, ...)
+
+# Multi-step research tasks
+oxy.ReActAgent(name="researcher", max_react_rounds=20, ...)
+
+# Complex reasoning chains
+oxy.ReActAgent(name="planner", max_react_rounds=30, ...)
+```
+
+### 2. 内存 Management Strategy
+
+```python
+# For production chatbots (clean history)
+oxy.ReActAgent(
+ name="chatbot",
+ is_discard_react_memory=True,
+ short_memory_size=10, # Keep last 10 conversations
+)
+
+# For debugging/analysis (detailed trace)
+oxy.ReActAgent(
+ name="debug_agent",
+ is_discard_react_memory=False,
+ memory_max_tokens=50000,
+)
+```
+
+### 3. 工具 Organization
+
+```python
+# Group related tools
+math_agent = oxy.ReActAgent(
+ name="math_agent",
+ tools=["calculator", "equation_solver", "statistics"],
+ ...
+)
+
+# Use hierarchical agents for complex domains
+main_agent = oxy.ReActAgent(
+ name="main",
+ sub_agents=["math_agent", "web_agent", "file_agent"],
+ ...
+)
+```
+
+## API 参考
+
+完整的 API 文档，包括所有构造函数参数、方法和详细的参数描述，请参考：
+
+**[ReAct智能体 API 参考](/oxyapi/agents-react-api)** - 完整的 API 文档
+
+## Multimodal Support
+
+ReAct智能体 支持multimodal queries (text, images, video):
+
+```python
+result = await mas.call(
+ callee="agent",
+ arguments={
+ "messages": [
+ {
+ "role": "user",
+ "content": [
+ {"type": "text", "text": "What's in this image?"},
+ {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64,..."}}
+ ]
+ }
+ ]
+ }
+)
+```
+
+## 相关链接
+
+- [Chat智能体](/docs/agents-chat) - For simple conversational tasks
+- [Parallel智能体](/docs/agents-parallel) - For parallel task execution
+- [工具s](/docs/tools-function-hub) - Learn about available tools

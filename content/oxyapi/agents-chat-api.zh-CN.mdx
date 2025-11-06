@@ -1,19 +1,19 @@
 ---
 title: ChatAgent API 参考
-description: 完整 API 参考文档： the ChatAgent class including constructor parameters, methods, 和 usage examples
+description: ChatAgent 类的完整 API 参考文档，包括构造函数参数、方法和使用示例
 icon: MessageSquare
 ---
 
-## Class 概述
+## 类概述
 
 ```python
 from oxygent.oxy import ChatAgent
 
 class ChatAgent(LocalAgent):
-    """A conversational agent that manages chat interactions with language models."""
+    """管理与语言模型聊天交互的对话代理。"""
 ```
 
-ChatAgent inherits from `LocalAgent` 和 provides basic conversational functionality, including conversation history management, user query processing, 和 language model coordination.
+ChatAgent 继承自 `LocalAgent`，提供基础对话功能，包括对话历史管理、用户查询处理和语言模型协调。
 
 ## 构造函数
 
@@ -29,16 +29,16 @@ ChatAgent(
 )
 ```
 
-#### 参数s
+#### 参数
 
 |参数|类型|默认值|描述|
 |-----------|------|---------|-------------|
-| `name` | `str` | 必需 | Agent name for identification 和 calling |
+| `name` | `str` | 必需 | 用于标识和调用的代理名称 |
 | `desc` | `str` | 必需 | 解释代理功能的描述 |
 | `llm_model` | `str` | 必需 | 要使用的大语言模型标识符 |
 | `prompt` | `可选[str]` | `"You are a helpful assistant."` | 定义代理行为的系统提示 |
 
-#### Inherited 参数s (from LocalAgent)
+#### 继承参数（来自 LocalAgent）
 
 |参数|类型|默认值|描述|
 |-----------|------|---------|-------------|
@@ -53,14 +53,14 @@ ChatAgent(
 | `is_multimodal_supported` | `bool` | `False` | 是否支持多模态输入 |
 | `team_size` | `int` | `1` | 团队执行的实例数 |
 
-#### Inherited 参数s (from BaseAgent)
+#### 继承参数（来自 BaseAgent）
 
 |参数|类型|默认值|描述|
 |-----------|------|---------|-------------|
 | `category` | `str` | `"agent"` | 工具/代理类别 |
 | `input_schema` | `dict[str, Any]` | 配置默认值 | 输入参数模式 |
 
-#### Inherited 参数s (from BaseFlow)
+#### 继承参数（来自 BaseFlow）
 
 |参数|类型|默认值|描述|
 |-----------|------|---------|-------------|
@@ -80,28 +80,28 @@ ChatAgent(
 async def _execute(self, oxy_request: OxyRequest) -> OxyResponse
 ```
 
-Execute a chat interaction 包含 the language model.
+执行与语言模型的聊天交互。
 
-#### 参数s
+#### 参数
 
 |参数|类型|描述|
 |-----------|------|-------------|
-| `oxy_request` | `OxyRequest` | Request 对象，包含 用户查询, 对话历史, 和 和额外参数 |
+| `oxy_request` | `OxyRequest` | 包含用户查询、对话历史和额外参数的请求对象 |
 
 #### 返回值
 
 |类型|描述|
 |------|-------------|
-| `OxyResponse` | Response from the language model containing the generated answer |
+| `OxyResponse` | 包含生成答案的语言模型响应 |
 
 #### 执行流程
 
-1. **创建临时内存**: 创建一个新的 Memory 对象来管理对话
-2. **添加系统消息**: 使用构建的指令添加系统提示
-3. **Load short-term memory**: Adds recent 对话历史
-4. **Add 用户查询**: Appends current 用户查询 to continue multi-turn conversation
-5. **Call language model**: Prepares arguments 和 calls configured LLM
-6. **Return response**: Returns LLM response
+1. **创建临时内存**：创建一个新的 Memory 对象来管理对话
+2. **添加系统消息**：使用构建的指令添加系统提示
+3. **加载短期内存**：添加最近的对话历史
+4. **添加用户查询**：追加当前用户查询以继续多轮对话
+5. **调用语言模型**：准备参数并调用配置的 LLM
+6. **返回响应**：返回 LLM 响应
 
 ### set_default_prompt()
 
@@ -110,46 +110,46 @@ Execute a chat interaction 包含 the language model.
 def set_default_prompt(self) -> "ChatAgent"
 ```
 
-Model validator that sets default prompt if none is provided.
+模型验证器，如果未提供则设置默认提示。
 
 #### 返回值
 
 |类型|描述|
 |------|-------------|
-| `ChatAgent` | Returns self instance |
+| `ChatAgent` | 返回自身实例 |
 
-### Inherited 方法
+### 继承方法
 
-ChatAgent inherits the following methods:
+ChatAgent 继承以下方法：
 
-#### From LocalAgent
+#### 来自 LocalAgent
 
-- `init()` - Initialize agent 和 setup team execution
-- `_get_history()` - Retrieve conversation history from Elasticsearch
-- `_get_llm_tool_desc_list()` - Get tool descriptions for LLM context
-- `_build_instruction()` - Build instruction prompt by substituting template variables
-- `_pre_process()` - Pre-process request to load 对话历史
-- `_before_execute()` - Prepare tools description for LLM execution
+- `init()` - 初始化代理并设置团队执行
+- `_get_history()` - 从 Elasticsearch 检索对话历史
+- `_get_llm_tool_desc_list()` - 获取 LLM 上下文的工具描述
+- `_build_instruction()` - 通过替换模板变量构建指令提示
+- `_pre_process()` - 预处理请求以加载对话历史
+- `_before_execute()` - 为 LLM 执行准备工具描述
 
-#### From BaseAgent
+#### 来自 BaseAgent
 
-- `_pre_save_data()` - Save preliminary trace data before processing
+- `_pre_save_data()` - 在处理前保存初步追踪数据
 
-#### From BaseFlow
+#### 来自 BaseFlow
 
-- `call()` - Execute agent 和 h和le request
-- `add_permitted_tool()` - Add permitted tool to list
-- `set_mas()` - Set multi-agent system reference
+- `call()` - 执行代理并处理请求
+- `add_permitted_tool()` - 将允许的工具添加到列表
+- `set_mas()` - 设置多智能体系统引用
 
-## Usage 示例s
+## 使用示例
 
-### Basic Usage
+### 基础用法
 
 ```python
 from oxygent import MAS, OxySpace
 from oxygent.oxy import ChatAgent, HttpLLM
 
-# Create OxySpace and register components
+# 创建 OxySpace 并注册组件
 oxy_space = [
     HttpLLM(
         name="default_llm",
@@ -159,111 +159,111 @@ oxy_space = [
     ),
     ChatAgent(
         name="chat_agent",
-        desc="Basic chat agent",
+        desc="基础聊天代理",
         llm_model="default_llm",
         prompt="You are a helpful assistant."
     )
 ]
 
-# Use ChatAgent for conversation
+# 使用 ChatAgent 进行对话
 async def main():
     async with MAS(oxy_space=oxy_space) as mas:
         result = await mas.call(
             callee="chat_agent",
-            arguments={"query": "Hello, please introduce yourself."}
+            arguments={"query": "你好，请介绍一下你自己。"}
         )
         print(result.output)
 ```
 
-### Custom Prompt
+### 自定义提示
 
 ```python
 ChatAgent(
     name="specialized_agent",
-    desc="Professional customer service agent",
+    desc="专业客服代理",
     llm_model="default_llm",
-    prompt="You are a professional customer service representative. "
-           "Always be polite, helpful, and provide accurate information."
+    prompt="你是一名专业的客户服务代表。"
+           "始终保持礼貌、乐于助人，并提供准确的信息。"
 )
 ```
 
-### Memory Management
+### 内存管理
 
 ```python
 ChatAgent(
     name="memory_agent",
-    desc="Chat agent with memory management",
+    desc="带内存管理的聊天代理",
     llm_model="default_llm",
-    short_memory_size=20,  # Retain 20 conversation turns
-    is_retain_master_short_memory=True  # Retain user-level history
+    short_memory_size=20,  # 保留 20 轮对话
+    is_retain_master_short_memory=True  # 保留用户级历史
 )
 ```
 
-### Team Execution Mode
+### 团队执行模式
 
 ```python
 ChatAgent(
     name="team_agent",
-    desc="Team collaborative chat agent",
+    desc="团队协作聊天代理",
     llm_model="default_llm",
-    team_size=3,  # Create 3 parallel instances
+    team_size=3,  # 创建 3 个并行实例
     is_master=True
 )
 ```
 
-## Configuration Options
+## 配置选项
 
-### Memory Management
+### 内存管理
 
-- `short_memory_size`: Controls number of conversation turns to retain
-- `is_retain_master_short_memory`: Whether to retain user-level 对话历史
+- `short_memory_size`：控制保留的对话轮次数
+- `is_retain_master_short_memory`：是否保留用户级对话历史
 
-### Prompt Configuration
+### 提示配置
 
-- `prompt`: Main system prompt
-- `additional_prompt`: 额外的用户自定义提示
+- `prompt`：主系统提示
+- `additional_prompt`：额外的用户自定义提示
 
-### Team Execution
+### 团队执行
 
-- `team_size`: Number of parallel execution instances (creates ParallelAgent 当 >1)
+- `team_size`：并行执行实例数（当 >1 时创建 ParallelAgent）
 
 ## 错误处理
 
-### Common Errors
+### 常见错误
 
-1. **Missing LLM Model**
+1. **缺少 LLM 模型**
    ```python
-   # Error: llm_model not set
-   ChatAgent(name="agent", desc="test")  # Raises exception
+   # 错误：未设置 llm_model
+   ChatAgent(name="agent", desc="test")  # 抛出异常
 
-   # Correct: set llm_model
+   # 正确：设置 llm_model
    ChatAgent(name="agent", desc="test", llm_model="default_llm")
    ```
 
-2. **LLM Model Not Found**
+2. **LLM 模型未找到**
    ```python
-   # Ensure LLM model is registered in MAS
+   # 确保 LLM 模型在 MAS 中注册
    oxy_space = [
-       HttpLLM(name="my_llm", ...),  # Register LLM first
-       ChatAgent(llm_model="my_llm", ...)  # Then reference it
+       HttpLLM(name="my_llm", ...),  # 首先注册 LLM
+       ChatAgent(llm_model="my_llm", ...)  # 然后引用它
    ]
    ```
 
-## Performance Considerations
+## 性能考虑
 
-### Memory Management
+### 内存管理
 
-- Larger `short_memory_size` increases token consumption in LLM calls
-- Recommend setting appropriate memory size based on actual needs
+- 较大的 `short_memory_size` 会增加 LLM 调用中的令牌消耗
+- 建议根据实际需求设置适当的内存大小
 
-### Team Execution
+### 团队执行
 
-- `team_size > 1` creates multiple agent instances for parallel execution
-- Suitable for scenarios requiring diverse responses
+- `team_size > 1` 会创建多个代理实例进行并行执行
+- 适用于需要多样化响应的场景
 
-## Related Links
+## 相关链接
 
-- [ChatAgent Main Documentation](/docs/agents-chat) - 概述 和 usage guide
-- [LocalAgent API](/oxyapi/agents-local-api) - Parent class API reference
-- [ReActAgent API](/oxyapi/agents-react-api) - More complex reasoning agent
-- [ParallelAgent API](/oxyapi/agents-parallel-api) - Parallel execution agent
+- [ChatAgent 主文档](/docs/agents-chat) - 概述和使用指南
+- [ReActAgent API](/oxyapi/agents-react-api) - 更复杂的推理代理
+- [ParallelAgent API](/oxyapi/agents-parallel-api) - 并行执行代理
+- [WorkflowAgent API](/oxyapi/agents-workflow-api) - 工作流代理

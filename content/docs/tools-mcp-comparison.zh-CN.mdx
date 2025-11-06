@@ -1,0 +1,514 @@
+---
+title: MCP 客户端对比
+description: 对比不同的 MCP 客户端，为您的使用场景选择合适的客户端
+icon: GitCompare
+---
+
+# MCP 客户端对比指南
+
+本指南通过对比 OxyGent 中三种可用的 MCP（模型上下文协议）客户端实现，帮助您为特定的使用场景选择合适的客户端。
+
+## 快速决策树
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ 我应该使用哪个 MCP 客户端？ │
+└─────────────────────────────────────────────────────────┘
+ │
+ ▼
+ ┌─────────────────────────┐
+ │ MCP 服务器是否 │
+ │ 运行在本地？ │
+ └─────────────────────────┘
+ │ │
+ 是 │ │否
+ │ │
+ ▼ ▼
+ ┌──────────────────┐ ┌──────────────────────┐
+ │ StdioMCPClient │ │ 需要双向 │
+ │ │ │ 流式传输吗？ │
+ └──────────────────┘ └──────────────────────┘
+ (最佳) │ │
+ 是 │ │否
+ │ │
+ ▼ ▼
+ ┌──────────────────┐ ┌──────────────────┐
+ │StreamableMCPClient│ │ SSEMCPClient │
+ │ │ │ │
+ └──────────────────┘ └──────────────────┘
+ (高级) (标准)
+```
+
+## 概述对比
+
+| 特性 | StdioMCPClient | SSEMCPClient | StreamableMCPClient |
+|---------|----------------|--------------|---------------------|
+| **传输方式** | stdio（管道） | HTTP SSE | HTTP 流式 |
+| **方向** | 双向 | 单向（服务器→客户端） | 双向 |
+| **位置** | 仅本地 | 远程 | 远程 |
+| **延迟** | ⚡ 极低 | 🚀 低 | 🚀 低 |
+| **复杂度** | ⭐ 简单 | ⭐⭐ 中等 | ⭐⭐⭐ 高级 |
+| **身份验证** | 不适用 | ✅ 请求头 | ✅ 请求头 |
+| **最适用于** | 本地工具 | 远程流式传输 | 复杂流式传输 |
+
+## 详细对比
+
+### 传输与通信
+
+| 方面 | StdioMCPClient | SSEMCPClient | StreamableMCPClient |
+|--------|----------------|--------------|---------------------|
+| **协议** | stdin/stdout | HTTP SSE | HTTP 流式 |
+| **方向** | 全双工 | 仅服务器→客户端 | 全双工 |
+| **连接** | 进程管道 | HTTP GET（持久） | HTTP POST/流式 |
+| **开销** | 最小 | 低 | 中等 |
+| **网络** | 不需要 | 必需 | 必需 |
+
+### 使用场景
+
+#### StdioMCPClient
+
+**✅ 最适合：**
+- 本地 MCP 服务器（Node.js、Python 等）
+- 开发和测试
+- 基于 NPX 的 MCP 包
+- 带有 MCP 接口的命令行工具
+- 单机部署
+- 最低延迟要求
+
+**❌ 不适合：**
+- 远程 MCP 服务器
+- 基于 Web 的部署
+- 需要身份验证的服务
+- 多机架构
+
+**示例使用场景：**
+```python
+# Local filesystem tools
+oxy.StdioMCPClient(
+ name="filesystem",
+ params={
+ "command": "npx",
+ "args": ["-y", "@modelcontextprotocol/server-filesystem", "/workspace"]
+ }
+)
+
+# Custom local Python server
+oxy.StdioMCPClient(
+ name="local_tools",
+ params={
+ "command": "uv",
+ "args": ["--directory", "./mcp_servers", "run", "my_server.py"]
+ }
+)
+```
+
+#### SSEMCPClient
+
+**✅ 最适合：**
+- 基于 HTTP 的远程 MCP 服务器
+- 实时单向流式传输
+- 简单身份验证（请求头）
+- 云托管的 MCP 服务
+- Web 应用程序集成
+- 可扩展的多客户端设置
+
+**❌ 不适合：**
+- 仅本地工具
+- 复杂的双向流式传输
+- 需要客户端→服务器流式传输的场景
+
+**示例使用场景：**
+```python
+# Remote API with authentication
+oxy.SSEMCPClient(
+ name="remote_api",
+ sse_url="https://api.example.com/mcp/sse",
+ headers={"Authorization": f"Bearer {token}"}
+)
+
+# Real-time data streaming
+oxy.SSEMCPClient(
+ name="live_data",
+ sse_url="https://streaming.example.com/sse",
+ is_keep_alive=True
+)
+```
+
+#### StreamableMCPClient
+
+**✅ 最适合：**
+- 高级双向 HTTP 流式传输
+- 复杂的请求/响应模式
+- 长时间运行的流式操作
+- 企业级 HTTP 要求
+- 带有 HTTP 代理的服务
+- 高级连接管理
+
+**❌ 不适合：**
+- 简单流式传输（使用 SSE 代替）
+- 本地工具（使用 Stdio 代替）
+- 低延迟关键应用
+
+**示例使用场景：**
+```python
+# Complex streaming analytics
+oxy.StreamableMCPClient(
+ name="analytics",
+ server_url="https://analytics.example.com/mcp",
+ headers={"Authorization": f"Bearer {token}"}
+)
+
+# Bidirectional data processing
+oxy.StreamableMCPClient(
+ name="processing",
+ server_url="https://process.example.com/mcp",
+ is_keep_alive=True
+)
+```
+
+### 性能特征
+
+| 指标 | StdioMCPClient | SSEMCPClient | StreamableMCPClient |
+|--------|----------------|--------------|---------------------|
+| **延迟** | `<1ms`（本地） | 10-50ms（网络） | 10-50ms（网络） |
+| **吞吐量** | 非常高 | 高 | 高 |
+| **CPU 使用率** | 低 | 低 | 低-中等 |
+| **内存** | 最小 | 低 | 中等 |
+| **启动时间** | 快（进程启动） | 快（HTTP 连接） | 快（HTTP 连接） |
+| **连接开销** | 最小 | 中等 | 中等 |
+
+### 配置对比
+
+#### 基本设置
+
+**StdioMCPClient:**
+```python
+oxy.StdioMCPClient(
+ name="local_server",
+ params={
+ "command": "npx",
+ "args": ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"],
+ "env": {} # Optional environment variables
+ }
+)
+```
+
+**SSEMCPClient:**
+```python
+oxy.SSEMCPClient(
+ name="remote_server",
+ sse_url="http://localhost:9000/sse",
+ headers={}, # Optional HTTP headers
+ middlewares=[] # Optional middlewares
+)
+```
+
+**StreamableMCPClient:**
+```python
+oxy.StreamableMCPClient(
+ name="streaming_server",
+ server_url="http://localhost:8000/mcp",
+ headers={}, # Optional HTTP headers
+ middlewares=[] # Optional middlewares
+)
+```
+
+#### 使用身份验证
+
+**StdioMCPClient:**
+```python
+# Authentication via environment variables
+oxy.StdioMCPClient(
+ name="local_server",
+ params={
+ "command": "python",
+ "args": ["./server.py"],
+ "env": {
+ "API_KEY": os.getenv("MY_API_KEY")
+ }
+ }
+)
+```
+
+**SSEMCPClient:**
+```python
+# Authentication via HTTP headers
+oxy.SSEMCPClient(
+ name="remote_server",
+ sse_url="https://api.example.com/sse",
+ headers={
+ "Authorization": f"Bearer {os.getenv('TOKEN')}"
+ }
+)
+```
+
+**StreamableMCPClient:**
+```python
+# Authentication via HTTP headers
+oxy.StreamableMCPClient(
+ name="streaming_server",
+ server_url="https://api.example.com/mcp",
+ headers={
+ "Authorization": f"Bearer {os.getenv('TOKEN')}"
+ }
+)
+```
+
+### 功能矩阵
+
+| 功能 | StdioMCPClient | SSEMCPClient | StreamableMCPClient |
+|---------|:--------------:|:------------:|:-------------------:|
+| **本地进程** | ✅ | ❌ | ❌ |
+| **远程 HTTP** | ❌ | ✅ | ✅ |
+| **身份验证** | 环境变量 | ✅ 请求头 | ✅ 请求头 |
+| **动态请求头** | ❌ | ✅ | ✅ |
+| **继承请求头** | ❌ | ✅ | ✅ |
+| **中间件** | ❌ | ✅ | ✅ |
+| **保持连接** | ✅ | ✅ | ✅ |
+| **双向** | ✅ | ❌ | ✅ |
+| **NPX 支持** | ✅ | ❌ | ❌ |
+| **目录验证** | ✅ | ❌ | ❌ |
+| **连接池** | ❌ | 有限 | ✅ |
+
+## 常见场景
+
+### 场景 1：本地开发
+
+**推荐：** StdioMCPClient
+
+**原因：**
+- 最快的延迟（无网络）
+- 简单设置
+- 易于调试（进程日志）
+- 离线工作
+
+**示例：**
+```python
+oxy_space = [
+ oxy.HttpLLM(name="llm", ...),
+ oxy.StdioMCPClient(
+ name="dev_tools",
+ params={
+ "command": "npx",
+ "args": ["-y", "@modelcontextprotocol/server-filesystem", "./workspace"]
+ }
+ ),
+ oxy.ReActAgent(name="agent", llm_model="llm", tools=["dev_tools"])
+]
+```
+
+### 场景 2：生产 Web 服务
+
+**推荐：** SSEMCPClient 或 StreamableMCPClient
+
+**原因：**
+- 需要远程访问
+- 需要身份验证
+- 可扩展架构
+- 多个客户端
+
+**示例（SSE 用于简单流式传输）：**
+```python
+oxy_space = [
+ oxy.HttpLLM(name="llm", ...),
+ oxy.SSEMCPClient(
+ name="prod_tools",
+ sse_url="https://api.example.com/mcp/sse",
+ headers={"Authorization": f"Bearer {token}"},
+ is_keep_alive=True
+ ),
+ oxy.ReActAgent(name="agent", llm_model="llm", tools=["prod_tools"])
+]
+```
+
+**示例（Streamable 用于复杂流式传输）：**
+```python
+oxy_space = [
+ oxy.HttpLLM(name="llm", ...),
+ oxy.StreamableMCPClient(
+ name="prod_streaming",
+ server_url="https://api.example.com/mcp",
+ headers={"Authorization": f"Bearer {token}"},
+ is_keep_alive=True
+ ),
+ oxy.ReActAgent(name="agent", llm_model="llm", tools=["prod_streaming"])
+]
+```
+
+### 场景 3：多环境设置
+
+**推荐：** 混合使用所有客户端
+
+**原因：**
+- 不同环境有不同需求
+- 开发使用本地工具
+- 生产使用远程 API
+
+**示例：**
+```python
+oxy_space = [
+ oxy.HttpLLM(name="llm", ...),
+
+ # Local tools (fastest)
+ oxy.StdioMCPClient(
+ name="local_fs",
+ params={"command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem", "."]}
+ ),
+
+ # Remote API (SSE)
+ oxy.SSEMCPClient(
+ name="remote_api",
+ sse_url="https://api.example.com/sse",
+ headers={"Authorization": f"Bearer {token}"}
+ ),
+
+ # Streaming service (Streamable)
+ oxy.StreamableMCPClient(
+ name="streaming_service",
+ server_url="https://stream.example.com/mcp",
+ headers={"Authorization": f"Bearer {token}"}
+ ),
+
+ oxy.ReActAgent(
+ name="agent",
+ llm_model="llm",
+ tools=["local_fs", "remote_api", "streaming_service"]
+ )
+]
+```
+
+### 场景 4：动态身份验证
+
+**推荐：** SSEMCPClient 或 StreamableMCPClient 并设置 `is_dynamic_headers=True`
+
+**原因：**
+- 每个请求的身份验证
+- 用户特定的令牌
+- 请求级别的请求头
+
+**示例：**
+```python
+oxy.SSEMCPClient(
+ name="dynamic_auth",
+ sse_url="https://api.example.com/sse",
+ headers={"X-Service-Key": "base-key"},
+ is_dynamic_headers=True,
+ is_inherit_headers=True,
+ is_keep_alive=False # 必需
+)
+
+# Later, provide user-specific token
+await mas.call(
+ callee="agent",
+ arguments={
+ "messages": [...],
+ "headers": {"Authorization": f"Bearer {user_token}"}
+ }
+)
+```
+
+## 迁移指南
+
+### 从 Stdio 到 SSE
+
+**之前（本地）：**
+```python
+oxy.StdioMCPClient(
+ name="tools",
+ params={
+ "command": "python",
+ "args": ["./mcp_server.py"]
+ }
+)
+```
+
+**之后（远程）：**
+```python
+# 单独启动服务器：python mcp_server_sse.py
+oxy.SSEMCPClient(
+ name="tools",
+ sse_url="http://localhost:9000/sse"
+)
+```
+
+### 从 SSE 到 Streamable
+
+**之前（SSE）：**
+```python
+oxy.SSEMCPClient(
+ name="tools",
+ sse_url="https://api.example.com/sse",
+ headers={"Authorization": f"Bearer {token}"}
+)
+```
+
+**之后（Streamable）：**
+```python
+oxy.StreamableMCPClient(
+ name="tools",
+ server_url="https://api.example.com/mcp", # 注意：不同的端点
+ headers={"Authorization": f"Bearer {token}"}
+)
+```
+
+## 最佳实践
+
+### 对于 StdioMCPClient
+
+1. **使用绝对路径**用于基于目录的命令
+2. **设置环境变量**用于配置
+3. **正确处理进程清理**
+4. **监控进程日志**用于调试
+
+### 对于 SSEMCPClient
+
+1. **在生产环境使用 `is_keep_alive=True`**
+2. **添加重试逻辑**以应对网络故障
+3. **监控连接健康状况**
+4. **仅在必要时使用动态请求头**
+
+### 对于 StreamableMCPClient
+
+1. **针对您的工作负载进行优化**（持久 vs 瞬态）
+2. **通过 `semaphore` 调整并发**
+3. **为长时间流式传输设置适当的超时**
+4. **使用中间件**进行监控
+
+## 故障排除
+
+### StdioMCPClient 问题
+
+**进程无法启动：**
+- 检查命令是否在 PATH 中
+- 验证文件权限
+- 检查目录是否存在
+
+**工具未被发现：**
+- 验证 MCP 服务器是否正确实现协议
+- 检查服务器日志是否有错误
+
+### SSEMCPClient 问题
+
+**连接被拒绝：**
+- 验证服务器正在运行
+- 检查 URL 和端口
+- 使用 curl/浏览器测试
+
+**身份验证失败：**
+- 验证令牌是否有效
+- 检查请求头格式
+
+### StreamableMCPClient 问题
+
+**流式传输超时：**
+- 增加 `timeout` 参数
+- 检查网络延迟
+- 优化服务器响应
+
+## 相关文档
+
+- **[StdioMCPClient](/docs/tools-mcp-stdio)** - 本地进程 MCP 客户端
+- **[SSEMCPClient](/docs/tools-mcp-sse)** - 基于 HTTP SSE 的 MCP 客户端
+- **[StreamableMCPClient](/docs/tools-mcp-streamable)** - HTTP 流式 MCP 客户端
+- **[FunctionHub](/docs/tools-function-hub)** - Python 原生工具方法
+- **[ReAct智能体](/docs/agents-react)** - 在智能体中使用工具

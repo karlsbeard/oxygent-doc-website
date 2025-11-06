@@ -1,23 +1,23 @@
 ---
 title: ParallelAgent API 参考
-description: 完整 API 参考文档： the ParallelAgent class including constructor parameters, methods, 和 parallel execution patterns
+description: ParallelAgent 类的完整 API 参考文档，包括构造函数参数、方法和并行执行模式
 icon: Users
 ---
 
-## Class 概述
+## 类概述
 
 ```python
 from oxygent.oxy import ParallelAgent
 
 class ParallelAgent(LocalAgent):
-    """Agent that executes tasks in parallel across multiple team members.
+    """跨多个团队成员并行执行任务的代理。
 
-    This agent distributes the same task to all available team members simultaneously
-    and combines their responses.
+    此代理将相同任务同时分发给所有可用的团队成员
+    并合并他们的响应。
     """
 ```
 
-ParallelAgent inherits from `LocalAgent` 和 is specifically designed for parallel task execution. It distributes requests to multiple team members (tools or sub-agents), collects all responses, 和 then uses an LLM to merge the results into a unified answer.
+ParallelAgent 继承自 `LocalAgent`，专门为并行任务执行而设计。它将请求分发给多个团队成员（工具或子代理），收集所有响应，然后使用 LLM 将结果合并为统一的答案。
 
 ## 构造函数
 
@@ -33,32 +33,32 @@ ParallelAgent(
 )
 ```
 
-#### 参数s
+#### 参数
 
 |参数|类型|默认值|描述|
 |-----------|------|---------|-------------|
-| `name` | `str` | 必需 | Agent name for identification 和 calling |
+| `name` | `str` | 必需 | 用于标识和调用的代理名称 |
 | `desc` | `str` | 必需 | 解释代理功能的描述 |
-| `llm_model` | `str` | 必需 | Language model identifier for merging parallel results |
-| `permitted_tool_name_list` | `list` | 必需 | List of tool/agent names to execute in parallel |
+| `llm_model` | `str` | 必需 | 用于合并并行结果的语言模型标识符 |
+| `permitted_tool_name_list` | `list` | 必需 | 要并行执行的工具/代理名称列表 |
 
-#### Inherited 参数s (from LocalAgent)
+#### 继承参数（来自 LocalAgent）
 
-ParallelAgent inherits all LocalAgent parameters, but typically doesn't need the following since it focuses on parallel execution:
+ParallelAgent 继承所有 LocalAgent 参数，但通常不需要以下参数，因为它专注于并行执行：
 
 |参数|类型|默认值|描述|
 |-----------|------|---------|-------------|
-| `prompt` | `可选[str]` | Auto-generated | System prompt (automatically generated for result merging) |
-| `sub_agents` | `可选[list]` | `[]` | Sub-agent list (managed through permitted_tool_name_list) |
-| `tools` | `可选[list]` | `[]` | Tool list (managed through permitted_tool_name_list) |
-| `short_memory_size` | `int` | 配置默认值 | Short-term memory size |
-| `team_size` | `int` | `1` | Team size (ParallelAgent manages parallelism itself) |
+| `prompt` | `可选[str]` | 自动生成 | 系统提示（自动生成用于结果合并） |
+| `sub_agents` | `可选[list]` | `[]` | 子代理列表（通过 permitted_tool_name_list 管理） |
+| `tools` | `可选[list]` | `[]` | 工具列表（通过 permitted_tool_name_list 管理） |
+| `short_memory_size` | `int` | 配置默认值 | 短期内存大小 |
+| `team_size` | `int` | `1` | 团队大小（ParallelAgent 自己管理并行性） |
 
-#### Important 否te
+#### 重要说明
 
-ParallelAgent **adds no new dataclass 字段** - it inherits all parameters from LocalAgent. The key difference is in execution logic:
-- Regular LocalAgent: Sequential tool execution
-- ParallelAgent: Parallel execution of all tools in `permitted_tool_name_list`
+ParallelAgent **不添加新的数据类字段** - 它继承 LocalAgent 的所有参数。关键区别在于执行逻辑：
+- 常规 LocalAgent：顺序工具执行
+- ParallelAgent：并行执行 `permitted_tool_name_list` 中的所有工具
 
 ## 方法
 
@@ -68,61 +68,61 @@ ParallelAgent **adds no new dataclass 字段** - it inherits all parameters from
 async def _execute(self, oxy_request: OxyRequest) -> OxyResponse
 ```
 
-Execute the request in parallel across all team members.
+跨所有团队成员并行执行请求。
 
-#### 参数s
+#### 参数
 
 |参数|类型|描述|
 |-----------|------|-------------|
-| `oxy_request` | `OxyRequest` | Request to execute across all team members |
+| `oxy_request` | `OxyRequest` | 要跨所有团队成员执行的请求 |
 
 #### 返回值
 
 |类型|描述|
 |------|-------------|
-| `OxyResponse` | Combined response 包含 numbered results from all team members |
+| `OxyResponse` | 包含所有团队成员编号结果的合并响应 |
 
 #### 执行流程
 
-1. **Generate parallel ID**: Creates unique parallel execution identifier
-2. **Parallel distribution**: Uses `asyncio.gather()` to send requests to all tools in `permitted_tool_name_list` simultaneously
-3. **Collect responses**: Waits for all parallel tasks to complete
-4. **Build merge prompt**: Creates prompt 包含 user question 和 all parallel results
-5. **LLM merging**: Uses configured LLM to merge parallel results into unified answer
-6. **Return result**: Returns merged final response
+1. **生成并行 ID**：创建唯一的并行执行标识符
+2. **并行分发**：使用 `asyncio.gather()` 同时向 `permitted_tool_name_list` 中的所有工具发送请求
+3. **收集响应**：等待所有并行任务完成
+4. **构建合并提示**：创建包含用户问题和所有并行结果的提示
+5. **LLM 合并**：使用配置的 LLM 将并行结果合并为统一答案
+6. **返回结果**：返回合并后的最终响应
 
-#### Parallel Execution Features
+#### 并行执行特性
 
-- **True parallelism**: All tasks execute simultaneously, not sequentially
-- **Result numbering**: Each team member's result is numbered (1, 2, 3...)
-- **Automatic merging**: LLM automatically analyzes 和 merges all parallel results
-- **Error tolerance**: Single team member failure doesn't affect others
+- **真正的并行**：所有任务同时执行，而非顺序执行
+- **结果编号**：每个团队成员的结果都有编号（1、2、3...）
+- **自动合并**：LLM 自动分析并合并所有并行结果
+- **容错性**：单个团队成员失败不会影响其他成员
 
-### Inherited 方法
+### 继承方法
 
-ParallelAgent inherits all LocalAgent methods but overrides the core execution logic:
+ParallelAgent 继承所有 LocalAgent 方法，但覆盖核心执行逻辑：
 
-#### From LocalAgent
+#### 来自 LocalAgent
 
-- `init()` - Initialize agent 和 tool lists
-- `_get_history()` - Retrieve 对话历史
-- `_build_instruction()` - Build instruction prompt
-- `_pre_process()` - Pre-process request
-- `_before_execute()` - Pre-execution preparation
+- `init()` - 初始化代理和工具列表
+- `_get_history()` - 检索对话历史
+- `_build_instruction()` - 构建指令提示
+- `_pre_process()` - 预处理请求
+- `_before_execute()` - 预执行准备
 
-#### From BaseAgent
+#### 来自 BaseAgent
 
-- `_pre_save_data()` - Save trace data
+- `_pre_save_data()` - 保存追踪数据
 
-#### From BaseFlow
+#### 来自 BaseFlow
 
-- `call()` - Execute agent
-- `add_permitted_tool()` - Add permitted tool
-- `set_mas()` - Set MAS reference
+- `call()` - 执行代理
+- `add_permitted_tool()` - 添加允许的工具
+- `set_mas()` - 设置 MAS 引用
 
-## Usage 示例s
+## 使用示例
 
-### Basic Parallel Execution
+### 基础用法实例
 
 ```python
 from oxygent import MAS
@@ -177,7 +177,7 @@ async def main():
         print(result.output)
 ```
 
-### Multi-Tool Parallel Execution
+### 多工具并行执行实例
 
 ```python
 from oxygent.oxy import FunctionTool
@@ -214,7 +214,7 @@ oxy_space = [
 ]
 ```
 
-### Mixed 代理 and 工具
+### 混合代理和工具实例
 
 ```python
 oxy_space = [
@@ -241,9 +241,9 @@ oxy_space = [
 ]
 ```
 
-## Configuration Options
+## 配置选项
 
-### Parallel Execution Configuration
+### 并行执行配置
 
 - `permitted_tool_name_list`: List of tools/agents to execute in parallel
 - `llm_model`: Language model for result merging
@@ -345,8 +345,7 @@ ParallelAgent uses `asyncio.gather()` for parallel task execution:
 
 ## Related Links
 
-- [ParallelAgent Main Documentation](/docs/agents-parallel) - 概述 和 usage guide
-- [LocalAgent API](/oxyapi/agents-local-api) - Parent class API reference
-- [ChatAgent API](/oxyapi/agents-chat-api) - Basic chat agent
-- [ReActAgent API](/oxyapi/agents-react-api) - Reasoning agent
-- [Parallel Execution Examples](/examples/agents/parallel-execution) - Practical 和使用示例
+- [ParallelAgent 主文档](/docs/agents-parallel) - 概述和使用指南
+- [ChatAgent API](/oxyapi/agents-chat-api) - 基础聊天代理
+- [ReActAgent API](/oxyapi/agents-react-api) - 推理代理
+- [ParallelFlow API](/oxyapi/flows-parallel-api) - 并行流 API

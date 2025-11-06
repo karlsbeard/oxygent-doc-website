@@ -20,7 +20,7 @@ icon: Code
 
 |参数|类型|默认值|描述|
 |-----------|------|---------|-------------|
-| `max_react_轮` | int | 16 | 最大推理-行动迭代次数 |
+| `max_react_rounds` | int | 16 | 最大推理-行动迭代次数 |
 
 ### 内存参数
 
@@ -35,83 +35,83 @@ icon: Code
 ## 参数详情
 
 ### `name`
-- **Type**: `str`
-- **必需**: Yes
-- **Description**: 的唯一标识符 the agent 在多智能体系统中 (多智能体系统). 调用时使用此名称 the agent via `mas.call(callee="agent_name")`.
+- **类型**：`str`
+- **必需**：是
+- **描述**：代理在多智能体系统（MAS）中的唯一标识符。通过 `mas.call(callee="agent_name")` 调用代理时使用此名称。
 
 ### `is_master`
-- **Type**: `bool`
-- **默认**: `False`
-- **Description**: 指示是否 this agent is the entry point for the multi-agent system. 只有一个代理应标记为主代理 in a MAS.
+- **类型**：`bool`
+- **默认**：`False`
+- **描述**：指示此代理是否为多智能体系统的入口点。MAS 中只应有一个代理标记为主代理。
 
 ### `llm_model`
-- **Type**: `str`
-- **必需**: Yes
-- **Description**: 对大语言模型组件的名称引用 在同一多智能体系统中注册. 此大语言模型将用于 所有推理步骤 in the ReAct loop.
+- **类型**：`str`
+- **必需**：是
+- **描述**：在同一 MAS 中注册的大语言模型组件的名称引用。此 LLM 将用于 ReAct 循环中的所有推理步骤。
 
 ### `tools`
-- **Type**: `list[str]`
-- **默认**: `[]`
-- **Description**: 工具名称列表 代理可以调用的. Tools must be 在同一多智能体系统中注册 instance.
+- **类型**：`list[str]`
+- **默认**：`[]`
+- **描述**：代理可以调用的工具名称列表。工具必须在同一 MAS 实例中注册。
 
 ### `sub_agents`
-- **Type**: `list[str]`
-- **默认**: `[]`
-- **Description**: 子代理名称列表 此代理可以将任务委托给的. Sub-agents must be 在同一多智能体系统中注册 instance.
+- **类型**：`list[str]`
+- **默认**：`[]`
+- **描述**：此代理可以委托任务的子代理名称列表。子代理必须在同一 MAS 实例中注册。
 
 ### `max_react_rounds`
-- **Type**: `int`
-- **默认**: `16`
-- **Description**: 最大数量 reasoning-acting iterations 在代理使用后备机制之前. 每一轮包括 一个推理步骤和一个或多个工具执行.
+- **类型**：`int`
+- **默认**：`16`
+- **描述**：代理使用后备机制之前的最大推理-行动迭代次数。每一轮包括一个推理步骤和一个或多个工具执行。
 
-**使用指南**:
-- 简单任务: 3-5 轮
-- 多步骤任务: 10-20 轮
-- 复杂推理链: 20-30 轮
+**使用指南**：
+- 简单任务：3-5 轮
+- 多步骤任务：10-20 轮
+- 复杂推理链：20-30 轮
 
 ### `is_discard_react_memory`
-- **Type**: `bool`
-- **默认**: `True`
-- **Description**: 控制内存保留策略:
-  - `True`: 仅保留最终问答对 (更清晰的历史)
-  - `False`: 保留完整的 ReAct 推理轨迹 使用加权评分
+- **类型**：`bool`
+- **默认**：`True`
+- **描述**：控制内存保留策略：
+  - `True`：仅保留最终问答对（更清晰的历史）
+  - `False`：使用加权评分保留完整的 ReAct 推理轨迹
 
 ### `short_memory_size`
-- **Type**: `int`
-- **默认**: `10`
-- **Description**: 最近对话轮次的数量 保留在短期内存中.
+- **类型**：`int`
+- **默认**：`10`
+- **描述**：保留在短期内存中的最近对话轮次数量。
 
 ### `memory_max_tokens`
-- **Type**: `int`
-- **默认**: `8000`
-- **Description**: 内存系统的最大令牌限制. 超出时，较旧的内存将被修剪 基于加权评分.
+- **类型**：`int`
+- **默认**：`8000`
+- **描述**：内存系统的最大令牌限制。超出时，较旧的内存将基于加权评分被修剪。
 
 ### `weight_short_memory`
-- **Type**: `int`
-- **默认**: `5`
-- **Description**: 相对重要性权重 short-term memory 当 `is_discard_react_memory=False`. 较高的值会更重视 最近的对话.
+- **类型**：`int`
+- **默认**：`5`
+- **描述**：当 `is_discard_react_memory=False` 时短期内存的相对重要性权重。较高的值会更重视最近的对话。
 
 ### `weight_react_memory`
-- **Type**: `int`
-- **默认**: `1`
-- **Description**: 相对重要性权重 ReAct intermediate steps 当 `is_discard_react_memory=False`.
+- **类型**：`int`
+- **默认**：`1`
+- **描述**：当 `is_discard_react_memory=False` 时 ReAct 中间步骤的相对重要性权重。
 
 ## 方法
 
 ### `call()`
 
-使用给定输入执行代理.
+使用给定输入执行代理。
 
-**参数**:
-- `messages` (list): 消息字典列表 包含 `role` 和 `content` 字段
+**参数**：
+- `messages`（list）：包含 `role` 和 `content` 字段的消息字典列表
 - 可以传递额外的大语言模型参数
 
-**Returns**: AgentResult 对象，包含:
-- `output`: 最终代理响应
-- `messages`: 完整对话历史
-- `metadata`: 执行元数据 (轮 used, tool calls, etc.)
+**返回**：AgentResult 对象，包含：
+- `output`：最终代理响应
+- `messages`：完整对话历史
+- `metadata`：执行元数据（使用的轮数、工具调用等）
 
-**Example**:
+**示例**：
 ```python
 result = await mas.call(
     callee="agent_name",
@@ -126,5 +126,5 @@ result = await mas.call(
 ## 相关文档
 
 - [ReActAgent 概述](/docs/agents-react) - 使用指南和示例
-- [ChatAgent API](/docs/agents-chat) - API 参考文档： ChatAgent
-- [Tools API](/docs/tools-function-hub) - 可用工具文档
+- [ChatAgent API](/oxyapi/agents-chat-api) - API 参考文档
+- [FunctionHub API](/oxyapi/tools-function-hub-api) - 工具中心 API 文档

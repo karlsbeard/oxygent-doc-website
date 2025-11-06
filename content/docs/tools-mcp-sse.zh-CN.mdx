@@ -1,0 +1,598 @@
+---
+title: SSEMCPClient
+description: 使用服务器发送事件进行实时通信的基于 HTTP 的 MCP 客户端
+icon: Radio
+---
+
+**SSEMCPClient** 实现了基于服务器发送事件（SSE）的 MCP（模型上下文协议）通信，支持从远程 MCP 服务器进行实时单向数据流式传输。
+
+## 概述
+
+SSEMCPClient 专为通过 HTTP 使用服务器发送事件传输连接到远程 MCP 服务器而设计。它提供了一种轻量级、基于 HTTP 的 stdio 传输替代方案，适合基于 Web 的部署、云服务以及需要远程工具访问的场景。
+
+### 关键特性
+
+- **基于 HTTP 的通信**：通过 HTTP/HTTPS 连接到远程 MCP 服务器
+- **服务器发送事件**：从服务器到客户端的实时单向流式传输
+- **远程工具访问**：使用网络上任何位置托管的 MCP 工具
+- **动态请求头**：支持身份验证和自定义 HTTP 请求头
+- **中间件支持**：用于请求/响应处理的可扩展客户端中间件
+- **灵活的连接模式**：持久或每请求连接
+
+### 何时使用 SSEMCPClient
+
+```
+┌─────────────────────────────────────────────────────┐
+│ SSEMCPClient 使用场景 │
+├─────────────────────────────────────────────────────┤
+│ │
+│ ✓ 通过 HTTP/HTTPS 的远程 MCP 服务器 │
+│ ✓ 云托管的 MCP 服务 │
+│ ✓ Web 应用程序集成 │
+│ ✓ 实时流式响应 │
+│ ✓ 需要身份验证的服务（请求头） │
+│ ✓ 跨机器工具访问 │
+│ ✓ 可扩展的多客户端架构 │
+│ │
+│ 使用 StdioMCPClient 用于： │
+│ → 本地 MCP 服务器（更快，直接进程） │
+│ → 开发环境 │
+│ │
+│ 使用 StreamableMCPClient 用于： │
+│ → 双向 HTTP 流式传输 │
+│ → 高级基于 HTTP 的功能 │
+└─────────────────────────────────────────────────────┘
+```
+
+## 快速开始
+
+### 基本用法
+
+连接到远程 SSE MCP 服务器：
+
+```python
+import asyncio
+import os
+from oxygent import MAS, oxy
+
+oxy_space = [
+ oxy.HttpLLM(
+ name="default_llm",
+ api_key=os.getenv("DEFAULT_LLM_API_KEY"),
+ base_url=os.getenv("DEFAULT_LLM_BASE_URL"),
+ model_name=os.getenv("DEFAULT_LLM_MODEL_NAME"),
+ llm_params={"temperature": 0.1},
+ ),
+ oxy.SSEMCPClient(
+ name="remote_tools",
+ sse_url="http://127.0.0.1:9000/sse"
+ ),
+ oxy.ReActAgent(
+ name="assistant",
+ is_master=True,
+ llm_model="default_llm",
+ tools=["remote_tools"]
+ ),
+]
+
+async def main():
+ async with MAS(oxy_space=oxy_space) as mas:
+ result = await mas.call(
+ callee="assistant",
+ arguments={
+ "messages": [
+ {"role": "user", "content": "使用远程工具帮助我"}
+ ]
+ }
+ )
+ print(result.output)
+
+if __name__ == "__main__":
+ asyncio.run(main())
+```
+
+### 使用身份验证头
+
+为 MCP 服务器请求添加身份验证：
+
+```python
+from oxygent import oxy
+
+oxy_space = [
+ oxy.HttpLLM(name="default_llm", ...),
+ oxy.SSEMCPClient(
+ name="secure_tools",
+ sse_url="https://api.example.com/mcp/sse",
+ headers={
+ "Authorization": f"Bearer {os.getenv('MCP_API_KEY')}",
+ "X-API-Version": "v1"
+ }
+ ),
+ oxy.ReActAgent(
+ name="agent",
+ is_master=True,
+ llm_model="default_llm",
+ tools=["secure_tools"]
+ ),
+]
+```
+
+### 使用动态请求头
+
+使用请求上下文中的动态请求头：
+
+```python
+oxy_space = [
+ oxy.HttpLLM(name="default_llm", ...),
+ oxy.SSEMCPClient(
+ name="dynamic_tools",
+ sse_url="https://api.example.com/mcp/sse",
+ headers={
+ "X-Service-Key": "default-key" # Default header
+ },
+ is_dynamic_headers=True, # 启用动态请求头
+ is_inherit_headers=True # Inherit from request context
+ ),
+ oxy.ReActAgent(
+ name="agent",
+ is_master=True,
+ llm_model="default_llm",
+ tools=["dynamic_tools"]
+ ),
+]
+```
+
+### 多个远程服务器
+
+连接到多个 MCP 服务器：
+
+```python
+oxy_space = [
+ oxy.HttpLLM(name="default_llm", ...),
+
+ # Production tools
+ oxy.SSEMCPClient(
+ name="prod_tools",
+ sse_url="https://prod.example.com/mcp/sse",
+ headers={"Authorization": f"Bearer {os.getenv('PROD_KEY')}"}
+ ),
+
+ # Staging tools
+ oxy.SSEMCPClient(
+ name="staging_tools",
+ sse_url="https://staging.example.com/mcp/sse",
+ headers={"Authorization": f"Bearer {os.getenv('STAGING_KEY')}"}
+ ),
+
+ # 本地开发 tools
+ oxy.SSEMCPClient(
+ name="dev_tools",
+ sse_url="http://localhost:8000/sse"
+ ),
+
+ oxy.ReActAgent(
+ name="multi_env_agent",
+ is_master=True,
+ llm_model="default_llm",
+ tools=["prod_tools", "staging_tools", "dev_tools"]
+ ),
+]
+```
+
+## 配置选项
+
+### 必需参数
+
+| 参数 | 类型 | 必需 | 描述 |
+|-----------|------|----------|-------------|
+| `name` | `str` | **是** | 此 MCP 客户端的唯一标识符 |
+| `sse_url` | `AnyUrl` | **是** | SSE 端点 URL（例如："http://localhost:9000/sse"） |
+
+### 可选参数
+
+| 参数 | 类型 | 默认值 | 描述 |
+|-----------|------|---------|-------------|
+| `headers` | `dict[str, str]` | `{}` | 随请求发送的 HTTP 请求头 |
+| `is_dynamic_headers` | `bool` | `False` | 启用每个请求的动态请求头更新 |
+| `is_inherit_headers` | `bool` | `False` | 从 OxyRequest 上下文继承请求头 |
+| `middlewares` | `list[Any]` | `[]` | 客户端 MCP 中间件 |
+
+### 继承的参数
+
+SSEMCPClient 继承自 BaseMCPClient 和 BaseTool：
+
+| 参数 | 类型 | 默认值 | 描述 |
+|-----------|------|---------|-------------|
+| `is_keep_alive` | `bool` | 配置默认值 | 在调用之间保持连接 |
+| `timeout` | `float` | `60` | 每次工具调用的最大执行时间（秒） |
+| `semaphore` | `int` | `16` | 最大并发工具执行数 |
+| `retries` | `int` | `2` | 失败时的重试次数 |
+| `delay` | `float` | `1.0` | 重试之间的延迟（秒） |
+| `is_permission_required` | `bool` | `True` | 智能体是否需要权限来调用工具 |
+
+**所有参数：**
+```python
+oxy.SSEMCPClient(
+ name="advanced_sse",
+ sse_url="https://api.example.com/mcp/sse",
+ headers={
+ "Authorization": "Bearer token",
+ "X-Custom-Header": "value"
+ },
+ is_dynamic_headers=False,
+ is_inherit_headers=False,
+ is_keep_alive=True,
+ timeout=90,
+ retries=3
+)
+```
+
+## 理解 SSE MCP 流程
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ SSEMCPClient 生命周期 │
+└─────────────────────────────────────────────────────────┘
+ │
+ 1. 初始化阶段
+ │
+ ▼
+ ┌───────────────────────────┐
+ │ 构建 SSE URL │
+ │ 准备请求头 │
+ └───────────────────────────┘
+ │
+ 2. HTTP 连接
+ │
+ ▼
+ ┌───────────────────────────┐
+ │ HTTP GET 到 sse_url │
+ │ 建立 SSE 流 │
+ └───────────────────────────┘
+ │
+ 3. MCP 会话
+ │
+ ▼
+ ┌───────────────────────────┐
+ │ 通过 SSE 传输创建 │
+ │ ClientSession │
+ │ 初始化 MCP 协议 │
+ └───────────────────────────┘
+ │
+ 4. 中间件（可选）
+ │
+ ▼
+ ┌───────────────────────────┐
+ │ 添加客户端中间件 │
+ │ 处理请求/响应 │
+ └───────────────────────────┘
+ │
+ 5. 工具发现
+ │
+ ▼
+ ┌───────────────────────────┐
+ │ 通过 SSE 调用list_tools()│
+ │ 注册 MCPTool 包装器 │
+ └───────────────────────────┘
+ │
+ 6. 工具执行
+ │
+ ▼
+ ┌───────────────────────────┐
+ │ 智能体调用工具 │
+ │ → HTTP POST 到服务器 │
+ │ ← SSE 流响应 │
+ └───────────────────────────┘
+ │
+ 7. 清理
+ │
+ ▼
+ ┌───────────────────────────┐
+ │ 关闭 SSE 连接 │
+ │ 清理会话 │
+ │ 释放资源 │
+ └───────────────────────────┘
+```
+
+## 请求头管理
+
+### 静态请求头
+
+基本身份验证和自定义请求头：
+
+```python
+oxy.SSEMCPClient(
+ name="static_headers",
+ sse_url="https://api.example.com/sse",
+ headers={
+ "Authorization": "Bearer my-token",
+ "X-API-Version": "v1",
+ "X-Client-ID": "oxygent-client"
+ }
+)
+```
+
+### 动态请求头
+
+每个请求变化的请求头：
+
+```python
+oxy.SSEMCPClient(
+ name="dynamic_headers",
+ sse_url="https://api.example.com/sse",
+ headers={
+ "X-Service-Key": "default" # 基础请求头
+ },
+ is_dynamic_headers=True, # 启用动态更新
+ is_keep_alive=False # 动态请求头所需
+)
+
+# When agent calls tool, can provide dynamic headers:
+await mas.call(
+ callee="agent",
+ arguments={
+ "messages": [...],
+ "headers": { # These override/merge with base headers
+ "X-User-ID": "user123",
+ "X-Request-ID": "req456"
+ }
+ }
+)
+```
+
+### 继承的请求头
+
+从请求上下文继承请求头：
+
+```python
+oxy.SSEMCPClient(
+ name="inherit_headers",
+ sse_url="https://api.example.com/sse",
+ is_dynamic_headers=True,
+ is_inherit_headers=True # Inherit from OxyRequest._headers
+)
+
+# Headers from upstream requests are automatically forwarded
+# (excluding 'host' header which is removed)
+```
+
+## 连接模式
+
+### 持久连接（Keep-Alive）
+
+推荐用于多次工具调用：
+
+```python
+oxy.SSEMCPClient(
+ name="persistent",
+ sse_url="http://localhost:9000/sse",
+ is_keep_alive=True # 默认
+)
+```
+
+**特点：**
+- `init()` 期间建立单个 SSE 连接
+- 连接被所有工具调用重用
+- 多个操作更快
+- 更低的开销
+- 启动时仅发现工具一次
+
+### 瞬态连接（每请求一次）
+
+每次工具调用建立新连接：
+
+```python
+oxy.SSEMCPClient(
+ name="transient",
+ sse_url="http://localhost:9000/sse",
+ is_keep_alive=False,
+ is_dynamic_headers=True # 经常一起使用
+)
+```
+
+**特点：**
+- 每次工具调用建立新连接
+- 每次都是新状态
+- 动态请求头所必需
+- 更高的开销
+- 每次都重新发现工具
+
+## 中间件支持
+
+### 添加中间件
+
+用于请求/响应处理的客户端中间件：
+
+```python
+class LoggingMiddleware:
+ async def process_request(self, request):
+ print(f"Request: {request}")
+ return request
+
+ async def process_response(self, response):
+ print(f"Response: {response}")
+ return response
+
+oxy.SSEMCPClient(
+ name="middleware_client",
+ sse_url="http://localhost:9000/sse",
+ middlewares=[
+ LoggingMiddleware(),
+ # Add more middlewares
+ ]
+)
+```
+
+**注意：** 中间件支持取决于 MCP 客户端库版本。如果 `add_middleware()` 不可用，将记录警告并忽略中间件。
+
+## 高级功能
+
+### URL 构建
+
+客户端使用 `build_url()` 工具来正确格式化 SSE URL：
+
+```python
+# 输入
+sse_url="http://localhost:9000/sse"
+
+# 内部处理确保格式正确
+# 处理尾部斜杠、查询参数等
+```
+
+### 错误处理
+
+自动错误处理和重试：
+
+```python
+oxy.SSEMCPClient(
+ name="resilient_client",
+ sse_url="http://api.example.com/sse",
+ timeout=60,
+ retries=3, # Retry failed requests
+ delay=2.0 # Wait 2 秒 between retries
+)
+
+# Errors are automatically logged and retried
+# If all retries fail, error is propagated
+```
+
+### 连接健康状况
+
+客户端优雅地处理连接问题：
+
+```python
+try:
+ async with MAS(oxy_space=[sse_client, ...]) as mas:
+ result = await mas.call(...)
+except Exception as e:
+ # 连接错误使用服务器名称记录
+ print(f"MCP 服务器错误: {e}")
+```
+
+## 服务器设置示例
+
+示例 SSE MCP 服务器（用于测试）：
+
+```python
+# mcp_servers/example_sse_server.py
+from fastapi import FastAPI
+from mcp.server import Server
+from mcp.server.sse import sse_server
+
+app = FastAPI()
+mcp_server = Server("example-server")
+
+@mcp_server.list_tools()
+async def list_tools():
+ return [
+ {
+ "name": "echo",
+ "description": "Echo back the input",
+ "inputSchema": {
+ "type": "object",
+ "properties": {
+ "message": {"type": "string"}
+ },
+ "required": ["message"]
+ }
+ }
+ ]
+
+@mcp_server.call_tool()
+async def call_tool(name: str, arguments: dict):
+ if name == "echo":
+ return {"content": [{"type": "text", "text": arguments["message"]}]}
+
+# Mount SSE endpoint
+app.mount("/sse", sse_server(mcp_server))
+
+if __name__ == "__main__":
+ import uvicorn
+ uvicorn.run(app, host="0.0.0.0", port=9000)
+```
+
+**启动服务器：**
+```bash
+python mcp_servers/example_sse_server.py
+```
+
+**连接客户端：**
+```python
+oxy.SSEMCPClient(
+ name="example_tools",
+ sse_url="http://localhost:9000/sse"
+)
+```
+
+## API 参考
+
+有关完整的 API 文档，包括所有构造函数参数、方法和实现细节，请参考：
+
+**[SSEMCPClient API 参考](/oxyapi/tools-mcp-sse-api)** - 完整的 API 文档
+
+## 示例
+
+探索实际实现：
+
+- **[SSE MCP 工具](/examples/07_sse-mcp-tools)** - 使用带有 HTTP 传输的 SSE MCP 服务器
+- **[外部 MCP 工具](/examples/08_external-mcp-tools)** - 连接到外部 MCP 服务
+
+查看所有示例：[示例库](/examples)。
+
+## 故障排除
+
+### 常见问题
+
+**Connection Refused:**
+```python
+# 问题：服务器未运行或 URL 错误
+# 解决方案：验证服务器正在运行且 URL 正确
+oxy.SSEMCPClient(
+ name="client",
+ sse_url="http://localhost:9000/sse" # 检查端口和路径
+)
+```
+
+**Authentication Failure:**
+```python
+# 问题：缺少或无效的身份验证
+# 解决方案：添加正确的授权头
+oxy.SSEMCPClient(
+ name="client",
+ sse_url="https://api.example.com/sse",
+ headers={
+ "Authorization": f"Bearer {os.getenv('API_KEY')}"
+ }
+)
+```
+
+**Dynamic Headers Not Working:**
+```python
+# 问题：动态头被忽略
+# 解决方案：确保 is_keep_alive=False
+oxy.SSEMCPClient(
+ name="client",
+ sse_url="http://localhost:9000/sse",
+ is_dynamic_headers=True,
+ is_keep_alive=False # 动态请求头所需
+)
+```
+
+**Timeout Errors:**
+```python
+# 问题：请求超时
+# 解决方案：增加超时时间
+oxy.SSEMCPClient(
+ name="client",
+ sse_url="http://slow-server.com/sse",
+ timeout=120 # 增加到 2 分钟
+)
+```
+
+## 相关文档
+
+- **[StdioMCPClient](/docs/tools-mcp-stdio)** - 本地进程 MCP 客户端
+- **[StreamableMCPClient](/docs/tools-mcp-streamable)** - HTTP 流式 MCP 客户端
+- **[MCP 对比指南](/docs/tools-mcp-comparison)** - 对比不同的 MCP 客户端
+- **[FunctionHub](/docs/tools-function-hub)** - 替代的 Python 原生工具方法
+- **[ReAct 智能体](/docs/agents-react)** - 在智能体中使用 MCP 工具

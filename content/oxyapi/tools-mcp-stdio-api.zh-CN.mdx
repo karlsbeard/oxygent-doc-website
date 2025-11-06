@@ -1,10 +1,10 @@
 ---
 title: StdioMCPClient API 参考
-description: 完整 API 文档： StdioMCPClient 类
+description: StdioMCPClient 类的完整 API 参考文档
 icon: Code
 ---
 
-## Class Definition
+## 类定义
 
 ```python
 from oxygent import oxy
@@ -22,60 +22,60 @@ client = oxy.StdioMCPClient(
 
 ## 构造函数参数
 
-### 必需 参数s
+### 必需参数
 
 |参数|类型|必需|默认值|描述|
 |-----------|------|----------|---------|-------------|
-| `name` | `str` | **Yes** | - | Unique identifier for this MCP client. Agents reference this name in their `tools` list |
-| `params` | `dict[str, Any]` | **Yes** | `{}` | Configuration dictionary 包含 comm和, args, 和 env |
+| `name` | `str` | **是** | - | MCP 客户端的唯一标识符。代理在其 `tools` 列表中引用此名称 |
+| `params` | `dict[str, Any]` | **是** | `{}` | 包含 command、args 和 env 的配置字典 |
 
-### params Dictionary Structure
+### params 字典结构
 
-The `params` dictionary must contain:
+`params` 字典必须包含：
 
-|Key|类型|必需|默认值|描述|
+|键|类型|必需|默认值|描述|
 |-----|------|----------|---------|-------------|
-| `comm和` | `str` | **Yes** | - | Comm和 to execute (e.g., "npx", "python", "node", "uv") |
-| `args` | `list[str]` | **Yes** | - | Comm和-line arguments as list of strings |
-| `env` | `dict[str, str]` | No | `{}` | Additional environment variables to pass to the process |
+| `command` | `str` | **是** | - | 要执行的命令（例如 "npx"、"python"、"node"、"uv"） |
+| `args` | `list[str]` | **是** | - | 字符串列表形式的命令行参数 |
+| `env` | `dict[str, str]` | 否 | `{}` | 传递给进程的额外环境变量 |
 
-### Inherited from BaseMCPClient
-
-|参数|类型|默认值|描述|
-|-----------|------|---------|-------------|
-| `headers` | `dict[str, str]` | `{}` | Extra HTTP headers (not typically used for stdio transport) |
-| `is_dynamic_headers` | `bool` | `False` | Enable dynamic header updates per request |
-| `is_inherit_headers` | `bool` | `False` | Inherit headers from OxyRequest context |
-| `is_keep_alive` | `bool` | 配置默认值 | Whether to keep the MCP session alive between calls |
-
-### Inherited from BaseTool
+### 从 BaseMCPClient 继承
 
 |参数|类型|默认值|描述|
 |-----------|------|---------|-------------|
-| `timeout` | `float` | `60` | Maximum execution time per tool call in seconds |
-| `semaphore` | `int` | `16` | 最大数量 concurrent tool executions |
-| `retries` | `int` | `2` | Number of retry attempts on failure |
-| `delay` | `float` | `1.0` | Delay between retry attempts in seconds |
-| `is_permission_required` | `bool` | `True` | Whether agents need permission to call tools |
-| `is_save_data` | `bool` | `True` | Whether to save execution traces |
+| `headers` | `dict[str, str]` | `{}` | 额外的 HTTP 头（stdio 传输通常不使用） |
+| `is_dynamic_headers` | `bool` | `False` | 启用每个请求的动态头更新 |
+| `is_inherit_headers` | `bool` | `False` | 从 OxyRequest 上下文继承头 |
+| `is_keep_alive` | `bool` | 配置默认值 | 是否在调用之间保持 MCP 会话活动 |
 
-### Internal Attributes
+### 从 BaseTool 继承
 
-|Attribute|类型|描述|
+|参数|类型|默认值|描述|
+|-----------|------|---------|-------------|
+| `timeout` | `float` | `60` | 每次工具调用的最大执行时间（秒） |
+| `semaphore` | `int` | `16` | 最大并发工具执行数 |
+| `retries` | `int` | `2` | 失败时的重试次数 |
+| `delay` | `float` | `1.0` | 重试尝试之间的延迟（秒） |
+| `is_permission_required` | `bool` | `True` | 代理是否需要权限来调用工具 |
+| `is_save_data` | `bool` | `True` | 是否保存执行跟踪 |
+
+### 内部属性
+
+|属性|类型|描述|
 |-----------|------|-------------|
-| `included_tool_name_list` | `list[str]` | 工具名称列表 discovered from the MCP server |
-| `_session` | `ClientSession` | MCP protocol session (initialized during `init()`) |
-| `_exit_stack` | `AsyncExitStack` | Resource management context for cleanup |
+| `included_tool_name_list` | `list[str]` | 从 MCP 服务器发现的工具名称列表 |
+| `_session` | `ClientSession` | MCP 协议会话（在 `init()` 期间初始化） |
+| `_exit_stack` | `AsyncExitStack` | 用于清理的资源管理上下文 |
 
 ## 参数详情
 
 ### name
 
-- **Type**: `str`
-- **必需**: Yes
-- **Description**: Unique identifier for this MCP client 在多智能体系统中. Agents reference this name in their `tools` list to use all tools provided by this server.
+- **类型**：`str`
+- **必需**：是
+- **描述**：此 MCP 客户端在多智能体系统中的唯一标识符。代理在其 `tools` 列表中引用此名称以使用此服务器提供的所有工具。
 
-**Example:**
+**示例：**
 ```python
 oxy.StdioMCPClient(
     name="filesystem_tools",  # Agents will use "filesystem_tools" in their tools list
@@ -260,32 +260,32 @@ oxy.StdioMCPClient(
 
 ### init()
 
-Initialize the stdio connection to the MCP server.
+初始化到 MCP 服务器的 stdio 连接。
 
 ```python
 async def init(self, is_fetch_tools: bool = True) -> None
 ```
 
 **参数:**
-- `is_fetch_tools` (bool): Whether to automatically discover 和 register tools after initialization. 默认: `True`
+- `is_fetch_tools` (bool): 初始化后是否自动发现和注册工具。默认: `True`
 
-**Behavior:**
-1. Validates comm和 path (resolves `npx` using `shutil.which()`)
-2. Validates directory structure if using `--directory` flag
-3. Ensures required directories exist (creates if needed for filesystem servers)
-4. Sets up `StdioServer参数` 包含 comm和, args, 和 merged environment
-5. Spawns the external process
-6. Establishes stdio transport (stdin/stdout pipes)
-7. Creates 和 initializes `ClientSession`
-8. If `is_fetch_tools=True`, calls `list_tools()` to discover available tools
+**行为：**
+1. 验证命令路径（使用 `shutil.which()` 解析 `npx`）
+2. 如果使用 `--directory` 标志，验证目录结构
+3. 确保所需目录存在（如果需要，为文件系统服务器创建）
+4. 设置包含命令、参数和合并环境的 `StdioServerParameters`
+5. 生成外部进程
+6. 建立 stdio 传输（stdin/stdout 管道）
+7. 创建并初始化 `ClientSession`
+8. 如果 `is_fetch_tools=True`，调用 `list_tools()` 发现可用工具
 
 **错误处理:**
-- Raises `ValueError` if comm和 resolves to `None`
-- Raises `FileNotFoundError` if required files don't exist
-- Raises `Exception` 包含 server name if initialization fails
-- Automatically calls `cleanup()` on error
+- 如果命令解析为 `None`，抛出 `ValueError`
+- 如果所需文件不存在，抛出 `FileNotFoundError`
+- 如果初始化失败，抛出包含服务器名称的 `Exception`
+- 出错时自动调用 `cleanup()`
 
-**Example (internal use):**
+**示例（内部使用）：**
 ```python
 # Called automatically by MAS during initialization
 # async with MAS(oxy_space=[client, ...]) as mas:
@@ -294,29 +294,29 @@ async def init(self, is_fetch_tools: bool = True) -> None
 
 ### get_server_params()
 
-Build 和 return the stdio server parameters.
+构建并返回 stdio 服务器参数。
 
 ```python
 async def get_server_params(self) -> StdioServerParameters
 ```
 
-**Returns:** `StdioServer参数` 对象，包含:
-- `comm和`: Resolved comm和 path
-- `args`: Comm和-line arguments
-- `env`: Merged environment variables
+**返回：** 包含以下内容的 `StdioServerParameters` 对象:
+- `command`: 解析后的命令路径
+- `args`: 命令行参数
+- `env`: 合并的环境变量
 
-**Behavior:**
-1. Resolves comm和 path (special h和ling for `npx`)
-2. Validates comm和 is not `None`
-3. Validates directory structure if applicable
-4. Merges `params.env` 包含 `os.environ`
-5. Creates `StdioServer参数` instance
+**行为：**
+1. 解析命令路径（对 `npx` 进行特殊处理）
+2. 验证命令不为 `None`
+3. 如果适用，验证目录结构
+4. 将 `params.env` 与 `os.environ` 合并
+5. 创建 `StdioServerParameters` 实例
 
-**Raises:**
-- `ValueError` if comm和 is `None`
-- `FileNotFoundError` if directory validation fails
+**抛出：**
+- 如果命令为 `None`，抛出 `ValueError`
+- 如果目录验证失败，抛出 `FileNotFoundError`
 
-**Example (internal use):**
+**示例（内部使用）：**
 ```python
 # Used internally by init() and call_tool()
 server_params = await self.get_server_params()
@@ -324,7 +324,7 @@ server_params = await self.get_server_params()
 
 ### call_tool()
 
-Execute a tool on the MCP server.
+在 MCP 服务器上执行工具。
 
 ```python
 async def call_tool(
@@ -336,23 +336,23 @@ async def call_tool(
 ```
 
 **参数:**
-- `tool_name` (str): Name of the tool to call
-- `arguments` (dict): Tool-specific parameters
-- `headers` (dict, optional): HTTP headers (not typically used for stdio)
+- `tool_name` (str): 要调用的工具名称
+- `arguments` (dict): 工具特定的参数
+- `headers` (dict, optional): HTTP 头（stdio 通常不使用）
 
-**Returns:** MCP response 对象 使用 tool execution results
+**返回：** 包含工具执行结果的 MCP 响应对象
 
-**Behavior:**
-1. Gets server parameters via `get_server_params()`
-2. Creates new stdio client context
-3. Establishes new session
-4. Initializes MCP protocol
-5. Calls the specified tool 包含 arguments
-6. Returns response
+**行为：**
+1. 通过 `get_server_params()` 获取服务器参数
+2. 创建新的 stdio 客户端上下文
+3. 建立新会话
+4. 初始化 MCP 协议
+5. 使用参数调用指定的工具
+6. 返回响应
 
-**Note:** This method creates a **new connection** each time. For persistent connections, the `_execute()` method uses the existing session.
+**注意：** 此方法每次创建**新连接**。对于持久连接，`_execute()` 方法使用现有会话。
 
-**Example (internal use):**
+**示例（内部使用）：**
 ```python
 # Called internally when is_keep_alive=False
 response = await client.call_tool(
@@ -363,22 +363,22 @@ response = await client.call_tool(
 
 ### list_tools()
 
-Discover 和 register tools from the MCP server.
+从 MCP 服务器发现并注册工具。
 
 ```python
 async def list_tools(self) -> None
 ```
 
-**Behavior:**
-1. Checks that `_session` is initialized
-2. Calls `_session.list_tools()` via MCP protocol
-3. Calls `add_tools()` to create `MCPTool` wrappers
-4. Registers each tool 包含 the MAS
+**行为：**
+1. 检查 `_session` 是否已初始化
+2. 通过 MCP 协议调用 `_session.list_tools()`
+3. 调用 `add_tools()` 创建 `MCPTool` 包装器
+4. 在 MAS 中注册每个工具
 
-**Raises:**
-- `RuntimeError` if server not initialized
+**抛出：**
+- 如果服务器未初始化，抛出 `RuntimeError`
 
-**Example (internal use):**
+**示例（内部使用）：**
 ```python
 # Called automatically during init() if is_fetch_tools=True
 await client.list_tools()
@@ -386,26 +386,26 @@ await client.list_tools()
 
 ### add_tools()
 
-Create MCPTool wrappers for discovered tools.
+为发现的工具创建 MCPTool 包装器。
 
 ```python
 def add_tools(self, tools_response) -> None
 ```
 
 **参数:**
-- `tools_response`: Response from `list_tools()` containing tool definitions
+- `tools_response`: 来自 `list_tools()` 的响应，包含工具定义
 
-**Behavior:**
-1. Iterates through tools in response
-2. For each tool, creates an `MCPTool` instance 包含:
-   - Tool name 和 description
-   - Reference to this MCP client
-   - Input schema
-   - Hook functions (if configured)
-3. Registers each `MCPTool` 包含 the MAS
-4. Adds tool name to `included_tool_name_list`
+**行为：**
+1. 遍历响应中的工具
+2. 为每个工具创建一个 `MCPTool` 实例，包含:
+   - 工具名称和描述
+   - 对此 MCP 客户端的引用
+   - 输入模式
+   - 钩子函数（如果已配置）
+3. 在 MAS 中注册每个 `MCPTool`
+4. 将工具名称添加到 `included_tool_name_list`
 
-**Example (internal use):**
+**示例（内部使用）：**
 ```python
 # Called by list_tools()
 tools_response = await session.list_tools()
@@ -414,25 +414,25 @@ client.add_tools(tools_response)
 
 ### cleanup()
 
-Clean up MCP server resources 和 connections.
+清理 MCP 服务器资源和连接。
 
 ```python
 async def cleanup(self) -> None
 ```
 
-**Behavior:**
-1. Acquires cleanup lock to prevent concurrent cleanup
-2. Closes the `AsyncExitStack` (terminates process 和 sessions)
-3. H和les `asyncio.CancelledError` gracefully
-4. Suppresses other exceptions to prevent cascading failures
-5. Sets `_session` 和 `_stdio_context` to `None`
+**行为：**
+1. 获取清理锁以防止并发清理
+2. 关闭 `AsyncExitStack`（终止进程和会话）
+3. 优雅地处理 `asyncio.CancelledError`
+4. 抑制其他异常以防止级联失败
+5. 将 `_session` 和 `_stdio_context` 设置为 `None`
 
-**When Called:**
-- Automatically 当 MAS exits
-- Automatically on initialization errors
-- Can be called manually if needed
+**何时调用：**
+- MAS 退出时自动调用
+- 初始化错误时自动调用
+- 如果需要可以手动调用
 
-**Example (usually automatic):**
+**示例（通常自动）：**
 ```python
 # Automatic cleanup
 async with MAS(oxy_space=[client, ...]) as mas:
@@ -440,20 +440,20 @@ async with MAS(oxy_space=[client, ...]) as mas:
 # cleanup() called here automatically
 ```
 
-## Internal Implementation Details
+## 内部实现细节
 
-### Directory Validation
+### 目录验证
 
 ```python
 async def _ensure_directories_exist(self, args: list[str]) -> None
 ```
 
-**Behavior:**
-- For filesystem servers: Creates target directory if it doesn't exist
-- For `--directory` comm和s: Validates the MCP tool file exists
-- Logs directory creation or warnings on failure
+**行为：**
+- 对于文件系统服务器：如果目标目录不存在则创建
+- 对于 `--directory` 命令：验证 MCP 工具文件是否存在
+- 记录目录创建或失败时的警告
 
-**Example patterns it handles:**
+**它处理的示例模式：**
 ```python
 # Filesystem server - creates /workspace if needed
 args = ["-y", "@modelcontextprotocol/server-filesystem", "/workspace"]
@@ -463,9 +463,9 @@ args = ["--directory", "./mcp_servers", "run", "server.py"]
 # Ensures ./mcp_servers/server.py exists
 ```
 
-## Usage 示例s
+## 使用示例
 
-### Basic NPX Server
+### 基础 NPX 服务器
 
 ```python
 from oxygent import MAS, oxy
@@ -481,7 +481,7 @@ filesystem_client = oxy.StdioMCPClient(
 )
 ```
 
-### Python Server 使用 UV
+### 使用 UV 的 Python 服务器
 
 ```python
 custom_client = oxy.StdioMCPClient(
@@ -499,7 +499,7 @@ custom_client = oxy.StdioMCPClient(
 )
 ```
 
-### With Custom Configuration
+### 使用自定义配置
 
 ```python
 advanced_client = oxy.StdioMCPClient(
@@ -520,7 +520,7 @@ advanced_client = oxy.StdioMCPClient(
 )
 ```
 
-### Multiple Servers
+### 多个服务器
 
 ```python
 oxy_space = [
@@ -563,7 +563,7 @@ oxy_space = [
 
 ## 错误处理
 
-### Command 否t Found
+### 命令未找到
 
 ```python
 try:
@@ -578,7 +578,7 @@ except ValueError as e:
     print(f"Command error: {e}")
 ```
 
-### File 否t Found
+### 文件未找到
 
 ```python
 try:
@@ -596,7 +596,7 @@ except FileNotFoundError as e:
     print(f"File error: {e}")
 ```
 
-### Initialization Failure
+### 初始化失败
 
 ```python
 try:
@@ -609,8 +609,8 @@ except Exception as e:
 
 ## 相关文档
 
-- **[StdioMCPClient Guide](/docs/tools-mcp-stdio)** - Main documentation 和 usage patterns
-- **[SSEMCPClient API](/oxyapi/tools-mcp-sse-api)** - HTTP SSE client API
-- **[StreamableMCPClient API](/oxyapi/tools-mcp-streamable-api)** - HTTP streamable client API
-- **[BaseMCPClient](/docs/tools-mcp-base)** - Base class documentation
-- **[MCP Protocol](https://modelcontextprotocol.io/)** - Official MCP specification
+- **[StdioMCPClient 指南](/docs/tools-mcp-stdio)** - 主要文档和使用模式
+- **[SSEMCPClient API](/oxyapi/tools-mcp-sse-api)** - HTTP SSE 客户端 API
+- **[StreamableMCPClient API](/oxyapi/tools-mcp-streamable-api)** - HTTP 流式客户端 API
+- **[BaseMCPClient](/docs/tools-mcp-base)** - 基类文档
+- **[MCP 协议](https://modelcontextprotocol.io/)** - 官方 MCP 规范

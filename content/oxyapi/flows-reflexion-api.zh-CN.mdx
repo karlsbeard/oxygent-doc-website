@@ -1,13 +1,13 @@
 ---
 title: Reflexion API 参考
-description: 完整 API 参考文档： Reflexion flow constructor parameters 和 self-evaluation methods
+description: Reflexion 流程的完整 API 参考文档，包括构造函数参数和自我评估方法
 icon: Code
 ---
 
-## Class 概述
+## 类概述
 
 ```python
-from oxygent.oxy.flows import Reflexion, Math Reflexion
+from oxygent.oxy.flows import Reflexion, MathReflexion
 
 # Basic Reflexion
 reflexion_flow = Reflexion(
@@ -32,35 +32,35 @@ math_flow = MathReflexion(
 
 |参数|类型|默认值|描述|
 |-----------|------|---------|-------------|
-| `name` | str | 必需 | Unique identifier for the reflexion flow |
-| `worker_agent` | str | "worker_agent" | Name of the worker agent that generates answers |
-| `reflexion_agent` | str | "reflexion_agent" | Name of the agent that evaluates answers |
-| `max_reflexion_轮` | int | 3 | 最大数量 improvement iterations |
+| `name` | str | 必需 | Reflexion 流程的唯一标识符 |
+| `worker_agent` | str | "worker_agent" | 生成答案的工作者代理的名称 |
+| `reflexion_agent` | str | "reflexion_agent" | 评估答案的代理的名称 |
+| `max_reflexion_rounds` | int | 3 | 最大改进迭代次数 |
 
-### Parsing 参数s
-
-|参数|类型|默认值|描述|
-|-----------|------|---------|-------------|
-| `func_parse_worker_response` | Callable | None | Custom worker response parser |
-| `func_parse_reflexion_response` | Callable | None | Custom reflexion response parser |
-| `pydantic_parser_reflexion` | PydanticOutputParser | ReflectionEvaluation parser | Structured evaluation parser |
-
-### Template 参数s
+### 解析参数
 
 |参数|类型|默认值|描述|
 |-----------|------|---------|-------------|
-| `evaluation_template` | str | 默认 template | Template for evaluation prompts |
-| `improvement_template` | str | 默认 template | Template for improvement prompts |
+| `func_parse_worker_response` | Callable | None | 自定义工作者响应解析器 |
+| `func_parse_reflexion_response` | Callable | None | 自定义反思响应解析器 |
+| `pydantic_parser_reflexion` | PydanticOutputParser | ReflectionEvaluation parser | 结构化评估解析器 |
 
-### 可选 参数s
+### 模板参数
 
 |参数|类型|默认值|描述|
 |-----------|------|---------|-------------|
-| `desc` | str | "" | Description of the flow's purpose |
-| `timeout` | int | 100 | Maximum execution time in seconds |
-| `llm_model` | str | "default_llm" | LLM model for fallback operations |
-| `is_permission_required` | bool | False | Whether permission is required |
-| `is_master` | bool | False | Whether this is the master entry point |
+| `evaluation_template` | str | 默认模板 | 评估提示的模板 |
+| `improvement_template` | str | 默认模板 | 改进提示的模板 |
+
+### 可选参数
+
+|参数|类型|默认值|描述|
+|-----------|------|---------|-------------|
+| `desc` | str | "" | 流程用途的描述 |
+| `timeout` | int | 100 | 最大执行时间（秒） |
+| `llm_model` | str | "default_llm" | 用于后备操作的 LLM 模型 |
+| `is_permission_required` | bool | False | 是否需要权限 |
+| `is_master` | bool | False | 是否为主入口点 |
 
 ## 参数详情
 
@@ -524,10 +524,10 @@ MathReflexion(
 | **Improvement** | Automatic | Manual | N/A |
 | **Use case** | Quality refinement | Custom logic | 多步骤任务 |
 
-## Related API 参考s
+## Related API 参考
 
-- [Workflow API](/oxyapi/flows-workflow-api) - Custom workflow flow API
-- [ParallelFlow API](/oxyapi/flows-parallel-api) - Parallel execution flow API
-- [PlanAndSolve API](/oxyapi/flows-plan-和-solve-api) - Plan-和-execute flow API
-- [ChatAgent API](/oxyapi/agents-chat-api) - Worker 和 evaluator agent API
-- [ReActAgent API](/oxyapi/agents-react-api) - Advanced worker agent API
+- [Workflow API](/oxyapi/flows-workflow-api) - 自定义工作流 API
+- [ParallelFlow API](/oxyapi/flows-parallel-api) - 并行执行流 API
+- [PlanAndSolve API](/oxyapi/flows-plan-and-solve-api) - 计划执行流 API
+- [ChatAgent API](/oxyapi/agents-chat-api) - 工作者和评估者代理 API
+- [ReActAgent API](/oxyapi/agents-react-api) - 高级工作者代理 API
