@@ -1,0 +1,697 @@
+---
+title: SSEMCPClient API 参考
+description: 完整 API 文档： SSEMCPClient 类
+icon: Code
+---
+
+## Class Definition
+
+```python
+from oxygent import oxy
+
+# Create an SSEMCPClient instance
+client = oxy.SSEMCPClient(
+    name="remote_tools",
+    sse_url="http://127.0.0.1:9000/sse",
+    headers={"Authorization": "Bearer token"},
+    middlewares=[]
+)
+```
+
+## 构造函数参数
+
+### 必需 参数s
+
+|参数|类型|必需|默认值|描述|
+|-----------|------|----------|---------|-------------|
+| `name` | `str` | **Yes** | - | Unique identifier for this MCP client. Agents reference this name in their `tools` list |
+| `sse_url` | `AnyUrl` | **Yes** | `""` | SSE endpoint URL (e.g., "http://localhost:9000/sse") |
+
+### 可选 参数s
+
+|参数|类型|默认值|描述|
+|-----------|------|---------|-------------|
+| `middlewares` | `list[Any]` | `[]` | List of client-side MCP middlewares for request/response processing |
+
+### Inherited from BaseMCPClient
+
+|参数|类型|默认值|描述|
+|-----------|------|---------|-------------|
+| `headers` | `dict[str, str]` | `{}` | HTTP headers to send 包含 all requests |
+| `is_dynamic_headers` | `bool` | `False` | Enable dynamic header updates per request |
+| `is_inherit_headers` | `bool` | `False` | Inherit headers from OxyRequest._headers |
+| `is_keep_alive` | `bool` | 配置默认值 | Keep SSE connection alive between calls |
+
+### Inherited from BaseTool
+
+|参数|类型|默认值|描述|
+|-----------|------|---------|-------------|
+| `timeout` | `float` | `60` | Maximum execution time per tool call in seconds |
+| `semaphore` | `int` | `16` | 最大数量 concurrent tool executions |
+| `retries` | `int` | `2` | Number of retry attempts on failure |
+| `delay` | `float` | `1.0` | Delay between retry attempts in seconds |
+| `is_permission_required` | `bool` | `True` | Whether agents need permission to call tools |
+| `is_save_data` | `bool` | `True` | Whether to save execution traces |
+
+### Internal Attributes
+
+|Attribute|类型|描述|
+|-----------|------|-------------|
+| `included_tool_name_list` | `list[str]` | 工具名称列表 discovered from the MCP server |
+| `_session` | `ClientSession` | MCP protocol session (initialized during `init()`) |
+| `_exit_stack` | `AsyncExitStack` | Resource management context for cleanup |
+
+## 参数详情
+
+### name
+
+- **Type**: `str`
+- **必需**: Yes
+- **Description**: Unique identifier for this SSE MCP client 在多智能体系统中. Agents reference this name in their `tools` list to use all tools provided by this remote server.
+
+**Example:**
+```python
+oxy.SSEMCPClient(
+    name="remote_api_tools",  # Agents will use "remote_api_tools" in their tools list
+    ...
+)
+```
+
+### sse_url
+
+- **Type**: `AnyUrl` (Pydantic URL type)
+- **必需**: Yes
+- **Description**: The HTTP(S) URL endpoint where the SSE MCP server is hosted. This URL must point to the server's SSE endpoint.
+
+**Format:**
+- Must be a valid URL
+- Typically ends 包含 `/sse` or similar path
+- Can be HTTP (local/dev) or HTTPS (production)
+
+**Examples:**
+```python
+# Local development
+sse_url="http://localhost:9000/sse"
+sse_url="http://127.0.0.1:8000/mcp/sse"
+
+# Production
+sse_url="https://api.example.com/mcp/sse"
+sse_url="https://tools.myapp.com/sse"
+```
+
+**URL Processing:**
+The URL is processed through `build_url()` utility which:
+- Ensures proper formatting
+- H和les trailing slashes
+- Validates URL structure
+
+### headers
+
+- **Type**: `dict[str, str]`
+- **默认**: `{}`
+- **Description**: HTTP headers to include in all requests to the SSE server. Commonly used for authentication, versioning, 和 custom metadata.
+
+**Common Use Cases:**
+
+1. **Authentication:**
+```python
+headers={
+    "Authorization": "Bearer your-api-token",
+    "X-API-Key": os.getenv("MCP_API_KEY")
+}
+```
+
+2. **API Versioning:**
+```python
+headers={
+    "X-API-Version": "v2",
+    "Accept": "application/json"
+}
+```
+
+3. **Custom Metadata:**
+```python
+headers={
+    "X-Client-ID": "oxygent-client",
+    "X-Application": "my-app",
+    "X-Environment": "production"
+}
+```
+
+**Behavior:**
+- Headers are sent 包含 every SSE connection
+- Can be overridden per-request if `is_dynamic_headers=True`
+- The `host` header is automatically removed if inherited
+
+### is_dynamic_headers
+
+- **Type**: `bool`
+- **默认**: `False`
+- **Description**: Enable dynamic header updates on a per-request basis. When enabled, headers can be provided in the tool call 和 will override/merge 包含 base headers.
+
+**Requirements:**
+- Must set `is_keep_alive=False` for dynamic headers to work
+- Creates new SSE connection for each tool call
+
+**Example:**
+```python
+# Enable dynamic headers
+oxy.SSEMCPClient(
+    name="dynamic_client",
+    sse_url="http://localhost:9000/sse",
+    headers={
+        "X-Service-Key": "default-key"  # Base headers
+    },
+    is_dynamic_headers=True,
+    is_keep_alive=False  # Required
+)
+
+# Later, in tool call:
+await oxy_request.call(
+    callee="tool_name",
+    arguments={"param": "value"},
+    headers={  # These merge/override base headers
+        "X-User-ID": "user123",
+        "X-Request-ID": "req456"
+    }
+)
+```
+
+### is_inherit_headers
+
+- **Type**: `bool`
+- **默认**: `False`
+- **Description**: Inherit headers from the OxyRequest context (`_headers` field). Useful for propagating upstream headers through the call chain.
+
+**Behavior:**
+- Reads `oxy_request.shared_data.get("_headers", {})` if `is_inherit_headers=True`
+- Removes `host` header automatically (prevents conflicts)
+- Merges 包含 base `headers` 和 dynamic `headers`
+- Merge order: `base headers | inherited headers | dynamic headers`
+
+**Example:**
+```python
+oxy.SSEMCPClient(
+    name="inherit_client",
+    sse_url="http://localhost:9000/sse",
+    is_dynamic_headers=True,
+    is_inherit_headers=True,  # Inherit from request context
+    is_keep_alive=False
+)
+
+# Upstream request with headers
+await mas.call(
+    callee="agent",
+    arguments={
+        "messages": [...],
+        "_headers": {  # These will be inherited
+            "X-Trace-ID": "trace123",
+            "X-User-Context": "user-data"
+        }
+    }
+)
+```
+
+### is_keep_alive
+
+- **Type**: `bool`
+- **默认**: From `Config.get_tool_mcp_is_keep_alive()`
+- **Description**: Controls SSE connection lifecycle 和 persistence.
+
+**True (Persistent Connection):**
+- Single SSE connection established during `init()`
+- Connection reused for all tool calls
+- Faster performance (no reconnection overhead)
+- Tools discovered once at startup
+- Cannot use dynamic headers
+- **Recommended for most use cases**
+
+**False (Transient Connection):**
+- New SSE connection for each tool call
+- Fresh state every time
+- 必需 for dynamic headers
+- Higher latency due to reconnection
+- Tools rediscovered each time
+
+**Examples:**
+```python
+# Persistent connection (default, recommended)
+oxy.SSEMCPClient(
+    name="persistent",
+    sse_url="http://localhost:9000/sse",
+    is_keep_alive=True  # Default
+)
+
+# Transient connection (for dynamic headers)
+oxy.SSEMCPClient(
+    name="transient",
+    sse_url="http://localhost:9000/sse",
+    is_dynamic_headers=True,
+    is_keep_alive=False  # Required for dynamic headers
+)
+```
+
+### middlewares
+
+- **Type**: `list[Any]`
+- **默认**: `[]`
+- **Description**: List of client-side middleware 对象s for processing requests 和 responses. Middlewares must implement the middleware interface expected by the MCP ClientSession.
+
+**Interface:**
+Middleware should have methods like:
+- `process_request(request)` - Called before sending request
+- `process_response(response)` - Called after receiving response
+
+**Example:**
+```python
+class LoggingMiddleware:
+    async def process_request(self, request):
+        print(f"[REQUEST] {request}")
+        return request
+
+    async def process_response(self, response):
+        print(f"[RESPONSE] {response}")
+        return response
+
+class AuthMiddleware:
+    def __init__(self, token):
+        self.token = token
+
+    async def process_request(self, request):
+        request.headers["Authorization"] = f"Bearer {self.token}"
+        return request
+
+oxy.SSEMCPClient(
+    name="middleware_client",
+    sse_url="http://localhost:9000/sse",
+    middlewares=[
+        LoggingMiddleware(),
+        AuthMiddleware(os.getenv("TOKEN"))
+    ]
+)
+```
+
+**Compatibility Note:**
+- Middleware support depends on MCP client library version
+- If `session.add_middleware()` is not available, a warning is logged
+- Middleware is silently ignored in incompatible versions
+
+### timeout
+
+- **Type**: `float`
+- **默认**: `60`
+- **Description**: Maximum execution time for each tool call in seconds. Applies to the entire request-response cycle.
+
+**使用指南:**
+- Fast tools: 10-30 seconds
+- API calls: 30-60 seconds
+- Data processing: 60-120 seconds
+- Long operations: 120+ seconds
+
+**Example:**
+```python
+oxy.SSEMCPClient(
+    name="slow_tools",
+    sse_url="http://api.slow-service.com/sse",
+    timeout=180  # 3 minutes for slow operations
+)
+```
+
+## 方法
+
+### init()
+
+Initialize the SSE connection to the MCP server.
+
+```python
+async def init(self, is_fetch_tools: bool = True) -> None
+```
+
+**参数:**
+- `is_fetch_tools` (bool): Whether to automatically discover 和 register tools after initialization. 默认: `True`
+
+**Behavior:**
+
+The behavior depends on `is_dynamic_headers` 和 `is_keep_alive`:
+
+**Case 1: Persistent Connection (`is_keep_alive=True` and `not is_dynamic_headers`)**
+1. Establishes SSE connection to `sse_url` 包含 `headers`
+2. Creates MCP `ClientSession` over SSE transport
+3. Adds all `middlewares` to the session
+4. Initializes MCP protocol
+5. If `is_fetch_tools=True`, discovers tools via `list_tools()`
+
+**Case 2: Transient Connection (`is_keep_alive=False` or `is_dynamic_headers=True`)**
+1. Creates temporary SSE connection
+2. Discovers tools via `list_tools()`
+3. Closes connection immediately
+4. Subsequent tool calls create new connections
+
+**错误处理:**
+- Logs error 包含 server name if initialization fails
+- Calls `cleanup()` automatically on error
+- Raises `Exception` 包含 message "Server \{name\} error"
+
+**Example (internal use):**
+```python
+# Called automatically by MAS during initialization
+async with MAS(oxy_space=[client, ...]) as mas:
+    # client.init() is called here
+    ...
+```
+
+### call_tool()
+
+Execute a tool on the SSE MCP server.
+
+```python
+async def call_tool(
+    self,
+    tool_name: str,
+    arguments: dict,
+    headers: dict[str, str] = None
+) -> Any
+```
+
+**参数:**
+- `tool_name` (str): Name of the tool to call
+- `arguments` (dict): Tool-specific parameters
+- `headers` (dict, optional): Override/merge headers for this call
+
+**Returns:** MCP response 对象 使用 tool execution results
+
+**Behavior:**
+1. Builds URL using `build_url(sse_url)`
+2. Establishes SSE client connection 包含 provided/merged headers
+3. Creates temporary ClientSession
+4. Initializes MCP protocol
+5. Calls the specified tool 包含 arguments
+6. Returns response
+7. Connection closed automatically
+
+**Note:** This method is used when `is_keep_alive=False` or `is_dynamic_headers=True`. For persistent connections, `_execute()` uses the existing session.
+
+**Example (internal use):**
+```python
+# Called internally when creating new connection per request
+response = await client.call_tool(
+    tool_name="fetch_data",
+    arguments={"url": "https://api.example.com/data"},
+    headers={"X-Request-ID": "req123"}
+)
+```
+
+### list_tools()
+
+Discover 和 register tools from the SSE MCP server.
+
+```python
+async def list_tools(self) -> None
+```
+
+**Behavior:**
+1. Checks that `_session` is initialized (persistent mode)
+2. Calls `_session.list_tools()` via MCP protocol
+3. Calls `add_tools()` to create `MCPTool` wrappers
+4. Registers each tool 包含 the MAS
+
+**Raises:**
+- `RuntimeError` if server not initialized (persistent mode only)
+
+**Note:** In transient mode, this method is called 使用 a temporary session during `init()`.
+
+**Example (internal use):**
+```python
+# Called automatically during init() if is_fetch_tools=True
+await client.list_tools()
+```
+
+### add_tools()
+
+Create MCPTool wrappers for discovered tools.
+
+```python
+def add_tools(self, tools_response) -> None
+```
+
+**参数:**
+- `tools_response`: Response from `list_tools()` containing tool definitions
+
+**Behavior:**
+1. Extracts model dump excluding sensitive 字段
+2. Iterates through tools in response
+3. For each tool, creates an `MCPTool` instance 包含:
+   - Tool name 和 description
+   - Reference to this SSE MCP client
+   - Input schema
+   - Hook functions (if configured)
+4. Registers each `MCPTool` 包含 the MAS
+5. Adds tool name to `included_tool_name_list`
+
+**Excluded 字段 from model dump:**
+- `sse_url`
+- `server_url`
+- `headers`
+- `middlewares`
+- `included_tool_name_list`
+- `name`
+- `desc`
+- `mcp_client`
+- `server_name`
+- `input_schema`
+
+**Example (internal use):**
+```python
+# Called by list_tools()
+tools_response = await session.list_tools()
+client.add_tools(tools_response)
+```
+
+### cleanup()
+
+Clean up SSE MCP server resources 和 connections.
+
+```python
+async def cleanup(self) -> None
+```
+
+**Behavior:**
+1. Acquires cleanup lock to prevent concurrent cleanup
+2. Closes the `AsyncExitStack` (closes SSE connection 和 sessions)
+3. H和les `asyncio.CancelledError` gracefully
+4. Suppresses other exceptions to prevent cascading failures
+5. Sets `_session` 和 `_stdio_context` to `None`
+
+**When Called:**
+- Automatically 当 MAS exits
+- Automatically on initialization errors
+- Can be called manually if needed
+
+**Example (usually automatic):**
+```python
+# Automatic cleanup
+async with MAS(oxy_space=[client, ...]) as mas:
+    ...
+# cleanup() called here automatically
+```
+
+## Usage 示例s
+
+### Basic Remote Connection
+
+```python
+from oxygent import MAS, oxy
+import os
+
+# Simple remote MCP server
+client = oxy.SSEMCPClient(
+    name="remote_tools",
+    sse_url="http://127.0.0.1:9000/sse"
+)
+
+oxy_space = [
+    oxy.HttpLLM(name="llm", ...),
+    client,
+    oxy.ReActAgent(
+        name="agent",
+        llm_model="llm",
+        tools=["remote_tools"]
+    )
+]
+```
+
+### With Authentication
+
+```python
+# Authenticated remote server
+secure_client = oxy.SSEMCPClient(
+    name="secure_tools",
+    sse_url="https://api.example.com/mcp/sse",
+    headers={
+        "Authorization": f"Bearer {os.getenv('MCP_API_KEY')}",
+        "X-API-Version": "v2"
+    }
+)
+```
+
+### With Dynamic Headers
+
+```python
+# Dynamic header support
+dynamic_client = oxy.SSEMCPClient(
+    name="dynamic_tools",
+    sse_url="https://api.example.com/mcp/sse",
+    headers={
+        "X-Service-Key": "default-key"
+    },
+    is_dynamic_headers=True,
+    is_inherit_headers=True,
+    is_keep_alive=False  # Required for dynamic headers
+)
+```
+
+### With Middlewares
+
+```python
+# Custom middleware
+class MetricsMiddleware:
+    async def process_request(self, request):
+        request.start_time = time.time()
+        return request
+
+    async def process_response(self, response):
+        duration = time.time() - response.request.start_time
+        print(f"Request took {duration:.2f}s")
+        return response
+
+middleware_client = oxy.SSEMCPClient(
+    name="monitored_tools",
+    sse_url="http://localhost:9000/sse",
+    middlewares=[MetricsMiddleware()]
+)
+```
+
+### High Performance Configuration
+
+```python
+# Optimized for high-throughput
+perf_client = oxy.SSEMCPClient(
+    name="fast_tools",
+    sse_url="http://localhost:9000/sse",
+    is_keep_alive=True,      # Persistent connection
+    timeout=30,              # Quick timeout
+    semaphore=32,            # More concurrent calls
+    retries=1,               # Fast fail
+    is_permission_required=False  # No permission checks
+)
+```
+
+### Multiple Remote Servers
+
+```python
+oxy_space = [
+    oxy.HttpLLM(name="llm", ...),
+
+    # Production API
+    oxy.SSEMCPClient(
+        name="prod_api",
+        sse_url="https://prod.example.com/sse",
+        headers={"Authorization": f"Bearer {os.getenv('PROD_KEY')}"}
+    ),
+
+    # Staging API
+    oxy.SSEMCPClient(
+        name="staging_api",
+        sse_url="https://staging.example.com/sse",
+        headers={"Authorization": f"Bearer {os.getenv('STAGING_KEY')}"}
+    ),
+
+    # Local tools
+    oxy.SSEMCPClient(
+        name="local_tools",
+        sse_url="http://localhost:9000/sse"
+    ),
+
+    oxy.ReActAgent(
+        name="agent",
+        llm_model="llm",
+        tools=["prod_api", "staging_api", "local_tools"]
+    )
+]
+```
+
+## 错误处理
+
+### Connection Errors
+
+```python
+try:
+    client = oxy.SSEMCPClient(
+        name="unavailable",
+        sse_url="http://localhost:9999/sse"  # Server not running
+    )
+    async with MAS(oxy_space=[client, ...]) as mas:
+        await mas.call(...)
+except Exception as e:
+    # "Server unavailable error"
+    print(f"Connection error: {e}")
+```
+
+### Authentication Errors
+
+```python
+try:
+    client = oxy.SSEMCPClient(
+        name="secure",
+        sse_url="https://api.example.com/sse",
+        headers={"Authorization": "Bearer invalid-token"}
+    )
+    async with MAS(oxy_space=[client, ...]) as mas:
+        await mas.call(...)
+except Exception as e:
+    # Authentication failure
+    print(f"Auth error: {e}")
+```
+
+### Timeout Errors
+
+```python
+client = oxy.SSEMCPClient(
+    name="slow",
+    sse_url="http://slow-server.com/sse",
+    timeout=5  # Very short timeout
+)
+# Tool calls exceeding 5 seconds will raise timeout error
+```
+
+## Performance Considerations
+
+### Persistent vs Transient Connections
+
+|Aspect|Persistent (`is_keep_alive=True`)|Transient (`is_keep_alive=False`)|
+|--------|-----------------------------------|-----------------------------------|
+| **Latency** | Low (no reconnection) | High (reconnect each time) |
+| **Throughput** | High | Lower |
+| **Memory** | Higher (persistent session) | Lower (temporary sessions) |
+| **Dynamic Headers** | Not supported | Supported |
+| **Use Case** | Multiple calls, production | Single calls, dynamic auth |
+
+### Concurrency
+
+Control concurrent tool executions:
+
+```python
+oxy.SSEMCPClient(
+    name="concurrent",
+    sse_url="http://localhost:9000/sse",
+    semaphore=64  # Allow 64 concurrent tool calls
+)
+```
+
+## 相关文档
+
+- **[SSEMCPClient Guide](/docs/tools-mcp-sse)** - Main documentation 和 usage patterns
+- **[StdioMCPClient API](/oxyapi/tools-mcp-stdio-api)** - Local process client API
+- **[StreamableMCPClient API](/oxyapi/tools-mcp-streamable-api)** - HTTP streamable client API
+- **[BaseMCPClient](/docs/tools-mcp-base)** - Base class documentation
+- **[MCP Protocol](https://modelcontextprotocol.io/)** - Official MCP specification

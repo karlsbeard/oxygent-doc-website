@@ -1,0 +1,616 @@
+---
+title: PlanAndSolve API 参考
+description: 完整 API 参考文档： PlanAndSolve flow constructor parameters 和 execution methods
+icon: Code
+---
+
+## Class 概述
+
+```python
+from oxygent.oxy.flows import PlanAndSolve
+
+plan_solve_flow = PlanAndSolve(
+    name="task_executor",
+    desc="Decomposes complex tasks and executes them step-by-step",
+    planner_agent_name="planner_agent",
+    executor_agent_name="executor_agent",
+    enable_replanner=False,
+    max_replan_rounds=30,
+    llm_model="default_llm"
+)
+```
+
+## 构造函数参数
+
+### 核心参数
+
+|参数|类型|默认值|描述|
+|-----------|------|---------|-------------|
+| `name` | str | 必需 | Unique identifier for the flow |
+| `planner_agent_name` | str | "planner_agent" | Name of the planner agent |
+| `executor_agent_name` | str | "executor_agent" | Name of the executor agent |
+
+### Planning 参数s
+
+|参数|类型|默认值|描述|
+|-----------|------|---------|-------------|
+| `max_replan_轮` | int | 30 | 最大数量 planning iterations |
+| `pre_plan_steps` | List[str] | None | Predefined plan steps (bypasses planner) |
+| `enable_replanner` | bool | False | Enable dynamic replanning |
+
+### LLM and Parsing 参数s
+
+|参数|类型|默认值|描述|
+|-----------|------|---------|-------------|
+| `llm_model` | str | "default_llm" | LLM model name for fallback operations |
+| `func_parse_planner_response` | Callable | None | Custom planner response parser |
+| `pydantic_parser_planner` | PydanticOutputParser | Plan parser | Planner output parser |
+| `func_parse_replanner_response` | Callable | None | Custom replanner response parser |
+| `pydantic_parser_replanner` | PydanticOutputParser | Action parser | Replanner output parser |
+
+### 可选 参数s
+
+|参数|类型|默认值|描述|
+|-----------|------|---------|-------------|
+| `desc` | str | "" | Description of the flow's purpose |
+| `timeout` | int | 100 | Maximum execution time in seconds |
+| `is_permission_required` | bool | False | Whether permission is required |
+| `category` | str | "flow" | Category 类ification |
+| `is_master` | bool | False | Whether this is the master entry point |
+
+## 参数详情
+
+### `name`
+- **Type**: `str`
+- **必需**: Yes
+- **Description**: Unique identifier for the PlanAndSolve flow 在多智能体系统中.
+
+**Example:**
+```python
+PlanAndSolve(
+    name="complex_task_solver",
+    planner_agent_name="planner",
+    executor_agent_name="executor"
+)
+```
+
+### `planner_agent_name`
+- **Type**: `str`
+- **默认**: `"planner_agent"`
+- **Description**: Name of the agent responsible for decomposing complex tasks into ordered sub-goals.
+
+**Requirements:**
+- Agent must be 在同一多智能体系统中注册
+- Should be capable of structured output (Plan model)
+- Typically uses an LLM 包含 good planning capabilities
+
+**Example:**
+```python
+PlanAndSolve(
+    name="solver",
+    planner_agent_name="gpt4_planner",  # Custom planner agent
+    executor_agent_name="executor"
+)
+```
+
+### `executor_agent_name`
+- **Type**: `str`
+- **默认**: `"executor_agent"`
+- **Description**: Name of the agent responsible for executing individual sub-goals.
+
+**Requirements:**
+- Agent must be 在同一多智能体系统中注册
+- Should have access to necessary tools
+- Often a ReActAgent 包含 tool access
+
+**Example:**
+```python
+PlanAndSolve(
+    name="solver",
+    planner_agent_name="planner",
+    executor_agent_name="react_executor"  # ReActAgent with tools
+)
+```
+
+### `max_replan_rounds`
+- **Type**: `int`
+- **默认**: `30`
+- **Description**: 最大数量 planning iterations to prevent infinite loops.
+
+**使用指南:**
+- 简单任务: 5-10 轮
+- Medium complexity: 10-20 轮
+- Complex tasks: 20-30 轮
+- Very complex: 30-50 轮 (increase 包含 caution)
+
+**Example:**
+```python
+PlanAndSolve(
+    name="complex_solver",
+    max_replan_rounds=50,  # Allow more iterations for very complex tasks
+    ...
+)
+```
+
+### `pre_plan_steps`
+- **Type**: `List[str]` | `None`
+- **默认**: `None`
+- **Description**: Predefined plan steps that bypass the initial planning phase.
+
+**When to use:**
+- Known, fixed workflow
+- Strict control over execution sequence
+- Testing specific execution paths
+- Templated procedures
+
+**Example:**
+```python
+PlanAndSolve(
+    name="predefined_solver",
+    pre_plan_steps=[
+        "Validate input data",
+        "Query database for user information",
+        "Process results and format output",
+        "Return formatted response"
+    ],
+    executor_agent_name="executor"
+)
+```
+
+**Note:** When `pre_plan_steps` is provided, the planner agent is not called initially.
+
+### `enable_replanner`
+- **Type**: `bool`
+- **默认**: `False`
+- **Description**: Enable dynamic replanning based on execution results.
+
+**When enabled:**
+- After each step, replanner evaluates progress
+- Can modify remaining plan based on results
+- Can terminate early if goal achieved
+- Requires `replanner_agent_name` to be set
+
+**Usage:**
+```python
+# Basic mode (no replanning)
+PlanAndSolve(
+    name="basic_solver",
+    enable_replanner=False,  # Execute plan linearly
+    ...
+)
+
+# Advanced mode (with replanning)
+PlanAndSolve(
+    name="adaptive_solver",
+    enable_replanner=True,  # Adapt plan dynamically
+    replanner_agent_name="replanner_agent",
+    ...
+)
+```
+
+**Considerations:**
+- More flexible but slower
+- Can h和le unexpected situations
+- Risk of circular planning (use `max_replan_轮`)
+
+### `llm_model`
+- **Type**: `str`
+- **默认**: `"default_llm"`
+- **Description**: LLM model name for fallback operations 当 max 轮 exceeded.
+
+**Example:**
+```python
+PlanAndSolve(
+    name="solver",
+    llm_model="gpt-4",  # Use for fallback synthesis
+    ...
+)
+```
+
+### `func_parse_planner_response`
+- **Type**: `可选[Callable[[str], LLMResponse]]`
+- **默认**: `None`
+- **Description**: Custom function to parse planner agent responses.
+
+**When to use:**
+- Custom planner output format
+- Non-st和ard Plan structure
+- Legacy system integration
+
+**Function Signature:**
+```python
+def custom_planner_parser(response: str) -> Plan:
+    """
+    Args:
+        response: Raw string output from planner agent
+
+    Returns:
+        Plan: Parsed plan with steps list
+    """
+    # Custom parsing logic
+    steps = extract_steps_from_response(response)
+    return Plan(steps=steps)
+```
+
+**Example:**
+```python
+PlanAndSolve(
+    name="custom_solver",
+    func_parse_planner_response=custom_planner_parser,
+    pydantic_parser_planner=None,  # Disable default parser
+    ...
+)
+```
+
+### `pydantic_parser_planner`
+- **Type**: `PydanticOutputParser`
+- **默认**: `PydanticOutputParser(output_cls=Plan)`
+- **Description**: Pydantic parser for structured planner output.
+
+**默认 Plan Model:**
+```python
+class Plan(BaseModel):
+    steps: List[str] = Field(
+        description="different steps to follow, should be in sorted order"
+    )
+```
+
+**Custom Example:**
+```python
+from pydantic import BaseModel, Field
+from oxygent.utils.llm_pydantic_parser import PydanticOutputParser
+
+class CustomPlan(BaseModel):
+    steps: List[str]
+    priority: str
+    estimated_time: int
+
+custom_parser = PydanticOutputParser(output_cls=CustomPlan)
+
+PlanAndSolve(
+    name="solver",
+    pydantic_parser_planner=custom_parser,
+    ...
+)
+```
+
+### `func_parse_replanner_response`
+- **Type**: `可选[Callable[[str], LLMResponse]]`
+- **默认**: `None`
+- **Description**: Custom function to parse replanner agent responses.
+
+**Function Signature:**
+```python
+def custom_replanner_parser(response: str) -> Action:
+    """
+    Args:
+        response: Raw string output from replanner agent
+
+    Returns:
+        Action: Either Response (done) or Plan (continue)
+    """
+    # Custom parsing logic
+    if is_complete(response):
+        return Action(action=Response(response=final_answer))
+    else:
+        return Action(action=Plan(steps=new_steps))
+```
+
+### `pydantic_parser_replanner`
+- **Type**: `PydanticOutputParser`
+- **默认**: `PydanticOutputParser(output_cls=Action)`
+- **Description**: Pydantic parser for structured replanner output.
+
+**默认 Action Model:**
+```python
+class Response(BaseModel):
+    response: str
+
+class Plan(BaseModel):
+    steps: List[str]
+
+class Action(BaseModel):
+    action: Union[Response, Plan] = Field(
+        description="Action to perform. Use Response to answer user, Plan to continue."
+    )
+```
+
+## 方法
+
+### `_execute(oxy_request: OxyRequest) -> OxyResponse`
+
+**Internal method** - Orchestrates the plan-and-solve workflow.
+
+**执行流程:**
+1. **Initial Planning** (if `pre_plan_steps` is None):
+   - Call planner agent 包含 formatted query
+   - Parse response into Plan model
+   - Extract list of steps
+
+2. **Step Execution Loop**:
+   - For each step in plan:
+     - Format step 包含 context (past steps)
+     - Call executor agent
+     - Record execution result
+     - Update past_steps history
+
+3. **Replanning** (if `enable_replanner=True`):
+   - After each step, call replanner agent
+   - Evaluate: Continue (new Plan) or Terminate (Response)
+   - Update plan if continuing
+
+4. **Termination**:
+   - Plan exhausted: Return final executor output
+   - Replanner terminates: Return Response
+   - Max 轮 exceeded: Use LLM fallback
+
+**Note:** Internal method - use `mas.call()` or `oxy_request.call()` instead.
+
+## 执行流程 Diagram
+
+```
+User Request
+    ↓
+Initial Planning (unless pre_plan_steps provided)
+    ↓
+planner_agent → Plan(steps=[...])
+    ↓
+┌─── Execution Loop (max_replan_rounds) ───┐
+│                                           │
+│  Current Step = plan_steps[0]            │
+│    ↓                                      │
+│  Format with past_steps context          │
+│    ↓                                      │
+│  executor_agent executes step            │
+│    ↓                                      │
+│  Record result in past_steps             │
+│    ↓                                      │
+│  [If enable_replanner]                   │
+│    ↓                                      │
+│  replanner_agent evaluates progress      │
+│    ↓                                      │
+│  Response? → Return final answer         │
+│  Plan? → Update plan_steps               │
+│    ↓                                      │
+│  [If !enable_replanner]                  │
+│    ↓                                      │
+│  Remove completed step from plan         │
+│    ↓                                      │
+│  plan_steps empty? → Return result       │
+│    ↓                                      │
+└───────────────────────────────────────────┘
+    ↓
+OxyResponse(state=COMPLETED, output=result)
+```
+
+## Return Value
+
+### OxyResponse Structure
+
+```python
+{
+    "state": OxyState.COMPLETED,
+    "output": "final execution result"  # From executor or replanner
+}
+```
+
+## Usage 示例s
+
+### Basic Plan-and-Solve
+
+```python
+from oxygent import MAS, oxy
+
+oxy_space = [
+    oxy.HttpLLM(name="default_llm", ...),
+    oxy.ChatAgent(
+        name="planner_agent",
+        prompt="You are a task planner. Break down complex tasks into ordered steps."
+    ),
+    oxy.ReActAgent(
+        name="executor_agent",
+        tools=["time_tool", "calculator", "search"],
+        llm_model="default_llm"
+    ),
+    oxy.flows.PlanAndSolve(
+        name="task_solver",
+        planner_agent_name="planner_agent",
+        executor_agent_name="executor_agent",
+        max_replan_rounds=20
+    )
+]
+
+async def main():
+    async with MAS(oxy_space=oxy_space) as mas:
+        result = await mas.call(
+            callee="task_solver",
+            arguments={"query": "Find the current time and calculate 15% tax on $1000"}
+        )
+        print(result.output)
+```
+
+### With Predefined Steps
+
+```python
+oxy.flows.PlanAndSolve(
+    name="fixed_workflow",
+    pre_plan_steps=[
+        "Validate user input format",
+        "Query database for existing records",
+        "Process and transform data",
+        "Save results to database",
+        "Generate confirmation message"
+    ],
+    executor_agent_name="workflow_executor",
+    max_replan_rounds=10
+)
+```
+
+### With Dynamic Replanning
+
+```python
+oxy_space = [
+    oxy.HttpLLM(name="default_llm", ...),
+    oxy.ChatAgent(name="planner_agent", ...),
+    oxy.ChatAgent(name="replanner_agent", ...),  # Additional agent
+    oxy.ReActAgent(name="executor_agent", ...),
+    oxy.flows.PlanAndSolve(
+        name="adaptive_solver",
+        planner_agent_name="planner_agent",
+        executor_agent_name="executor_agent",
+        enable_replanner=True,
+        replanner_agent_name="replanner_agent",  # Required when enable_replanner=True
+        max_replan_rounds=30
+    )
+]
+```
+
+### Custom Parsing Functions
+
+```python
+def parse_custom_plan(response: str) -> Plan:
+    """Parse planner output in custom format."""
+    lines = response.split("\n")
+    steps = [line.strip("- ").strip() for line in lines if line.strip().startswith("-")]
+    return Plan(steps=steps)
+
+oxy.flows.PlanAndSolve(
+    name="custom_solver",
+    func_parse_planner_response=parse_custom_plan,
+    pydantic_parser_planner=None,  # Disable default
+    ...
+)
+```
+
+## 最佳实践
+
+### 1. Choose Appropriate Planner Agent
+
+Use capable LLMs for planning:
+
+```python
+# ✅ Good: Use advanced LLM for planning
+oxy.ChatAgent(
+    name="planner",
+    llm_model="gpt-4",  # Strong planning capabilities
+    prompt="Break down tasks into clear, ordered steps"
+)
+
+# ⚠️ Caution: Weaker models may produce poor plans
+oxy.ChatAgent(
+    name="planner",
+    llm_model="gpt-3.5-turbo",  # May struggle with complex planning
+    ...
+)
+```
+
+### 2. Set Appropriate Max Rounds
+
+Balance completeness 和 performance:
+
+```python
+# Simple, well-defined tasks
+PlanAndSolve(name="simple", max_replan_rounds=10, ...)
+
+# Complex, multi-faceted tasks
+PlanAndSolve(name="complex", max_replan_rounds=30, ...)
+```
+
+### 3. Use Predefined Steps for Fixed Workflows
+
+```python
+# When workflow is known and fixed
+PlanAndSolve(
+    name="onboarding_flow",
+    pre_plan_steps=[
+        "Create user account",
+        "Send welcome email",
+        "Assign default permissions",
+        "Log onboarding event"
+    ],
+    ...
+)
+```
+
+### 4. Enable Replanner for Dynamic Scenarios
+
+```python
+# For unpredictable tasks that may need adaptation
+PlanAndSolve(
+    name="research_task",
+    enable_replanner=True,  # Adapt based on findings
+    ...
+)
+```
+
+### 5. Provide Clear Executor Instructions
+
+```python
+oxy.ReActAgent(
+    name="executor",
+    additional_prompt="Execute ONLY the current step. Do not skip or repeat steps.",
+    ...
+)
+```
+
+## 常见模式
+
+### Pattern: Data Pipeline
+
+```python
+PlanAndSolve(
+    name="data_pipeline",
+    pre_plan_steps=[
+        "Extract data from source",
+        "Validate data quality",
+        "Transform data format",
+        "Load data to destination"
+    ],
+    executor_agent_name="pipeline_executor"
+)
+```
+
+### Pattern: Research Task
+
+```python
+PlanAndSolve(
+    name="research_flow",
+    planner_agent_name="research_planner",
+    executor_agent_name="research_executor",
+    enable_replanner=True,  # Adapt based on findings
+    max_replan_rounds=40
+)
+```
+
+### Pattern: Multi-Step Analysis
+
+```python
+PlanAndSolve(
+    name="analysis_flow",
+    pre_plan_steps=[
+        "Load and prepare data",
+        "Perform statistical analysis",
+        "Generate visualizations",
+        "Compile report"
+    ],
+    executor_agent_name="analyst_agent"
+)
+```
+
+## Comparison 使用 Other 流程
+
+|Feature|PlanAndSolve|Workflow|ParallelFlow|
+|---------|--------------|----------|--------------|
+| **Planning** | Automatic | Manual | N/A |
+| **Execution** | Sequential | Custom | Parallel |
+| **Replanning** | 可选 | Manual | N/A |
+| **Complexity** | High | Variable | Low |
+| **Use case** | 多步骤任务 | Custom logic | Independent ops |
+
+## Related API 参考s
+
+- [Workflow API](/oxyapi/flows-workflow-api) - Custom workflow flow API
+- [ParallelFlow API](/oxyapi/flows-parallel-api) - Parallel execution flow API
+- [Reflexion API](/oxyapi/flows-reflexion-api) - Self-evaluation flow API
+- [ReActAgent API](/oxyapi/agents-react-api) - Executor agent API
+- [ChatAgent API](/oxyapi/agents-chat-api) - Planner agent API

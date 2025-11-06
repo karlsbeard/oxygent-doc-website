@@ -1,0 +1,65 @@
+---
+title: API 参考
+description: 完整 API 文档： OxyGent framework
+icon: Code
+---
+
+## 代理
+
+代理是 OxyGent 框架的核心组件，负责执行特定任务和做出决策。
+
+- **[ChatAgent API](/oxyapi/agents-chat-api)** - 基于聊天的代理 API 文档
+- **[ParallelAgent API](/oxyapi/agents-parallel-api)** - 并行代理 API 文档
+- **[RAGAgent API](/oxyapi/agents-rag-api)** - 检索增强生成代理 API 文档
+- **[ReactAgent API](/oxyapi/agents-react-api)** - 基于 ReAct 模式的代理 API 文档
+- **[SSEAgent API](/oxyapi/agents-sse-agent-api)** - 服务器发送事件代理 API 文档
+- **[WorkflowAgent API](/oxyapi/agents-workflow-api)** - 工作流代理 API 文档
+
+## 流程
+
+流程组件定义了代理的执行逻辑和决策过程。
+
+- **[WorkflowFlow API](/oxyapi/flows-workflow-api)** - 工作流流程 API 文档
+- **[ParallelFlow API](/oxyapi/flows-parallel-api)** - 并行流程 API 文档
+- **[PlanAndSolveFlow API](/oxyapi/flows-plan-and-solve-api)** - 计划与求解流程 API 文档
+- **[ReflexionFlow API](/oxyapi/flows-reflexion-api)** - 反思流程 API 文档
+
+## 大语言模型
+
+大语言模型组件提供了与各种大语言模型服务的集成接口。
+
+- **[HttpLLM API](/oxyapi/llms-http-api)** - 基于 HTTP 的大语言模型 API 文档
+
+## 工具
+
+工具组件为代理提供了与外部系统交互的能力。
+
+- **[FunctionHub API](/oxyapi/tools-function-hub-api)** - 函数中心 API 文档
+- **[MCP STDIO API](/oxyapi/tools-mcp-stdio-api)** - MCP 标准输入/输出工具 API 文档
+- **[MCP SSE API](/oxyapi/tools-mcp-sse-api)** - MCP 服务器发送事件工具 API 文档
+- **[MCP Streamable API](/oxyapi/tools-mcp-streamable-api)** - MCP 流式工具 API 文档
+
+## 快速开始
+
+如果您是 OxyGent API 的新手，我们建议从以下步骤开始：
+
+1. 查看 [ReactAgent API](/oxyapi/agents-react-api) 以了解基本的代理使用方法
+2. 学习 [HttpLLM API](/oxyapi/llms-http-api) 以了解如何配置大语言模型
+3. 探索 [FunctionHub API](/oxyapi/tools-function-hub-api) 以了解工具系统
+
+## API 约定
+
+所有 OxyGent API 都遵循以下约定：
+
+- **异步操作**：大多数 API 方法都是异步的，需要使用 `await` 关键字
+- **类型安全**：所有 API 都提供完整的类型注释
+- **错误处理**：API 方法会抛出特定的异常类型以便于错误处理
+- **灵活配置**：支持多种配置方法，包括参数传递和配置文件
+
+## 获取帮助
+
+如果您在使用 API 时遇到问题，可以：
+
+1. 参考特定组件的 API 文档
+2. 查看代码示例和最佳实践
+3. 查看错误处理和故障排除章节

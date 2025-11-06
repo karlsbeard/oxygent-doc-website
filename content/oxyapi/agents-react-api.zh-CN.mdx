@@ -1,0 +1,130 @@
+---
+title: ReActAgent API 参考
+description: 完整 API 参考文档： ReActAgent 构造函数参数和方法
+icon: Code
+---
+
+## 构造函数参数
+
+### 核心参数
+
+|参数|类型|默认值|描述|
+|-----------|------|---------|-------------|
+| `name` | str | 必需 | 代理的唯一标识符 |
+| `is_master` | bool | False | 此代理是否为入口代理 |
+| `llm_model` | str | 必需 | 要使用的大语言模型组件名称 |
+| `tools` | list[str] | [] | 工具名称列表 |
+| `sub_agents` | list[str] | [] | 子代理名称列表 |
+
+### 执行参数
+
+|参数|类型|默认值|描述|
+|-----------|------|---------|-------------|
+| `max_react_轮` | int | 16 | 最大推理-行动迭代次数 |
+
+### 内存参数
+
+|参数|类型|默认值|描述|
+|-----------|------|---------|-------------|
+| `is_discard_react_memory` | bool | True | 丢弃详细的 ReAct 内存 |
+| `short_memory_size` | int | 10 | 保留的历史对话数量 |
+| `memory_max_tokens` | int | 8000 | 内存存储的最大令牌数 |
+| `weight_short_memory` | int | 5 | 短期内存在评分中的权重 |
+| `weight_react_memory` | int | 1 | ReAct 内存在评分中的权重 |
+
+## 参数详情
+
+### `name`
+- **Type**: `str`
+- **必需**: Yes
+- **Description**: 的唯一标识符 the agent 在多智能体系统中 (多智能体系统). 调用时使用此名称 the agent via `mas.call(callee="agent_name")`.
+
+### `is_master`
+- **Type**: `bool`
+- **默认**: `False`
+- **Description**: 指示是否 this agent is the entry point for the multi-agent system. 只有一个代理应标记为主代理 in a MAS.
+
+### `llm_model`
+- **Type**: `str`
+- **必需**: Yes
+- **Description**: 对大语言模型组件的名称引用 在同一多智能体系统中注册. 此大语言模型将用于 所有推理步骤 in the ReAct loop.
+
+### `tools`
+- **Type**: `list[str]`
+- **默认**: `[]`
+- **Description**: 工具名称列表 代理可以调用的. Tools must be 在同一多智能体系统中注册 instance.
+
+### `sub_agents`
+- **Type**: `list[str]`
+- **默认**: `[]`
+- **Description**: 子代理名称列表 此代理可以将任务委托给的. Sub-agents must be 在同一多智能体系统中注册 instance.
+
+### `max_react_rounds`
+- **Type**: `int`
+- **默认**: `16`
+- **Description**: 最大数量 reasoning-acting iterations 在代理使用后备机制之前. 每一轮包括 一个推理步骤和一个或多个工具执行.
+
+**使用指南**:
+- 简单任务: 3-5 轮
+- 多步骤任务: 10-20 轮
+- 复杂推理链: 20-30 轮
+
+### `is_discard_react_memory`
+- **Type**: `bool`
+- **默认**: `True`
+- **Description**: 控制内存保留策略:
+  - `True`: 仅保留最终问答对 (更清晰的历史)
+  - `False`: 保留完整的 ReAct 推理轨迹 使用加权评分
+
+### `short_memory_size`
+- **Type**: `int`
+- **默认**: `10`
+- **Description**: 最近对话轮次的数量 保留在短期内存中.
+
+### `memory_max_tokens`
+- **Type**: `int`
+- **默认**: `8000`
+- **Description**: 内存系统的最大令牌限制. 超出时，较旧的内存将被修剪 基于加权评分.
+
+### `weight_short_memory`
+- **Type**: `int`
+- **默认**: `5`
+- **Description**: 相对重要性权重 short-term memory 当 `is_discard_react_memory=False`. 较高的值会更重视 最近的对话.
+
+### `weight_react_memory`
+- **Type**: `int`
+- **默认**: `1`
+- **Description**: 相对重要性权重 ReAct intermediate steps 当 `is_discard_react_memory=False`.
+
+## 方法
+
+### `call()`
+
+使用给定输入执行代理.
+
+**参数**:
+- `messages` (list): 消息字典列表 包含 `role` 和 `content` 字段
+- 可以传递额外的大语言模型参数
+
+**Returns**: AgentResult 对象，包含:
+- `output`: 最终代理响应
+- `messages`: 完整对话历史
+- `metadata`: 执行元数据 (轮 used, tool calls, etc.)
+
+**Example**:
+```python
+result = await mas.call(
+    callee="agent_name",
+    arguments={
+        "messages": [
+            {"role": "user", "content": "Your query here"}
+        ]
+    }
+)
+```
+
+## 相关文档
+
+- [ReActAgent 概述](/docs/agents-react) - 使用指南和示例
+- [ChatAgent API](/docs/agents-chat) - API 参考文档： ChatAgent
+- [Tools API](/docs/tools-function-hub) - 可用工具文档

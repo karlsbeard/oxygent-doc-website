@@ -1,0 +1,527 @@
+---
+title: SSEOxyAgent API 参考
+description: 完整 API 参考文档： the SSEOxyAgent class including constructor parameters, SSE communication methods, 和 remote agent integration
+icon: Radio
+---
+
+## Class 概述
+
+```python
+from oxygent.oxy import SSEOxyGent
+
+class SSEOxyGent(RemoteAgent):
+    """Agent for communicating with remote services through Server-Sent Events (SSE) protocol.
+
+    This agent serves as a basic proxy designed to provide functionality for communicating
+    with remote services. Different agents interact with remote services through the SSE
+    protocol, receiving OxyRequest objects and returning OxyResponse objects after
+    completing communication tasks.
+    """
+```
+
+SSEOxyGent inherits from `RemoteAgent` 和 is specifically designed for h和ling SSE communication 包含 remote services. It supports real-time data streaming, event processing, 和 advanced features like call stack sharing.
+
+## 构造函数
+
+### SSEOxyGent()
+
+```python
+SSEOxyGent(
+    name: str,
+    desc: str,
+    server_url: str,
+    is_share_call_stack: bool = True,
+    **kwargs
+)
+```
+
+#### 参数s
+
+|参数|类型|默认值|描述|
+|-----------|------|---------|-------------|
+| `name` | `str` | 必需 | Agent name for identification 和 calling |
+| `desc` | `str` | 必需 | 解释代理功能的描述 |
+| `server_url` | `str` | 必需 | Remote agent server URL (must start 包含 http:// or https://) |
+| `is_share_call_stack` | `bool` | `True` | Whether to share call stack information 包含 remote agent |
+
+#### Inherited 参数s (from RemoteAgent)
+
+|参数|类型|默认值|描述|
+|-----------|------|---------|-------------|
+| `org` | `dict` | `{}` | Organization structure retrieved from remote system |
+
+#### Inherited 参数s (from BaseAgent)
+
+|参数|类型|默认值|描述|
+|-----------|------|---------|-------------|
+| `category` | `str` | `"agent"` | 工具/代理类别 |
+| `input_schema` | `dict[str, Any]` | 配置默认值 | 输入参数模式 |
+
+#### Inherited 参数s (from BaseFlow)
+
+|参数|类型|默认值|描述|
+|-----------|------|---------|-------------|
+| `is_master` | `bool` | `False` | 此代理是否为主代理 |
+| `timeout` | `int` | `300` | 执行超时时间（秒） |
+| `func_process_input` | `可选[Callable]` | `None` | 输入处理函数 |
+| `func_process_output` | `可选[Callable]` | `None` | 输出处理函数 |
+
+## Core Attributes
+
+### is_share_call_stack
+
+```python
+is_share_call_stack: bool = Field(
+    True,
+    description="Whether to share the call stack with the agent."
+)
+```
+
+Boolean attribute controlling whether to share call stack information 包含 remote services.
+
+#### Mechanism
+
+- **`True` (default)**: Share call stack information
+  - Retains call stack 和 traversed node IDs
+  - Remote service can underst和 complete call path
+  - Helpful for debugging 和 request flow tracing
+
+- **`False`**: Don't share call stack information
+  - Removes call stack 和 node ID information
+  - Sets caller to "user"
+  - Protects privacy 和 security, simplifies data transmission
+
+#### Use Cases
+
+|Setting|Suitable Scenarios|Advantages|Disadvantages|
+|---------|-------------------|------------|---------------|
+| `True` | Debugging, tracing, complex workflows | Complete context, easy debugging | Large data transmission, potential info leakage |
+| `False` | Privacy protection, simple queries | Streamlined data, privacy protection | Missing context, difficult debugging |
+
+## 方法
+
+### init()
+
+```python
+async def init(self) -> None
+```
+
+Async initialization method that establishes connection 包含 remote service 和 retrieves organization structure.
+
+#### 执行流程
+
+1. **Call parent initialization**: Execute RemoteAgent initialization
+2. **Establish HTTP connection**: Use httpx.AsyncClient to connect to remote service
+3. **Get organization info**: Retrieve organization structure from `/get_organization` endpoint
+4. **Store organization data**: Store organization info in `self.org`
+
+#### Exception Handling
+
+- Network connection failure
+- Remote service unavailable
+- Organization info format error
+
+### _execute()
+
+```python
+async def _execute(self, oxy_request: OxyRequest) -> OxyResponse
+```
+
+Core method for executing SSE communication.
+
+#### 参数s
+
+|参数|类型|描述|
+|-----------|------|-------------|
+| `oxy_request` | `OxyRequest` | Request 对象，包含 query 和 context information |
+
+#### 返回值
+
+|类型|描述|
+|------|-------------|
+| `OxyResponse` | Result 对象，包含 remote agent response |
+
+#### 执行流程
+
+1. **Build request payload**
+   - Serialize OxyRequest 对象
+   - Update caller category to "user"
+   - H和le call stack info based on `is_share_call_stack`
+
+2. **Establish SSE connection**
+   - Set SSE-specific HTTP headers
+   - Send POST request to `/sse/chat` endpoint
+   - Establish persistent connection
+
+3. **Process SSE data stream**
+   - Read SSE data line by line
+   - Parse messages 包含 `data:` prefix
+   - H和le different event types
+
+4. **Event type processing**
+   - `"answer"`: Extract final answer
+   - `"tool_call"`: H和le tool call events
+   - `"observation"`: H和le observation results
+   - `"done"`: Terminate connection
+   - Other types: Forward directly
+
+5. **Return result**
+   - Construct OxyResponse 对象
+   - Set status to COMPLETED
+   - Return final answer
+
+#### SSE Data Format
+
+```
+data: {"type": "answer", "content": "This is the answer"}
+data: {"type": "tool_call", "content": {...}}
+data: {"type": "observation", "content": {...}}
+data: done
+```
+
+### get_org()
+
+```python
+def get_org(self) -> list
+```
+
+Get organization structure copy marked as remote.
+
+#### 返回值
+
+|类型|描述|
+|------|-------------|
+| `list` | Organization structure list marked 包含 `is_remote=True` |
+
+#### Functionality
+
+- Creates deep copy of organization structure
+- Adds `is_remote=True` marker to all nodes
+- Recursively processes nested child nodes
+
+### Inherited 方法
+
+#### From RemoteAgent
+
+- `check_protocol()` - Validate server URL protocol
+
+#### From BaseAgent
+
+- `_pre_process()` - Pre-process request
+- `_pre_save_data()` - Save trace data
+
+#### From BaseFlow
+
+- `call()` - Execute agent
+- `set_mas()` - Set MAS reference
+
+## Usage 示例s
+
+### Basic SSE Agent
+
+```python
+from oxygent import MAS, oxy
+from oxygent.utils.env_utils import get_env_var
+
+oxy_space = [
+    oxy.HttpLLM(
+        name="default_llm",
+        api_key=get_env_var("DEFAULT_LLM_API_KEY"),
+        base_url=get_env_var("DEFAULT_LLM_BASE_URL"),
+        model_name=get_env_var("DEFAULT_LLM_MODEL_NAME"),
+    ),
+    oxy.SSEOxyGent(
+        name="remote_agent",
+        desc="Remote SSE agent",
+        server_url="http://localhost:8082",
+        is_share_call_stack=True,
+    )
+]
+
+async def main():
+    async with MAS(oxy_space=oxy_space) as mas:
+        result = await mas.call(
+            callee="remote_agent",
+            arguments={"query": "Hello from SSE client"}
+        )
+        print(result.output)
+```
+
+### Without Call Stack Sharing
+
+```python
+oxy.SSEOxyGent(
+    name="private_agent",
+    desc="Privacy-protected remote agent",
+    server_url="https://secure-service.example.com",
+    is_share_call_stack=False,  # Don't share call stack
+)
+```
+
+### Usage in Workflow
+
+```python
+from oxygent import OxyRequest
+
+async def workflow(oxy_request: OxyRequest):
+    """Workflow function integrating SSE agent"""
+
+    # Get current time
+    time_response = await oxy_request.call(
+        callee="time_agent",  # SSE time agent
+        arguments={"query": "What time is it now?"}
+    )
+
+    # Handle math calculation
+    if "calculate" in oxy_request.get_query():
+        calc_response = await oxy_request.call(
+            callee="calc_agent",  # SSE calculation agent
+            arguments={"query": oxy_request.get_query()}
+        )
+        return f"Time: {time_response.output}, Calculation result: {calc_response.output}"
+
+    return f"Current time: {time_response.output}"
+
+oxy_space = [
+    oxy.HttpLLM(name="default_llm", ...),
+
+    # Remote time service
+    oxy.SSEOxyGent(
+        name="time_agent",
+        desc="Time query agent",
+        server_url="http://time-service:8082",
+    ),
+
+    # Remote calculation service
+    oxy.SSEOxyGent(
+        name="calc_agent",
+        desc="Calculation agent",
+        server_url="http://calc-service:8083",
+    ),
+
+    # Workflow agent
+    oxy.WorkflowAgent(
+        name="main_agent",
+        desc="Main workflow agent",
+        func_workflow=workflow,
+        llm_model="default_llm",
+        is_master=True,
+    ),
+]
+```
+
+### Multi-Service Integration
+
+```python
+# Create multiple SSE agents connecting to different services
+services = [
+    {"name": "nlp_service", "url": "http://nlp:8080", "desc": "Natural language processing service"},
+    {"name": "vision_service", "url": "http://vision:8081", "desc": "Computer vision service"},
+    {"name": "search_service", "url": "http://search:8082", "desc": "Search service"},
+]
+
+oxy_space = [oxy.HttpLLM(name="default_llm", ...)]
+
+for service in services:
+    oxy_space.append(
+        oxy.SSEOxyGent(
+            name=service["name"],
+            desc=service["desc"],
+            server_url=service["url"],
+            is_share_call_stack=True,
+        )
+    )
+
+# Parallel call to multiple services
+oxy_space.append(
+    oxy.ParallelAgent(
+        name="multi_service_agent",
+        desc="Multi-service parallel processing",
+        llm_model="default_llm",
+        permitted_tool_name_list=["nlp_service", "vision_service", "search_service"],
+        is_master=True,
+    )
+)
+```
+
+## SSE Protocol Details
+
+### SSE Basics
+
+Server-Sent Events (SSE) is part of the HTML5 specification, providing server-to-client unidirectional real-time data update technology.
+
+#### Features
+
+- **Unidirectional communication**: Server pushes data to client
+- **Persistent connection**: Maintains long connection for real-time updates
+- **Auto-reconnection**: Automatically reconnects 当 connection drops
+- **Event-driven**: Event-based data transmission
+
+#### HTTP Headers
+
+```python
+headers = {
+    "Accept": "text/event-stream",
+    "Content-Type": "application/json",
+}
+```
+
+### Data Format
+
+SSE data is transmitted in specific format:
+
+```
+data: {"type": "answer", "content": "Response content"}
+
+data: {"type": "tool_call", "content": {"caller": "agent1", "callee": "tool1"}}
+
+data: {"type": "observation", "content": {"result": "Execution result"}}
+
+data: done
+```
+
+### Event 类型s
+
+|Event Type|描述|Processing Method|
+|------------|-------------|-------------------|
+| `answer` | Final answer | Extract content as response |
+| `tool_call` | Tool call | Forward to local MAS |
+| `observation` | Observation result | Forward to local MAS |
+| `done` | Connection end | Terminate SSE connection |
+| Others | Custom events | Forward directly |
+
+## Configuration Options
+
+### Connection Configuration
+
+- `server_url`: Remote server URL
+- `timeout`: Connection timeout
+- HTTP header configuration
+
+### Call Stack Configuration
+
+- `is_share_call_stack`: Whether to share call stack
+- Call stack processing strategy
+- Privacy protection settings
+
+### 错误处理 Configuration
+
+- Reconnection strategy
+- Timeout h和ling
+- Exception recovery
+
+## Performance Considerations
+
+### Connection Management
+
+1. **Connection reuse**: Reasonably manage SSE connections
+2. **Timeout settings**: Set appropriate timeout values
+3. **Resource cleanup**: Timely release connection resources
+
+### Data Transmission
+
+1. **Data compression**: Reduce transmission data volume
+2. **Batch processing**: Batch process multiple events
+3. **Caching strategy**: Cache common responses
+
+### Error Recovery
+
+1. **Auto-reconnection**: Implement auto-reconnection mechanism
+2. **Fallback strategy**: Fallback h和ling 当 connection fails
+3. **Monitoring alerts**: Monitor connection status 和 performance
+
+## 错误处理
+
+### Common Errors
+
+1. **Connection failure**
+   ```python
+   # Check server URL and network connection
+   try:
+       async with httpx.AsyncClient() as client:
+           response = await client.get(f"{server_url}/health")
+   except httpx.ConnectError:
+       logger.error("Unable to connect to remote server")
+   ```
+
+2. **SSE data format error**
+   ```python
+   try:
+       data = json.loads(sse_data)
+   except json.JSONDecodeError:
+       logger.error(f"Invalid SSE data format: {sse_data}")
+   ```
+
+3. **Timeout h和ling**
+   ```python
+   async with asyncio.timeout(30):  # 30 second timeout
+       async with session.post(url, data=payload) as resp:
+           # Process SSE stream
+   ```
+
+### Error Recovery
+
+1. **Reconnection mechanism**
+   ```python
+   max_retries = 3
+   for attempt in range(max_retries):
+       try:
+           return await self._execute(oxy_request)
+       except Exception as e:
+           if attempt == max_retries - 1:
+               raise
+           await asyncio.sleep(2 ** attempt)  # Exponential backoff
+   ```
+
+2. **Fallback h和ling**
+   ```python
+   try:
+       return await sse_agent.call(arguments)
+   except SSEConnectionError:
+       # Fallback to local processing
+       return await local_agent.call(arguments)
+   ```
+
+## Security Considerations
+
+### Data Protection
+
+1. **HTTPS connection**: Use HTTPS to protect data transmission
+2. **Call stack privacy**: Carefully share call stack information
+3. **Input validation**: Validate remote service responses
+
+### Access Control
+
+1. **Authentication**: Implement appropriate authentication mechanisms
+2. **Authorization**: Control access to remote services
+3. **Audit logs**: Record all remote calls
+
+## 最佳实践
+
+### Design Principles
+
+1. **Service separation**: Separate different functionalities into different remote services
+2. **Stateless design**: Remote services should be stateless
+3. **Idempotency**: Ensure operation idempotency
+4. **Fault tolerance**: Design fault tolerance 和 recovery mechanisms
+
+### Deployment Recommendations
+
+1. **Load balancing**: Use load balancing to distribute requests
+2. **Health checks**: Implement service health checks
+3. **Monitoring alerts**: Monitor service status 和 performance
+4. **Version management**: Manage service versions 和 compatibility
+
+### Debugging Tips
+
+1. **Logging**: Detailed logging of SSE communication
+2. **Event tracing**: Trace complete event flow
+3. **Performance analysis**: Analyze communication performance 和 bottlenecks
+4. **Testing tools**: Use specialized SSE testing tools
+
+## Related Links
+
+- [SSEOxyAgent Main Documentation](/docs/agents-sse-agent) - 概述 和 usage guide
+- [RemoteAgent API](/oxyapi/agents-remote-api) - Parent class API reference
+- [WorkflowAgent API](/oxyapi/agents-workflow-api) - Workflow agent integration
+- [SSE Communication Examples](/examples/agents/sse-communication) - Practical 和使用示例

@@ -1,0 +1,537 @@
+---
+title: Workflow API 参考
+description: 完整 API 参考文档： Workflow flow 构造函数参数和方法
+icon: Code
+---
+
+## Class 概述
+
+```python
+from oxygent.oxy.flows import Workflow
+from oxygent.schemas import OxyRequest
+
+async def my_workflow_function(oxy_request: OxyRequest) -> str:
+    # Your custom workflow logic
+    return "result"
+
+workflow = Workflow(
+    name="my_workflow",
+    desc="My custom workflow flow",
+    func_workflow=my_workflow_function,
+    timeout=100,
+    llm_model="default_llm"
+)
+```
+
+## 构造函数参数
+
+### 必需 参数s
+
+|参数|类型|默认值|描述|
+|-----------|------|---------|-------------|
+| `name` | str | 必需 | Unique identifier for the workflow flow |
+| `func_workflow` | Callable | 必需 | Custom workflow function to execute |
+
+### 可选 参数s
+
+|参数|类型|默认值|描述|
+|-----------|------|---------|-------------|
+| `desc` | str | "" | Description of the workflow's purpose |
+| `timeout` | int | 100 | Maximum execution time in seconds |
+| `llm_model` | str | "default_llm" | LLM model name for fallback operations |
+| `is_permission_required` | bool | False | Whether permission is required before execution |
+| `category` | str | "flow" | Category 类ification |
+| `is_master` | bool | False | Whether this is the master entry point |
+
+## 参数详情
+
+### `name`
+- **Type**: `str`
+- **必需**: Yes
+- **Description**: 的唯一标识符 the workflow 在多智能体系统中. 调用时使用此名称 the workflow via `mas.call(callee="workflow_name")`.
+
+**Example:**
+```python
+Workflow(
+    name="data_processing_workflow",
+    func_workflow=process_data
+)
+```
+
+### `func_workflow`
+- **Type**: `可选[Callable]`
+- **必需**: Yes (in practice)
+- **Description**: The custom workflow function to execute. Must be an async function that accepts an `OxyRequest` 和 returns a string.
+
+**Function Signature:**
+```python
+async def workflow_function(oxy_request: OxyRequest) -> str:
+    """
+    Args:
+        oxy_request: The request context containing query, shared_data, and call methods
+
+    Returns:
+        str: The result of the workflow execution
+    """
+    pass
+```
+
+**Example:**
+```python
+async def my_workflow(oxy_request: OxyRequest) -> str:
+    query = oxy_request.get_query()
+
+    # Process the query
+    result = await oxy_request.call(
+        callee="processor_agent",
+        arguments={"query": query}
+    )
+
+    return result.output
+
+Workflow(
+    name="processor_flow",
+    func_workflow=my_workflow
+)
+```
+
+### `desc`
+- **Type**: `str`
+- **默认**: `""`
+- **Description**: A human-readable description of what this workflow does. Useful for documentation 和 debugging.
+
+**Example:**
+```python
+Workflow(
+    name="validation_workflow",
+    desc="Validates user input through multiple stages and returns cleaned data",
+    func_workflow=validate_input
+)
+```
+
+### `timeout`
+- **Type**: `int`
+- **默认**: `100`
+- **Description**: Maximum execution time in seconds. If the workflow exceeds this time, it will be terminated.
+
+**使用指南:**
+- Simple workflows: 30-60 seconds
+- Multi-agent workflows: 100-200 seconds
+- Complex processing: 300+ seconds
+
+**Example:**
+```python
+Workflow(
+    name="long_running_workflow",
+    timeout=300,  # 5 minutes
+    func_workflow=complex_analysis
+)
+```
+
+### `llm_model`
+- **Type**: `str`
+- **默认**: `"default_llm"`
+- **Description**: 对大语言模型组件的名称引用 in the MAS, used for any fallback LLM operations.
+
+**Example:**
+```python
+Workflow(
+    name="smart_workflow",
+    llm_model="gpt-4",
+    func_workflow=intelligent_processing
+)
+```
+
+### `is_permission_必需`
+- **Type**: `bool`
+- **默认**: `False`
+- **Description**: Whether user permission is required before executing this workflow.
+
+**Example:**
+```python
+Workflow(
+    name="destructive_workflow",
+    is_permission_required=True,  # Ask for permission
+    func_workflow=delete_data
+)
+```
+
+### `category`
+- **Type**: `str`
+- **默认**: `"flow"`
+- **Description**: Category classification for the workflow. Inherited from BaseFlow.
+
+### `is_master`
+- **Type**: `bool`
+- **默认**: `False`
+- **Description**: Whether this workflow is the master entry point for the multi-agent system.
+
+**Example:**
+```python
+Workflow(
+    name="orchestrator_workflow",
+    is_master=True,  # Entry point
+    func_workflow=orchestrate_system
+)
+```
+
+## 方法
+
+### `_execute(oxy_request: OxyRequest) -> OxyResponse`
+
+**Internal method** - Called by the flow framework to execute the workflow.
+
+**参数:**
+- `oxy_request` (OxyRequest): The request context
+
+**Returns:**
+- `OxyResponse`: Response 包含 state=COMPLETED 和 output from func_workflow
+
+**Implementation:**
+```python
+async def _execute(self, oxy_request: OxyRequest) -> OxyResponse:
+    return OxyResponse(
+        state=OxyState.COMPLETED,
+        output=await self.func_workflow(oxy_request)
+    )
+```
+
+**Note:** This is an internal method. Users should not call this directly - use `mas.call()` or `oxy_request.call()` instead.
+
+## OxyRequest Context
+
+Your workflow function receives an `OxyRequest` 对象 包含 the following key methods:
+
+### `get_query(master_level: bool = False) -> str`
+
+Get the current query or the master-level query.
+
+```python
+async def my_workflow(oxy_request: OxyRequest) -> str:
+    current_query = oxy_request.get_query()
+    master_query = oxy_request.get_query(master_level=True)
+    return f"Current: {current_query}, Master: {master_query}"
+```
+
+### `call(callee: str, arguments: dict) -> OxyResponse`
+
+Call another agent or tool 包含in the workflow.
+
+```python
+async def my_workflow(oxy_request: OxyRequest) -> str:
+    response = await oxy_request.call(
+        callee="analyzer_agent",
+        arguments={"query": "analyze this"}
+    )
+    return response.output
+```
+
+### `shared_data` (dict)
+
+Access shared data across the workflow.
+
+```python
+async def my_workflow(oxy_request: OxyRequest) -> str:
+    # Read shared data
+    state = oxy_request.shared_data.get("state", {})
+
+    # Modify shared data
+    oxy_request.shared_data["counter"] = state.get("counter", 0) + 1
+
+    return f"Execution count: {oxy_request.shared_data['counter']}"
+```
+
+## Return Value
+
+### OxyResponse Structure
+
+The Workflow flow 返回 an `OxyResponse` 对象 包含:
+
+```python
+{
+    "state": OxyState.COMPLETED,    # Completion state
+    "output": "workflow result",    # String returned by func_workflow
+}
+```
+
+## Usage 示例s
+
+### Simple Sequential Workflow
+
+```python
+async def sequential_workflow(oxy_request: OxyRequest) -> str:
+    query = oxy_request.get_query()
+
+    # Step 1: Analyze
+    analysis = await oxy_request.call(
+        callee="analyzer",
+        arguments={"query": query}
+    )
+
+    # Step 2: Process based on analysis
+    result = await oxy_request.call(
+        callee="processor",
+        arguments={"query": analysis.output}
+    )
+
+    return result.output
+
+workflow = Workflow(
+    name="seq_flow",
+    desc="Sequential analysis and processing",
+    func_workflow=sequential_workflow
+)
+```
+
+### Conditional Branching Workflow
+
+```python
+async def conditional_workflow(oxy_request: OxyRequest) -> str:
+    query = oxy_request.get_query()
+
+    if "urgent" in query.lower():
+        result = await oxy_request.call(
+            callee="urgent_handler",
+            arguments={"query": query}
+        )
+    else:
+        result = await oxy_request.call(
+            callee="normal_handler",
+            arguments={"query": query}
+        )
+
+    return result.output
+
+workflow = Workflow(
+    name="conditional_flow",
+    desc="Routes to different handlers based on urgency",
+    func_workflow=conditional_workflow
+)
+```
+
+### Parallel Execution Workflow
+
+```python
+import asyncio
+
+async def parallel_workflow(oxy_request: OxyRequest) -> str:
+    query = oxy_request.get_query()
+
+    # Execute multiple agents in parallel
+    results = await asyncio.gather(
+        oxy_request.call(callee="agent_1", arguments={"query": query}),
+        oxy_request.call(callee="agent_2", arguments={"query": query}),
+        oxy_request.call(callee="agent_3", arguments={"query": query}),
+    )
+
+    # Aggregate results
+    combined = " | ".join([r.output for r in results])
+    return f"Combined results: {combined}"
+
+workflow = Workflow(
+    name="parallel_flow",
+    desc="Executes multiple agents in parallel",
+    func_workflow=parallel_workflow,
+    timeout=120  # Allow more time for parallel execution
+)
+```
+
+### Iterative Refinement Workflow
+
+```python
+async def iterative_workflow(oxy_request: OxyRequest) -> str:
+    query = oxy_request.get_query()
+    current_result = query
+
+    for iteration in range(3):
+        # Refine the result
+        response = await oxy_request.call(
+            callee="refiner_agent",
+            arguments={"query": current_result}
+        )
+        current_result = response.output
+
+        # Check if satisfactory
+        if "FINAL" in current_result:
+            break
+
+    return f"Refined result: {current_result}"
+
+workflow = Workflow(
+    name="iterative_flow",
+    desc="Iteratively refines results through multiple passes",
+    func_workflow=iterative_workflow
+)
+```
+
+### 错误处理 Workflow
+
+```python
+async def robust_workflow(oxy_request: OxyRequest) -> str:
+    query = oxy_request.get_query()
+
+    try:
+        # Try primary agent
+        result = await oxy_request.call(
+            callee="primary_agent",
+            arguments={"query": query}
+        )
+        return result.output
+
+    except Exception as primary_error:
+        # Fallback to backup agent
+        try:
+            result = await oxy_request.call(
+                callee="backup_agent",
+                arguments={"query": query}
+            )
+            return f"Fallback result: {result.output}"
+
+        except Exception as backup_error:
+            return f"Error: {str(backup_error)}"
+
+workflow = Workflow(
+    name="robust_flow",
+    desc="Handles errors with fallback agents",
+    func_workflow=robust_workflow
+)
+```
+
+## 最佳实践
+
+### 1. Keep Functions Async
+
+Always define workflow functions as `async def`:
+
+```python
+# ✅ Correct
+async def my_workflow(oxy_request: OxyRequest) -> str:
+    result = await oxy_request.call(callee="agent", arguments={})
+    return result.output
+
+# ❌ Wrong
+def my_workflow(oxy_request: OxyRequest) -> str:  # Not async
+    return "result"
+```
+
+### 2. Use 类型 Hints
+
+Always include proper type hints for clarity:
+
+```python
+from oxygent.schemas import OxyRequest
+
+async def my_workflow(oxy_request: OxyRequest) -> str:
+    # Type hints help with IDE autocomplete and error detection
+    pass
+```
+
+### 3. Handle Errors Gracefully
+
+Implement proper error h和ling in workflows:
+
+```python
+async def safe_workflow(oxy_request: OxyRequest) -> str:
+    try:
+        result = await oxy_request.call(callee="agent", arguments={})
+        return result.output
+    except Exception as e:
+        return f"Error occurred: {str(e)}"
+```
+
+### 4. Set Appropriate Timeouts
+
+Adjust timeout based on workflow complexity:
+
+```python
+# Simple workflow
+Workflow(name="quick", timeout=30, func_workflow=quick_task)
+
+# Complex workflow
+Workflow(name="complex", timeout=300, func_workflow=complex_task)
+```
+
+### 5. Document Your Workflows
+
+Always provide clear descriptions:
+
+```python
+Workflow(
+    name="data_pipeline",
+    desc="Validates input → Processes data → Generates report",
+    func_workflow=pipeline_function
+)
+```
+
+## 常见模式
+
+### Pattern: Pipeline Processing
+
+```python
+async def pipeline(oxy_request: OxyRequest) -> str:
+    data = oxy_request.get_query()
+
+    # Stage 1: Validate
+    data = await oxy_request.call(callee="validator", arguments={"query": data})
+
+    # Stage 2: Transform
+    data = await oxy_request.call(callee="transformer", arguments={"query": data.output})
+
+    # Stage 3: Finalize
+    result = await oxy_request.call(callee="finalizer", arguments={"query": data.output})
+
+    return result.output
+```
+
+### Pattern: Fan-out / Fan-in
+
+```python
+import asyncio
+
+async def fan_out_in(oxy_request: OxyRequest) -> str:
+    query = oxy_request.get_query()
+
+    # Fan-out: Send to multiple processors
+    results = await asyncio.gather(
+        oxy_request.call(callee="proc_1", arguments={"query": query}),
+        oxy_request.call(callee="proc_2", arguments={"query": query}),
+        oxy_request.call(callee="proc_3", arguments={"query": query}),
+    )
+
+    # Fan-in: Aggregate results
+    aggregator_input = "\n".join([r.output for r in results])
+    final = await oxy_request.call(
+        callee="aggregator",
+        arguments={"query": aggregator_input}
+    )
+
+    return final.output
+```
+
+### Pattern: State Machine
+
+```python
+async def state_machine(oxy_request: OxyRequest) -> str:
+    state = oxy_request.shared_data.get("state", "INIT")
+    query = oxy_request.get_query()
+
+    if state == "INIT":
+        result = await oxy_request.call(callee="initializer", arguments={"query": query})
+        oxy_request.shared_data["state"] = "PROCESSING"
+    elif state == "PROCESSING":
+        result = await oxy_request.call(callee="processor", arguments={"query": query})
+        oxy_request.shared_data["state"] = "FINALIZE"
+    elif state == "FINALIZE":
+        result = await oxy_request.call(callee="finalizer", arguments={"query": query})
+        oxy_request.shared_data["state"] = "DONE"
+
+    return f"State: {state} → Result: {result.output}"
+```
+
+## Related API 参考s
+
+- [ParallelFlow API](/oxyapi/flows-parallel-api) - Parallel execution flow API
+- [PlanAndSolve API](/oxyapi/flows-plan-和-solve-api) - Plan-和-execute flow API
+- [Reflexion API](/oxyapi/flows-reflexion-api) - Self-evaluation flow API
+- [BaseFlow API](/oxyapi/base-flow-api) - Base flow class API
+- [OxyRequest API](/oxyapi/oxy-request-api) - Request context API
