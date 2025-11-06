@@ -9,7 +9,7 @@ icon: Code
 ```python
 from oxygent import oxy
 
-# Create an SSEMCPClient instance
+# 创建 SSEMCPClient 实例
 client = oxy.SSEMCPClient(
     name="remote_tools",
     sse_url="http://127.0.0.1:9000/sse",
@@ -65,55 +65,55 @@ client = oxy.SSEMCPClient(
 
 ### name
 
-- **Type**: `str`
-- **必需**: Yes
-- **Description**: Unique identifier for this SSE MCP client 在多智能体系统中. Agents reference this name in their `tools` list to use all tools provided by this remote server.
+- **类型**: `str`
+- **必需**: 是
+- **描述**: 在多智能体系统中此 SSE MCP 客户端的唯一标识符。代理在其 `tools` 列表中引用此名称以使用此远程服务器提供的所有工具。
 
-**Example:**
+**示例:**
 ```python
 oxy.SSEMCPClient(
-    name="remote_api_tools",  # Agents will use "remote_api_tools" in their tools list
+    name="remote_api_tools",  # 代理将在其工具列表中使用 "remote_api_tools"
     ...
 )
 ```
 
 ### sse_url
 
-- **Type**: `AnyUrl` (Pydantic URL type)
-- **必需**: Yes
-- **Description**: The HTTP(S) URL endpoint where the SSE MCP server is hosted. This URL must point to the server's SSE endpoint.
+- **类型**: `AnyUrl` (Pydantic URL 类型)
+- **必需**: 是
+- **描述**: 托管 SSE MCP 服务器的 HTTP(S) URL 端点。此 URL 必须指向服务器的 SSE 端点。
 
-**Format:**
-- Must be a valid URL
-- Typically ends 包含 `/sse` or similar path
-- Can be HTTP (local/dev) or HTTPS (production)
+**格式:**
+- 必须是有效的 URL
+- 通常以 `/sse` 或类似路径结尾
+- 可以是 HTTP（本地/开发）或 HTTPS（生产）
 
-**Examples:**
+**示例:**
 ```python
-# Local development
+# 本地开发
 sse_url="http://localhost:9000/sse"
 sse_url="http://127.0.0.1:8000/mcp/sse"
 
-# Production
+# 生产环境
 sse_url="https://api.example.com/mcp/sse"
 sse_url="https://tools.myapp.com/sse"
 ```
 
-**URL Processing:**
-The URL is processed through `build_url()` utility which:
-- Ensures proper formatting
-- H和les trailing slashes
-- Validates URL structure
+**URL 处理:**
+URL 通过 `build_url()` 工具处理，该工具:
+- 确保格式正确
+- 处理尾随斜杠
+- 验证 URL 结构
 
 ### headers
 
-- **Type**: `dict[str, str]`
+- **类型**: `dict[str, str]`
 - **默认**: `{}`
-- **Description**: HTTP headers to include in all requests to the SSE server. Commonly used for authentication, versioning, 和 custom metadata.
+- **描述**: 包含在所有发送到 SSE 服务器的请求中的 HTTP 头。通常用于身份验证、版本控制和自定义元数据。
 
-**Common Use Cases:**
+**常见用例:**
 
-1. **Authentication:**
+1. **身份验证:**
 ```python
 headers={
     "Authorization": "Bearer your-api-token",
@@ -121,7 +121,7 @@ headers={
 }
 ```
 
-2. **API Versioning:**
+2. **API 版本控制:**
 ```python
 headers={
     "X-API-Version": "v2",
@@ -129,7 +129,7 @@ headers={
 }
 ```
 
-3. **Custom Metadata:**
+3. **自定义元数据:**
 ```python
 headers={
     "X-Client-ID": "oxygent-client",
@@ -138,39 +138,39 @@ headers={
 }
 ```
 
-**Behavior:**
-- Headers are sent 包含 every SSE connection
-- Can be overridden per-request if `is_dynamic_headers=True`
-- The `host` header is automatically removed if inherited
+**行为:**
+- 头信息随每个 SSE 连接发送
+- 如果 `is_dynamic_headers=True` 可以按请求覆盖
+- 如果继承，`host` 头会自动移除
 
 ### is_dynamic_headers
 
-- **Type**: `bool`
+- **类型**: `bool`
 - **默认**: `False`
-- **Description**: Enable dynamic header updates on a per-request basis. When enabled, headers can be provided in the tool call 和 will override/merge 包含 base headers.
+- **描述**: 启用按请求基础的动态头更新。启用时，可以在工具调用中提供头信息，这些头信息将覆盖/合并基础头信息。
 
-**Requirements:**
-- Must set `is_keep_alive=False` for dynamic headers to work
-- Creates new SSE connection for each tool call
+**要求:**
+- 必须设置 `is_keep_alive=False` 才能使动态头工作
+- 为每个工具调用创建新的 SSE 连接
 
-**Example:**
+**示例:**
 ```python
-# Enable dynamic headers
+# 启用动态头
 oxy.SSEMCPClient(
     name="dynamic_client",
     sse_url="http://localhost:9000/sse",
     headers={
-        "X-Service-Key": "default-key"  # Base headers
+        "X-Service-Key": "default-key"  # 基础头
     },
     is_dynamic_headers=True,
-    is_keep_alive=False  # Required
+    is_keep_alive=False  # 必需
 )
 
-# Later, in tool call:
+# 稍后，在工具调用中:
 await oxy_request.call(
     callee="tool_name",
     arguments={"param": "value"},
-    headers={  # These merge/override base headers
+    headers={  # 这些会合并/覆盖基础头
         "X-User-ID": "user123",
         "X-Request-ID": "req456"
     }
@@ -179,32 +179,32 @@ await oxy_request.call(
 
 ### is_inherit_headers
 
-- **Type**: `bool`
+- **类型**: `bool`
 - **默认**: `False`
-- **Description**: Inherit headers from the OxyRequest context (`_headers` field). Useful for propagating upstream headers through the call chain.
+- **描述**: 从 OxyRequest 上下文（`_headers` 字段）继承头信息。用于通过调用链传播上游头信息。
 
-**Behavior:**
-- Reads `oxy_request.shared_data.get("_headers", {})` if `is_inherit_headers=True`
-- Removes `host` header automatically (prevents conflicts)
-- Merges 包含 base `headers` 和 dynamic `headers`
-- Merge order: `base headers | inherited headers | dynamic headers`
+**行为:**
+- 如果 `is_inherit_headers=True`，读取 `oxy_request.shared_data.get("_headers", {})`
+- 自动移除 `host` 头（防止冲突）
+- 与基础 `headers` 和动态 `headers` 合并
+- 合并顺序: `基础头 | 继承头 | 动态头`
 
-**Example:**
+**示例:**
 ```python
 oxy.SSEMCPClient(
     name="inherit_client",
     sse_url="http://localhost:9000/sse",
     is_dynamic_headers=True,
-    is_inherit_headers=True,  # Inherit from request context
+    is_inherit_headers=True,  # 从请求上下文继承
     is_keep_alive=False
 )
 
-# Upstream request with headers
+# 带头信息的上游请求
 await mas.call(
     callee="agent",
     arguments={
         "messages": [...],
-        "_headers": {  # These will be inherited
+        "_headers": {  # 这些将被继承
             "X-Trace-ID": "trace123",
             "X-User-Context": "user-data"
         }
@@ -214,55 +214,55 @@ await mas.call(
 
 ### is_keep_alive
 
-- **Type**: `bool`
-- **默认**: From `Config.get_tool_mcp_is_keep_alive()`
-- **Description**: Controls SSE connection lifecycle 和 persistence.
+- **类型**: `bool`
+- **默认**: 来自 `Config.get_tool_mcp_is_keep_alive()`
+- **描述**: 控制 SSE 连接生命周期和持久性。
 
-**True (Persistent Connection):**
-- Single SSE connection established during `init()`
-- Connection reused for all tool calls
-- Faster performance (no reconnection overhead)
-- Tools discovered once at startup
-- Cannot use dynamic headers
-- **Recommended for most use cases**
+**True (持久连接):**
+- 在 `init()` 期间建立单个 SSE 连接
+- 连接被所有工具调用重用
+- 更快的性能（无重连开销）
+- 工具在启动时发现一次
+- 不能使用动态头
+- **推荐用于大多数用例**
 
-**False (Transient Connection):**
-- New SSE connection for each tool call
-- Fresh state every time
-- 必需 for dynamic headers
-- Higher latency due to reconnection
-- Tools rediscovered each time
+**False (临时连接):**
+- 为每个工具调用创建新的 SSE 连接
+- 每次都是新状态
+- 动态头所必需
+- 由于重连导致更高延迟
+- 每次重新发现工具
 
-**Examples:**
+**示例:**
 ```python
-# Persistent connection (default, recommended)
+# 持久连接（默认，推荐）
 oxy.SSEMCPClient(
     name="persistent",
     sse_url="http://localhost:9000/sse",
-    is_keep_alive=True  # Default
+    is_keep_alive=True  # 默认
 )
 
-# Transient connection (for dynamic headers)
+# 临时连接（用于动态头）
 oxy.SSEMCPClient(
     name="transient",
     sse_url="http://localhost:9000/sse",
     is_dynamic_headers=True,
-    is_keep_alive=False  # Required for dynamic headers
+    is_keep_alive=False  # 动态头所必需
 )
 ```
 
 ### middlewares
 
-- **Type**: `list[Any]`
+- **类型**: `list[Any]`
 - **默认**: `[]`
-- **Description**: List of client-side middleware 对象s for processing requests 和 responses. Middlewares must implement the middleware interface expected by the MCP ClientSession.
+- **描述**: 用于处理请求和响应的客户端中间件对象列表。中间件必须实现 MCP ClientSession 期望的中间件接口。
 
-**Interface:**
-Middleware should have methods like:
-- `process_request(request)` - Called before sending request
-- `process_response(response)` - Called after receiving response
+**接口:**
+中间件应该具有以下方法:
+- `process_request(request)` - 在发送请求前调用
+- `process_response(response)` - 在接收响应后调用
 
-**Example:**
+**示例:**
 ```python
 class LoggingMiddleware:
     async def process_request(self, request):
@@ -291,24 +291,24 @@ oxy.SSEMCPClient(
 )
 ```
 
-**Compatibility Note:**
-- Middleware support depends on MCP client library version
-- If `session.add_middleware()` is not available, a warning is logged
-- Middleware is silently ignored in incompatible versions
+**兼容性说明:**
+- 中间件支持取决于 MCP 客户端库版本
+- 如果 `session.add_middleware()` 不可用，会记录警告
+- 在不兼容版本中中间件会被静默忽略
 
 ### timeout
 
-- **Type**: `float`
+- **类型**: `float`
 - **默认**: `60`
-- **Description**: Maximum execution time for each tool call in seconds. Applies to the entire request-response cycle.
+- **描述**: 每个工具调用的最大执行时间（秒）。适用于整个请求-响应周期。
 
 **使用指南:**
-- Fast tools: 10-30 seconds
-- API calls: 30-60 seconds
-- Data processing: 60-120 seconds
-- Long operations: 120+ seconds
+- 快速工具: 10-30 秒
+- API 调用: 30-60 秒
+- 数据处理: 60-120 秒
+- 长时间操作: 120+ 秒
 
-**Example:**
+**示例:**
 ```python
 oxy.SSEMCPClient(
     name="slow_tools",
@@ -354,9 +354,9 @@ async def init(self, is_fetch_tools: bool = True) -> None
 
 **示例（内部使用）：**
 ```python
-# Called automatically by MAS during initialization
+# 在初始化期间由 MAS 自动调用
 async with MAS(oxy_space=[client, ...]) as mas:
-    # client.init() is called here
+    # client.init() 在这里被调用
     ...
 ```
 
@@ -393,7 +393,7 @@ async def call_tool(
 
 **示例（内部使用）：**
 ```python
-# Called internally when creating new connection per request
+# 在每个请求创建新连接时内部调用
 response = await client.call_tool(
     tool_name="fetch_data",
     arguments={"url": "https://api.example.com/data"},
@@ -422,7 +422,7 @@ async def list_tools(self) -> None
 
 **示例（内部使用）：**
 ```python
-# Called automatically during init() if is_fetch_tools=True
+# 如果 is_fetch_tools=True，在 init() 期间自动调用
 await client.list_tools()
 ```
 
@@ -462,7 +462,7 @@ def add_tools(self, tools_response) -> None
 
 **示例（内部使用）：**
 ```python
-# Called by list_tools()
+# 由 list_tools() 调用
 tools_response = await session.list_tools()
 client.add_tools(tools_response)
 ```
@@ -489,10 +489,10 @@ async def cleanup(self) -> None
 
 **示例（通常自动）：**
 ```python
-# Automatic cleanup
+# 自动清理
 async with MAS(oxy_space=[client, ...]) as mas:
     ...
-# cleanup() called here automatically
+# cleanup() 在这里自动调用
 ```
 
 ## 使用示例
@@ -503,7 +503,7 @@ async with MAS(oxy_space=[client, ...]) as mas:
 from oxygent import MAS, oxy
 import os
 
-# Simple remote MCP server
+# 简单的远程 MCP 服务器
 client = oxy.SSEMCPClient(
     name="remote_tools",
     sse_url="http://127.0.0.1:9000/sse"
@@ -523,7 +523,7 @@ oxy_space = [
 ### 使用身份验证
 
 ```python
-# Authenticated remote server
+# 认证的远程服务器
 secure_client = oxy.SSEMCPClient(
     name="secure_tools",
     sse_url="https://api.example.com/mcp/sse",
@@ -537,7 +537,7 @@ secure_client = oxy.SSEMCPClient(
 ### 使用动态头
 
 ```python
-# Dynamic header support
+# 动态头支持
 dynamic_client = oxy.SSEMCPClient(
     name="dynamic_tools",
     sse_url="https://api.example.com/mcp/sse",
@@ -546,14 +546,14 @@ dynamic_client = oxy.SSEMCPClient(
     },
     is_dynamic_headers=True,
     is_inherit_headers=True,
-    is_keep_alive=False  # Required for dynamic headers
+    is_keep_alive=False  # 动态头所必需
 )
 ```
 
 ### 使用中间件
 
 ```python
-# Custom middleware
+# 自定义中间件
 class MetricsMiddleware:
     async def process_request(self, request):
         request.start_time = time.time()
@@ -574,15 +574,15 @@ middleware_client = oxy.SSEMCPClient(
 ### 高性能配置
 
 ```python
-# Optimized for high-throughput
+# 为高吞吐量优化
 perf_client = oxy.SSEMCPClient(
     name="fast_tools",
     sse_url="http://localhost:9000/sse",
-    is_keep_alive=True,      # Persistent connection
-    timeout=30,              # Quick timeout
-    semaphore=32,            # More concurrent calls
-    retries=1,               # Fast fail
-    is_permission_required=False  # No permission checks
+    is_keep_alive=True,      # 持久连接
+    timeout=30,              # 快速超时
+    semaphore=32,            # 更多并发调用
+    retries=1,               # 快速失败
+    is_permission_required=False  # 无权限检查
 )
 ```
 
@@ -592,21 +592,21 @@ perf_client = oxy.SSEMCPClient(
 oxy_space = [
     oxy.HttpLLM(name="llm", ...),
 
-    # Production API
+    # 生产 API
     oxy.SSEMCPClient(
         name="prod_api",
         sse_url="https://prod.example.com/sse",
         headers={"Authorization": f"Bearer {os.getenv('PROD_KEY')}"}
     ),
 
-    # Staging API
+    # 测试 API
     oxy.SSEMCPClient(
         name="staging_api",
         sse_url="https://staging.example.com/sse",
         headers={"Authorization": f"Bearer {os.getenv('STAGING_KEY')}"}
     ),
 
-    # Local tools
+    # 本地工具
     oxy.SSEMCPClient(
         name="local_tools",
         sse_url="http://localhost:9000/sse"
@@ -628,12 +628,12 @@ oxy_space = [
 try:
     client = oxy.SSEMCPClient(
         name="unavailable",
-        sse_url="http://localhost:9999/sse"  # Server not running
+        sse_url="http://localhost:9999/sse"  # 服务器未运行
     )
     async with MAS(oxy_space=[client, ...]) as mas:
         await mas.call(...)
 except Exception as e:
-    # "Server unavailable error"
+    # "服务器不可用错误"
     print(f"Connection error: {e}")
 ```
 
@@ -649,7 +649,7 @@ try:
     async with MAS(oxy_space=[client, ...]) as mas:
         await mas.call(...)
 except Exception as e:
-    # Authentication failure
+    # 身份验证失败
     print(f"Auth error: {e}")
 ```
 
@@ -659,9 +659,9 @@ except Exception as e:
 client = oxy.SSEMCPClient(
     name="slow",
     sse_url="http://slow-server.com/sse",
-    timeout=5  # Very short timeout
+    timeout=5  # 非常短的超时
 )
-# Tool calls exceeding 5 seconds will raise timeout error
+# 超过 5 秒的工具调用将引发超时错误
 ```
 
 ## 性能考虑
@@ -684,7 +684,7 @@ client = oxy.SSEMCPClient(
 oxy.SSEMCPClient(
     name="concurrent",
     sse_url="http://localhost:9000/sse",
-    semaphore=64  # Allow 64 concurrent tool calls
+    semaphore=64  # 允许 64 个并发工具调用
 )
 ```
 

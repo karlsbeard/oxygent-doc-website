@@ -8,14 +8,14 @@ icon: Database
 
 RAG Agent 不是一个独立的类，而是通过 `ReActAgent` 结合知识注入函数实现的设计模式。它通过检索相关的外部知识并在生成响应前将其注入提示中，来提高答案的准确性和可控性。
 
-## Core Components
+## 核心组件
 
-### 1. ReActAgent Foundation
+### 1. ReActAgent 基础
 
 ```python
 from oxygent.oxy import ReActAgent
 
-# RAG implementation based on ReActAgent
+# 基于 ReActAgent 的 RAG 实现
 rag_agent = ReActAgent(
     name="rag_agent",
     desc="Retrieval-Augmented Generation agent",
@@ -25,43 +25,43 @@ rag_agent = ReActAgent(
 )
 ```
 
-### 2. Knowledge Injection Function
+### 2. 知识注入函数
 
 ```python
 def update_query(oxy_request: OxyRequest) -> OxyRequest:
-    """Knowledge injection function that adds retrieved knowledge to request before execution.
+    """知识注入函数，在执行前将检索到的知识添加到请求中。
 
     Args:
-        oxy_request: Original request object
+        oxy_request: 原始请求对象
 
     Returns:
-        OxyRequest: Request object with injected knowledge
+        OxyRequest: 注入知识后的请求对象
     """
     current_query = oxy_request.get_query()
 
-    # Execute knowledge retrieval
+    # 执行知识检索
     knowledge = retrieval(current_query)
 
-    # Inject knowledge into arguments
+    # 将知识注入到参数中
     oxy_request.arguments["knowledge"] = knowledge
 
     return oxy_request
 ```
 
-### 3. Retrieval Function
+### 3. 检索函数
 
 ```python
 def retrieval(query: str) -> str:
-    """Retrieve relevant knowledge based on query.
+    """基于查询检索相关知识。
 
     Args:
-        query: User query string
+        query: 用户查询字符串
 
     Returns:
-        str: Retrieved relevant knowledge text
+        str: 检索到的相关知识文本
     """
-    # Implement specific retrieval logic
-    # e.g., vector database query, search service, knowledge base query, etc.
+    # 实现具体的检索逻辑
+    # 例如：向量数据库查询、搜索服务、知识库查询等
     return retrieved_knowledge
 ```
 
@@ -69,101 +69,101 @@ def retrieval(query: str) -> str:
 
 ### update_query()
 
-Core function for knowledge injection, called before ReActAgent execution.
+知识注入的核心函数，在 ReActAgent 执行前调用。
 
 ```python
 def update_query(oxy_request: OxyRequest) -> OxyRequest
 ```
 
-#### 参数s
+#### 参数
 
 |参数|类型|描述|
 |-----------|------|-------------|
-| `oxy_request` | `OxyRequest` | Request 对象，包含 用户查询 和 context |
+| `oxy_request` | `OxyRequest` | 请求对象，包含用户查询和上下文 |
 
 #### 返回值
 
 |类型|描述|
 |------|-------------|
-| `OxyRequest` | Request 对象 包含 injected knowledge |
+| `OxyRequest` | 包含注入知识的请求对象 |
 
-#### Implementation Points
+#### 实现要点
 
-1. **Get query**: Use `oxy_request.get_query()` to get 用户查询
-2. **Execute retrieval**: Call retrieval function to get relevant knowledge
-3. **Inject knowledge**: Add knowledge to `oxy_request.arguments["knowledge"]`
-4. **Return request**: Return modified request 对象
+1. **获取查询**：使用 `oxy_request.get_query()` 获取用户查询
+2. **执行检索**：调用检索函数获取相关知识
+3. **注入知识**：将知识添加到 `oxy_request.arguments["knowledge"]`
+4. **返回请求**：返回修改后的请求对象
 
-#### 示例 Implementation
+#### 示例实现
 
 ```python
 def update_query(oxy_request: OxyRequest) -> OxyRequest:
     current_query = oxy_request.get_query()
 
-    # Simple knowledge retrieval example
+    # 简单的知识检索示例
     def retrieval(query):
-        # This should be actual retrieval logic
+        # 这里应该是实际的检索逻辑
         knowledge_base = {
             "AI": "Artificial intelligence related knowledge...",
             "Python": "Python programming related knowledge...",
             "Database": "Database related knowledge..."
         }
 
-        # Simple keyword matching
+        # 简单的关键词匹配
         for key, knowledge in knowledge_base.items():
             if key in query:
                 return knowledge
 
         return "No relevant knowledge found"
 
-    # Inject retrieved knowledge
+    # 注入检索到的知识
     oxy_request.arguments["knowledge"] = retrieval(current_query)
     return oxy_request
 ```
 
 ### retrieval()
 
-St和ard interface for retrieval functions, specific implementation depends on knowledge source.
+检索函数的标准接口，具体实现取决于知识源。
 
 ```python
 def retrieval(query: str) -> str
 ```
 
-#### 参数s
+#### 参数
 
 |参数|类型|描述|
 |-----------|------|-------------|
-| `query` | `str` | User query string |
+| `query` | `str` | 用户查询字符串 |
 
 #### 返回值
 
 |类型|描述|
 |------|-------------|
-| `str` | Retrieved knowledge text, multiple knowledge pieces connected 包含 newlines |
+| `str` | 检索到的知识文本，多个知识片段用换行符连接 |
 
-#### Implementation Variants
+#### 实现变体
 
-##### Vector Database Retrieval
+##### 向量数据库检索
 
 ```python
 def retrieval(query: str) -> str:
-    """Semantic retrieval using vector database"""
-    # Encode query using embedding model
+    """使用向量数据库进行语义检索"""
+    # 使用嵌入模型编码查询
     query_embedding = embedding_model.encode(query)
 
-    # Search in vector database
+    # 在向量数据库中搜索
     results = vector_db.search(query_embedding, top_k=5)
 
-    # Merge retrieval results
+    # 合并检索结果
     knowledge_pieces = [result.text for result in results]
     return "\n".join(knowledge_pieces)
 ```
 
-##### Search Engine Retrieval
+##### 搜索引擎检索
 
 ```python
 def retrieval(query: str) -> str:
-    """Retrieval using search engine"""
+    """使用搜索引擎进行检索"""
     search_results = search_engine.search(query, num_results=3)
 
     knowledge_pieces = []
@@ -173,26 +173,26 @@ def retrieval(query: str) -> str:
     return "\n\n".join(knowledge_pieces)
 ```
 
-##### Document Database Retrieval
+##### 文档数据库检索
 
 ```python
 def retrieval(query: str) -> str:
-    """Retrieval from document database"""
-    # Use full-text search or keyword matching
+    """从文档数据库检索"""
+    # 使用全文搜索或关键词匹配
     documents = document_db.search(query)
 
     relevant_docs = []
-    for doc in documents[:5]:  # Take top 5 relevant documents
+    for doc in documents[:5]:  # 取前5个相关文档
         relevant_docs.append(doc.content)
 
     return "\n---\n".join(relevant_docs)
 ```
 
-## Prompt Templates
+## 提示模板
 
-RAG Agent requires special prompt templates to h和le injected knowledge.
+RAG Agent 需要特殊的提示模板来处理注入的知识。
 
-### Standard RAG Prompt Template
+### 标准 RAG 提示模板
 
 ```python
 INSTRUCTION = """
@@ -225,22 +225,22 @@ Your follow-up question to the user
 """
 ```
 
-### Knowledge Placeholders
+### 知识占位符
 
-- `${knowledge}`: Placeholder for injecting retrieved knowledge
-- `${tools_description}`: Tool description placeholder
-- Can add other custom placeholders
+- `${knowledge}`: 注入检索知识的占位符
+- `${tools_description}`: 工具描述占位符
+- 可以添加其他自定义占位符
 
-## Complete Implementation 示例
+## 完整实现示例
 
-### Basic RAG Implementation
+### 基础 RAG 实现
 
 ```python
 import asyncio
 from oxygent import MAS, OxyRequest, oxy
 from oxygent.utils.env_utils import get_env_var
 
-# RAG prompt template
+# RAG 提示模板
 INSTRUCTION = """
 You are a helpful assistant and can use these tools:
 ${tools_description}
@@ -253,11 +253,11 @@ If you need to use tools, follow the standard tool calling format.
 """
 
 def update_query(oxy_request: OxyRequest) -> OxyRequest:
-    """Knowledge injection function"""
+    """知识注入函数"""
     current_query = oxy_request.get_query()
 
     def retrieval(query):
-        # Simulate knowledge base retrieval
+        # 模拟知识库检索
         knowledge_base = [
             "OxyGent is a multi-agent system framework",
             "Supports multiple types of agents and tools",
@@ -265,11 +265,11 @@ def update_query(oxy_request: OxyRequest) -> OxyRequest:
         ]
         return "\n".join(knowledge_base)
 
-    # Inject knowledge
+    # 注入知识
     oxy_request.arguments["knowledge"] = retrieval(current_query)
     return oxy_request
 
-# Create RAG system
+# 创建 RAG 系统
 oxy_space = [
     oxy.HttpLLM(
         name="default_llm",
@@ -300,20 +300,20 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-### Advanced RAG Implementation
+### 高级 RAG 实现
 
 ```python
 import json
 from typing import List, Dict
 
 class AdvancedRAG:
-    """Advanced RAG implementation class"""
+    """高级 RAG 实现类"""
 
     def __init__(self, knowledge_sources: List[Dict]):
         self.knowledge_sources = knowledge_sources
 
     def multi_source_retrieval(self, query: str) -> str:
-        """Multi-source knowledge retrieval"""
+        """多源知识检索"""
         all_knowledge = []
 
         for source in self.knowledge_sources:
@@ -332,21 +332,21 @@ class AdvancedRAG:
         return "\n\n".join(all_knowledge)
 
     def _vector_search(self, query: str, source: Dict) -> str:
-        """Vector database search"""
-        # Implement vector search logic
+        """向量数据库搜索"""
+        # 实现向量搜索逻辑
         pass
 
     def _document_search(self, query: str, source: Dict) -> str:
-        """Document database search"""
-        # Implement document search logic
+        """文档数据库搜索"""
+        # 实现文档搜索逻辑
         pass
 
     def _api_search(self, query: str, source: Dict) -> str:
-        """API search"""
-        # Implement API search logic
+        """API 搜索"""
+        # 实现 API 搜索逻辑
         pass
 
-# Use advanced RAG
+# 使用高级 RAG
 knowledge_sources = [
     {"name": "Technical Docs", "type": "vector_db", "config": {...}},
     {"name": "FAQ Database", "type": "document_db", "config": {...}},
@@ -356,86 +356,86 @@ knowledge_sources = [
 advanced_rag = AdvancedRAG(knowledge_sources)
 
 def advanced_update_query(oxy_request: OxyRequest) -> OxyRequest:
-    """Advanced knowledge injection function"""
+    """高级知识注入函数"""
     current_query = oxy_request.get_query()
 
-    # Multi-source retrieval
+    # 多源检索
     knowledge = advanced_rag.multi_source_retrieval(current_query)
 
-    # Inject knowledge
+    # 注入知识
     oxy_request.arguments["knowledge"] = knowledge
 
-    # Can add other metadata
+    # 可以添加其他元数据
     oxy_request.arguments["retrieval_timestamp"] = get_current_timestamp()
     oxy_request.arguments["knowledge_sources"] = len(knowledge_sources)
 
     return oxy_request
 ```
 
-## Configuration Options
+## 配置选项
 
-### Knowledge Injection Configuration
+### 知识注入配置
 
-|Configuration|类型|描述|
+|配置项|类型|描述|
 |---------------|------|-------------|
-| `knowledge_placeholder` | `str` | Knowledge placeholder name, default "knowledge" |
-| `max_knowledge_length` | `int` | Maximum knowledge length limit |
-| `retrieval_timeout` | `float` | Retrieval timeout in seconds |
-| `fallback_knowledge` | `str` | Fallback knowledge 当 retrieval fails |
+| `knowledge_placeholder` | `str` | 知识占位符名称，默认为 "knowledge" |
+| `max_knowledge_length` | `int` | 最大知识长度限制 |
+| `retrieval_timeout` | `float` | 检索超时时间（秒） |
+| `fallback_knowledge` | `str` | 检索失败时的备用知识 |
 
-### Retrieval Configuration
+### 检索配置
 
-|Configuration|类型|描述|
+|配置项|类型|描述|
 |---------------|------|-------------|
-| `top_k` | `int` | Number of retrieval results |
-| `similarity_threshold` | `float` | Similarity threshold |
-| `enable_reranking` | `bool` | Whether to enable reranking |
-| `knowledge_sources` | `List[Dict]` | Knowledge source configuration list |
+| `top_k` | `int` | 检索结果数量 |
+| `similarity_threshold` | `float` | 相似度阈值 |
+| `enable_reranking` | `bool` | 是否启用重排序 |
+| `knowledge_sources` | `List[Dict]` | 知识源配置列表 |
 
-## Performance Optimization
+## 性能优化
 
-### Retrieval Optimization
+### 检索优化
 
-1. **Caching mechanism**: Cache retrieval results for common queries
-2. **Async retrieval**: Use async methods for retrieval
-3. **Batch retrieval**: Batch process multiple queries
-4. **Index optimization**: Optimize vector database indexes
+1. **缓存机制**：缓存常见查询的检索结果
+2. **异步检索**：使用异步方法进行检索
+3. **批量检索**：批量处理多个查询
+4. **索引优化**：优化向量数据库索引
 
-### Knowledge Injection Optimization
+### 知识注入优化
 
-1. **Length control**: Limit injected knowledge length
-2. **Relevance filtering**: Filter low-relevance knowledge
-3. **Format optimization**: Optimize knowledge format 和 structure
-4. **Context management**: Manage knowledge position in context
+1. **长度控制**：限制注入知识的长度
+2. **相关性过滤**：过滤低相关性知识
+3. **格式优化**：优化知识格式和结构
+4. **上下文管理**：管理知识在上下文中的位置
 
 ## 错误处理
 
-### Common Errors
+### 常见错误
 
-1. **Retrieval failure**
+1. **检索失败**
    ```python
    def safe_retrieval(query: str) -> str:
        try:
            return retrieval(query)
        except Exception as e:
-           logger.error(f"Retrieval failed: {e}")
-           return "Retrieval service temporarily unavailable"
+           logger.error(f"检索失败: {e}")
+           return "检索服务暂时不可用"
    ```
 
-2. **Knowledge injection failure**
+2. **知识注入失败**
    ```python
    def safe_update_query(oxy_request: OxyRequest) -> OxyRequest:
        try:
            knowledge = safe_retrieval(oxy_request.get_query())
            oxy_request.arguments["knowledge"] = knowledge
        except Exception as e:
-           logger.error(f"Knowledge injection failed: {e}")
+           logger.error(f"知识注入失败: {e}")
            oxy_request.arguments["knowledge"] = ""
 
        return oxy_request
    ```
 
-3. **Timeout h和ling**
+3. **超时处理**
    ```python
    import asyncio
 
@@ -446,33 +446,33 @@ def advanced_update_query(oxy_request: OxyRequest) -> OxyRequest:
                timeout=timeout
            )
        except asyncio.TimeoutError:
-           return "Retrieval timeout, using default knowledge"
+           return "检索超时，使用默认知识"
    ```
 
 ## 最佳实践
 
-### Retrieval Strategy
+### 检索策略
 
-1. **Diversified retrieval**: Use multiple retrieval methods
-2. **Relevance ranking**: Rank results by relevance
-3. **Knowledge deduplication**: Remove duplicate knowledge pieces
-4. **Context awareness**: Consider conversation context for retrieval
+1. **多样化检索**：使用多种检索方法
+2. **相关性排序**：按相关性对结果进行排序
+3. **知识去重**：去除重复的知识片段
+4. **上下文感知**：考虑对话上下文进行检索
 
-### Knowledge Management
+### 知识管理
 
-1. **Knowledge quality**: Ensure knowledge base quality 和 timeliness
-2. **Knowledge structure**: Reasonably organize knowledge structure
-3. **Knowledge updates**: Regularly update knowledge base content
-4. **Knowledge validation**: Validate accuracy of retrieved knowledge
+1. **知识质量**：确保知识库质量和时效性
+2. **知识结构**：合理组织知识结构
+3. **知识更新**：定期更新知识库内容
+4. **知识验证**：验证检索知识的准确性
 
-### Prompt Design
+### 提示设计
 
-1. **Clear instructions**: Provide clear knowledge usage instructions
-2. **Format specification**: St和ardize knowledge format in prompts
-3. **Priority**: Clarify usage priority of knowledge 和 tools
-4. **Error h和ling**: H和le insufficient or incorrect knowledge
+1. **清晰指令**：提供清晰的知识使用指令
+2. **格式规范**：标准化提示中的知识格式
+3. **优先级**：明确知识和工具的使用优先级
+4. **错误处理**：处理知识不足或错误的情况
 
-## Related Links
+## 相关链接
 
 - [RAG Agent 主文档](/docs/agents-rag) - 概述和使用指南
 - [ReActAgent API](/oxyapi/agents-react-api) - 基础推理代理 API

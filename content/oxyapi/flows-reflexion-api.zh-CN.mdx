@@ -12,7 +12,7 @@ from oxygent.oxy.flows import Reflexion, MathReflexion
 # Basic Reflexion
 reflexion_flow = Reflexion(
     name="quality_improver",
-    desc="Iteratively improves answer quality through self-evaluation",
+    desc="通过自我评估迭代改进答案质量",
     worker_agent="worker_agent",
     reflexion_agent="reflexion_agent",
     max_reflexion_rounds=3
@@ -21,7 +21,7 @@ reflexion_flow = Reflexion(
 # Math-specialized Reflexion
 math_flow = MathReflexion(
     name="math_solver",
-    desc="Specialized reflexion for mathematical problems",
+    desc="专门用于数学问题的反思流程",
     max_reflexion_rounds=3
 )
 ```
@@ -67,18 +67,18 @@ math_flow = MathReflexion(
 ### `worker_agent`
 - **Type**: `str`
 - **默认**: `"worker_agent"`
-- **Description**: Name of the agent that generates answers to be evaluated.
+- **描述**: 生成待评估答案的代理名称。
 
-**Requirements:**
-- Must be 在同一多智能体系统中注册
-- Should produce meaningful answers
-- Can be any agent type (ChatAgent, ReActAgent, etc.)
+**要求:**
+- 必须在同一多智能体系统中注册
+- 应该产生有意义的答案
+- 可以是任何代理类型 (ChatAgent, ReActAgent, 等)
 
 **Example:**
 ```python
 Reflexion(
     name="improver",
-    worker_agent="content_writer",  # Custom worker
+    worker_agent="content_writer",  # 自定义工作者
     reflexion_agent="quality_checker"
 )
 ```
@@ -86,45 +86,45 @@ Reflexion(
 ### `reflexion_agent`
 - **Type**: `str`
 - **默认**: `"reflexion_agent"`
-- **Description**: Name of the agent that evaluates answer quality 和 提供 improvement suggestions.
+- **描述**: 评估答案质量并提供改进建议的代理名称。
 
-**Requirements:**
-- Must be 在同一多智能体系统中注册
-- Should underst和 evaluation criteria
-- Should provide constructive feedback
+**要求:**
+- 必须在同一多智能体系统中注册
+- 应该理解评估标准
+- 应该提供建设性反馈
 
 **Example:**
 ```python
 Reflexion(
     name="improver",
     worker_agent="writer",
-    reflexion_agent="editor_agent"  # Custom evaluator
+    reflexion_agent="editor_agent"  # 自定义评估器
 )
 ```
 
 ### `max_reflexion_rounds`
 - **Type**: `int`
 - **默认**: `3`
-- **Description**: 最大数量 improvement iterations before returning final answer.
+- **描述**: 返回最终答案前的最大改进迭代次数。
 
 **使用指南:**
-- Quick improvements: 1-2 轮
-- St和ard quality: 3-5 轮
-- High precision: 5-10 轮
+- 快速改进: 1-2 轮
+- 标准质量: 3-5 轮
+- 高精度: 5-10 轮
 
 **Example:**
 ```python
 Reflexion(
     name="high_quality",
-    max_reflexion_rounds=5,  # More iterations for quality
+    max_reflexion_rounds=5,  # 更多迭代以提高质量
     ...
 )
 ```
 
 ### `evaluation_template`
 - **Type**: `str`
-- **默认**: Quality evaluation template
-- **Description**: Template string for evaluation prompts. Variables: `{query}`, `{answer}`
+- **默认**: 质量评估模板
+- **描述**: 评估提示的模板字符串。变量: `{query}`, `{answer}`
 
 **默认 Template:**
 ```python
@@ -135,11 +135,11 @@ Original Question: {query}
 Answer: {answer}
 
 Please evaluate based on these criteria:
-1. Accuracy: Is the information correct 和 factual?
-2. Completeness: Does it fully address the user's question?
-3. Clarity: Is it well-structured 和 easy to underst和?
-4. Relevance: Does it stay focused on the user's needs?
-5. Helpfulness: Does it provide practical value to the user?
+1. 准确性: 信息是否正确且基于事实?
+2. 完整性: 是否完全回答了用户的问题?
+3. 清晰度: 是否结构良好且易于理解?
+4. 相关性: 是否专注于用户的需求?
+5. 有用性: 是否为用户提供了实用价值?
 
 Return your evaluation in the following format:
 - is_satisfactory: true/false
@@ -173,8 +173,8 @@ Reflexion(
 
 ### `improvement_template`
 - **Type**: `str`
-- **默认**: Improvement prompt template
-- **Description**: Template for improvement prompts. Variables: `{original_query}`, `{improvement_suggestions}`, `{previous_answer}`
+- **默认**: 改进提示模板
+- **描述**: 改进提示的模板。变量: `{original_query}`, `{improvement_suggestions}`, `{previous_answer}`
 
 **默认 Template:**
 ```python
@@ -205,15 +205,15 @@ Please provide an improved version.""",
 ### `pydantic_parser_reflexion`
 - **Type**: `PydanticOutputParser`
 - **默认**: `PydanticOutputParser(output_cls=ReflectionEvaluation)`
-- **Description**: Parser for structured evaluation results.
+- **描述**: 结构化评估结果的解析器。
 
 **默认 ReflectionEvaluation Model:**
 ```python
 class ReflectionEvaluation(BaseModel):
-    is_satisfactory: bool = Field(description="Whether the answer is satisfactory")
-    evaluation_reason: str = Field(description="Detailed explanation of the evaluation")
+    is_satisfactory: bool = Field(description="答案是否令人满意")
+    evaluation_reason: str = Field(description="评估的详细说明")
     improvement_suggestions: str = Field(
-        default="", description="Specific improvement suggestions if unsatisfactory"
+        default="", description="如果不满意的具体改进建议"
     )
 ```
 
@@ -223,9 +223,9 @@ class ReflectionEvaluation(BaseModel):
 
 |Field|类型|必需|描述|
 |-------|------|----------|-------------|
-| `is_satisfactory` | bool | Yes | Whether the answer meets quality st和ards |
-| `evaluation_reason` | str | Yes | Detailed explanation of the evaluation |
-| `improvement_suggestions` | str | No | Specific recommendations for improvement |
+| `is_satisfactory` | bool | 是 | 答案是否满足质量标准 |
+| `evaluation_reason` | str | 是 | 评估的详细说明 |
+| `improvement_suggestions` | str | 否 | 具体的改进建议 |
 
 **Example:**
 ```python
@@ -240,42 +240,42 @@ evaluation = ReflectionEvaluation(
 
 ### `_execute(oxy_request: OxyRequest) -> OxyResponse`
 
-**Internal method** - Orchestrates the reflexion workflow.
+**内部方法** - 编排反思工作流程。
 
 **执行流程:**
-1. **Initial Answer**: Call worker agent 包含 original query
-2. **Evaluation Loop** (up to max_reflexion_轮):
-   - Parse worker response
-   - Format evaluation query
-   - Call reflexion agent
-   - Parse evaluation result
-   - If satisfactory: Return final answer
-   - If not: Update query 包含 improvements, repeat
-3. **Max Rounds Fallback**: Generate final answer using LLM
+1. **初始答案**: 调用工作者代理处理原始查询
+2. **评估循环** (最多 max_reflexion_rounds 轮):
+   - 解析工作者响应
+   - 格式化评估查询
+   - 调用反思代理
+   - 解析评估结果
+   - 如果满意: 返回最终答案
+   - 如果不满意: 更新查询包含改进建议，重复
+3. **最大轮数回退**: 使用 LLM 生成最终答案
 
-**Note:** Internal method - use `mas.call()` or `oxy_request.call()` instead.
+**注意:** 内部方法 - 请使用 `mas.call()` 或 `oxy_request.call()` 代替。
 
 ## MathReflexion Class
 
-Specialized Reflexion subclass for mathematical problems.
+专门用于数学问题的 Reflexion 子类。
 
 ### 构造函数
 
 ```python
 MathReflexion(
     name="math_solver",
-    desc="Specialized reflexion for math",
-    worker_agent="math_expert_agent",  # Optional, defaults to "math_expert_agent"
-    reflexion_agent="math_checker_agent",  # Optional, defaults to "math_checker_agent"
+    desc="专门用于数学的反思流程",
+    worker_agent="math_expert_agent",  # 可选，默认为 "math_expert_agent"
+    reflexion_agent="math_checker_agent",  # 可选，默认为 "math_checker_agent"
     max_reflexion_rounds=3
 )
 ```
 
-### Differences from Base Reflexion
+### 与基础 Reflexion 的区别
 
-1. **默认 Agents**: Uses math-specific agent names
-2. **Math Evaluation Template**: Specialized for mathematical correctness
-3. **Step-by-Step Focus**: Emphasizes showing calculation steps
+1. **默认代理**: 使用数学专用的代理名称
+2. **数学评估模板**: 专门用于数学正确性评估
+3. **逐步聚焦**: 强调显示计算步骤
 
 **默认 Math Evaluation Template:**
 ```python
@@ -286,11 +286,11 @@ Problem: {query}
 Solution: {answer}
 
 Check points:
-1. Are the calculation steps correct?
-2. Are there any missing steps?
-3. Is the final answer clear?
-4. Is the problem-solving approach clear?
-5. Are mathematical formulas 和 theorems applied correctly?
+1. 计算步骤是否正确?
+2. 是否有遗漏的步骤?
+3. 最终答案是否清晰?
+4. 解题方法是否清晰?
+5. 数学公式和定理应用是否正确?
 
 Return your evaluation in the following format:
 - is_satisfactory: true/false (use true for Pass, false for Fail)
@@ -309,11 +309,11 @@ oxy_space = [
     oxy.HttpLLM(name="default_llm", ...),
     oxy.ChatAgent(
         name="worker_agent",
-        prompt="You are a helpful assistant"
+        prompt="你是一个有用的助手"
     ),
     oxy.ChatAgent(
         name="reflexion_agent",
-        prompt="You are a quality evaluator"
+        prompt="你是一个质量评估器"
     ),
     oxy.flows.Reflexion(
         name="quality_flow",
@@ -330,7 +330,7 @@ async def main():
             arguments={"query": "Explain quantum computing"}
         )
         print(result.output)
-        print(result.extra)  # Contains reflexion metadata
+        print(result.extra)  # 包含反思元数据
 ```
 
 ### Math Reflexion
@@ -338,8 +338,8 @@ async def main():
 ```python
 oxy.flows.MathReflexion(
     name="math_solver",
-    desc="Solve and verify mathematical problems",
-    max_reflexion_rounds=5  # More rounds for complex math
+    desc="解决和验证数学问题",
+    max_reflexion_rounds=5  # 复杂数学问题需要更多轮次
 )
 ```
 
@@ -394,8 +394,8 @@ User Query
 │                                              │
 └──────────────────────────────────────────────┘
     ↓
-If max rounds reached:
-  Use LLM to generate final answer
+如果达到最大轮数:
+  使用 LLM 生成最终答案
     ↓
 OxyResponse(
   output=final answer,
@@ -416,74 +416,74 @@ OxyResponse(
     "state": OxyState.COMPLETED,
     "output": "Final answer optimized through N rounds of reflexion:\n\n[answer]",
     "extra": {
-        "reflexion_rounds": 3,  # Number of rounds executed
+        "reflexion_rounds": 3,  # 执行的轮数
         "final_evaluation": {
             "is_satisfactory": true,
             "evaluation_reason": "...",
             "improvement_suggestions": "..."
         },
-        "reached_max_rounds": false  # True if stopped due to max_rounds
+        "reached_max_rounds": false  # 如果因达到最大轮数而停止则为 True
     }
 }
 ```
 
 ## 最佳实践
 
-### 1. Choose Appropriate Evaluator
+### 1. 选择合适的评估器
 
 ```python
-# ✅ Good: Specialized evaluator
+# ✅ 好: 专业评估器
 oxy.ChatAgent(
     name="evaluator",
-    llm_model="gpt-4",  # Strong evaluation capabilities
-    prompt="You are an expert editor. Evaluate answer quality rigorously."
+    llm_model="gpt-4",  # 强大的评估能力
+    prompt="你是一个专家编辑。严格评估答案质量。"
 )
 
-# ⚠️ Caution: Same model for worker and evaluator may lack critical distance
+# ⚠️ 注意: 工作者和评估器使用相同模型可能缺乏批判距离
 ```
 
-### 2. Set Realistic Max Rounds
+### 2. 设置合理的最大轮数
 
 ```python
-# Quick improvements
+# 快速改进
 Reflexion(name="quick", max_reflexion_rounds=2, ...)
 
-# High-quality output
+# 高质量输出
 Reflexion(name="quality", max_reflexion_rounds=5, ...)
 
-# Mathematical precision
+# 数学精度
 MathReflexion(name="math", max_reflexion_rounds=7, ...)
 ```
 
-### 3. Provide Clear Evaluation Criteria
+### 3. 提供清晰的评估标准
 
 ```python
-# ✅ Good: Specific, measurable criteria
-evaluation_template="""Evaluate based on:
-1. Factual accuracy (verify claims)
-2. Completeness (addresses all aspects)
-3. Clarity (underst和able language)
+# ✅ 好: 具体、可衡量的标准
+evaluation_template="""基于以下标准评估:
+1. 事实准确性 (验证声明)
+2. 完整性 (涵盖所有方面)
+3. 清晰度 (易于理解的语言)
 ..."""
 
-# ❌ Bad: Vague criteria
-evaluation_template="Is this answer good? yes/no"
+# ❌ 差: 模糊的标准
+evaluation_template="这个答案好吗? 是/否"
 ```
 
-### 4. Use Specific Improvement Suggestions
+### 4. 使用具体的改进建议
 
-Ensure reflexion agent 提供 actionable feedback:
+确保反思代理提供可操作的反馈:
 
 ```python
-# ✅ Good
-improvement_suggestions="Add specific examples in section 2. Clarify the technical terms. Include performance comparison."
+# ✅ 好
+improvement_suggestions="在第2节添加具体示例。澄清技术术语。包含性能比较。"
 
-# ❌ Bad
-improvement_suggestions="Make it better."
+# ❌ 差
+improvement_suggestions="让它更好。"
 ```
 
 ## 常见模式
 
-### Pattern: Content Quality Improvement
+### 模式: 内容质量改进
 
 ```python
 Reflexion(
@@ -494,7 +494,7 @@ Reflexion(
 )
 ```
 
-### Pattern: Code Review
+### 模式: 代码审查
 
 ```python
 Reflexion(
@@ -506,7 +506,7 @@ Reflexion(
 )
 ```
 
-### Pattern: Mathematical Verification
+### 模式: 数学验证
 
 ```python
 MathReflexion(
@@ -515,14 +515,14 @@ MathReflexion(
 )
 ```
 
-## Comparison 使用 Other 流程
+## 与其他流程的比较
 
-|Feature|Reflexion|Workflow|PlanAndSolve|
+|特性|Reflexion|Workflow|PlanAndSolve|
 |---------|-----------|----------|--------------|
-| **Self-evaluation** | Yes | 可选 | No |
-| **Iterations** | Quality-driven | Custom | Step-driven |
-| **Improvement** | Automatic | Manual | N/A |
-| **Use case** | Quality refinement | Custom logic | 多步骤任务 |
+| **自我评估** | 是 | 可选 | 否 |
+| **迭代** | 质量驱动 | 自定义 | 步骤驱动 |
+| **改进** | 自动 | 手动 | 不适用 |
+| **用例** | 质量改进 | 自定义逻辑 | 多步骤任务 |
 
 ## Related API 参考
 

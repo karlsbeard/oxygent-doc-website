@@ -9,7 +9,7 @@ icon: Code
 ```python
 from oxygent import oxy
 
-# Create a StreamableMCPClient instance
+# 创建 StreamableMCPClient 实例
 client = oxy.StreamableMCPClient(
     name="streaming_tools",
     server_url="http://127.0.0.1:8000/mcp",
@@ -66,52 +66,52 @@ client = oxy.StreamableMCPClient(
 
 ### name
 
-- **Type**: `str`
-- **必需**: Yes
-- **Description**: Unique identifier for this streamable MCP client 在多智能体系统中. Agents reference this name in their `tools` list to use all tools provided by this streaming server.
+- **类型**: `str`
+- **必需**: 是
+- **描述**: 在多智能体系统中此流式 MCP 客户端的唯一标识符。智能体在其 `tools` 列表中引用此名称，以使用此流式服务器提供的所有工具。
 
 **Example:**
 ```python
 oxy.StreamableMCPClient(
-    name="streaming_api_tools",  # Agents use "streaming_api_tools" in tools list
+    name="streaming_api_tools",  # 智能体在 tools 列表中使用 "streaming_api_tools"
     ...
 )
 ```
 
 ### server_url
 
-- **Type**: `AnyUrl` (Pydantic URL type)
-- **必需**: Yes
-- **Description**: The HTTP(S) URL endpoint where the streamable MCP server is hosted. This URL points to the server's streaming endpoint.
+- **类型**: `AnyUrl` (Pydantic URL 类型)
+- **必需**: 是
+- **描述**: 流式 MCP 服务器托管的 HTTP(S) URL 端点。此 URL 指向服务器的流式端点。
 
-**Format:**
-- Must be a valid URL
-- Typically ends 包含 `/mcp` or similar path
-- Can be HTTP (local/dev) or HTTPS (production)
-- Different from SSE endpoint (no `/sse` suffix)
+**格式：**
+- 必须是有效的 URL
+- 通常以 `/mcp` 或类似路径结尾
+- 可以是 HTTP（本地/开发）或 HTTPS（生产环境）
+- 与 SSE 端点不同（没有 `/sse` 后缀）
 
 **Examples:**
 ```python
-# Local development
+# 本地开发
 server_url="http://localhost:8000/mcp"
 server_url="http://127.0.0.1:3000/api/mcp"
 
-# Production
+# 生产环境
 server_url="https://api.example.com/mcp"
 server_url="https://streaming.myapp.com/mcp/v1"
 ```
 
-**URL Processing:**
-The URL is processed through `build_url()` utility which:
-- Ensures proper formatting
-- H和les trailing slashes
-- Validates URL structure
+**URL 处理：**
+URL 通过 `build_url()` 工具处理，该工具：
+- 确保格式正确
+- 处理尾部斜杠
+- 验证 URL 结构
 
 ### headers
 
-- **Type**: `dict[str, str]`
+- **类型**: `dict[str, str]`
 - **默认**: `{}`
-- **Description**: HTTP headers included in all streaming requests. Commonly used for authentication, versioning, 和 custom metadata.
+- **描述**: 包含在所有流式请求中的 HTTP 头。通常用于身份验证、版本控制和自定义元数据。
 
 **Common Use Cases:**
 
@@ -141,39 +141,39 @@ headers={
 }
 ```
 
-**Behavior:**
-- Headers sent 包含 every HTTP streaming connection
-- Can be overridden per-request if `is_dynamic_headers=True`
-- `host` header automatically removed if inherited
+**行为：**
+- 头信息随每个 HTTP 流式连接发送
+- 如果 `is_dynamic_headers=True`，可以按请求覆盖
+- 如果继承，`host` 头会自动移除
 
 ### is_dynamic_headers
 
-- **Type**: `bool`
+- **类型**: `bool`
 - **默认**: `False`
-- **Description**: Enable dynamic header updates on a per-request basis. When enabled, headers can be provided in tool calls 和 will override/merge 包含 base headers.
+- **描述**: 启用按请求动态更新头信息。启用时，可以在工具调用中提供头信息，并将覆盖/合并基础头信息。
 
-**Requirements:**
-- Must set `is_keep_alive=False` for dynamic headers
-- Creates new HTTP connection for each tool call
+**要求：**
+- 动态头信息必须设置 `is_keep_alive=False`
+- 为每个工具调用创建新的 HTTP 连接
 
 **Example:**
 ```python
-# Enable dynamic headers
+# 启用动态头信息
 oxy.StreamableMCPClient(
     name="dynamic_streaming",
     server_url="http://localhost:8000/mcp",
     headers={
-        "X-Service-Key": "default"  # Base headers
+        "X-Service-Key": "default"  # 基础头信息
     },
     is_dynamic_headers=True,
-    is_keep_alive=False  # Required
+    is_keep_alive=False  # 必需
 )
 
-# Provide dynamic headers in tool call
+# 在工具调用中提供动态头信息
 await oxy_request.call(
     callee="tool_name",
     arguments={"param": "value"},
-    headers={  # Override/merge with base
+    headers={  # 覆盖/合并基础头信息
         "X-User-ID": "user123",
         "X-Request-ID": "req456"
     }
@@ -182,14 +182,14 @@ await oxy_request.call(
 
 ### is_inherit_headers
 
-- **Type**: `bool`
+- **类型**: `bool`
 - **默认**: `False`
-- **Description**: Inherit headers from the OxyRequest context (`_headers` field). Useful for propagating headers through the call chain.
+- **描述**: 从 OxyRequest 上下文（`_headers` 字段）继承头信息。用于在调用链中传播头信息。
 
-**Behavior:**
-- Reads `oxy_request.shared_data.get("_headers", {})` if `is_inherit_headers=True`
-- Removes `host` header automatically
-- Merges: `base headers | inherited headers | dynamic headers`
+**行为：**
+- 如果 `is_inherit_headers=True`，读取 `oxy_request.shared_data.get("_headers", {})`
+- 自动移除 `host` 头
+- 合并：`基础头信息 | 继承头信息 | 动态头信息`
 
 **Example:**
 ```python
@@ -197,16 +197,16 @@ oxy.StreamableMCPClient(
     name="inherit_streaming",
     server_url="http://localhost:8000/mcp",
     is_dynamic_headers=True,
-    is_inherit_headers=True,  # Inherit from context
+    is_inherit_headers=True,  # 从上下文继承
     is_keep_alive=False
 )
 
-# Upstream provides headers
+# 上游提供头信息
 await mas.call(
     callee="agent",
     arguments={
         "messages": [...],
-        "_headers": {  # Inherited by streaming client
+        "_headers": {  # 由流式客户端继承
             "X-Trace-ID": "trace123",
             "X-Session": "session456"
         }
@@ -216,54 +216,54 @@ await mas.call(
 
 ### is_keep_alive
 
-- **Type**: `bool`
-- **默认**: From `Config.get_tool_mcp_is_keep_alive()`
-- **Description**: Controls HTTP streaming connection lifecycle.
+- **类型**: `bool`
+- **默认**: 来自 `Config.get_tool_mcp_is_keep_alive()`
+- **描述**: 控制 HTTP 流式连接生命周期。
 
-**True (Persistent Connection):**
-- Single HTTP connection during `init()`
-- Connection reused for all tool calls
-- Lower latency (no reconnection overhead)
-- Tools discovered once at startup
-- Cannot use dynamic headers
-- **Recommended for production**
+**True（持久连接）：**
+- 在 `init()` 期间建立单个 HTTP 连接
+- 连接在所有工具调用中重用
+- 更低延迟（无重连开销）
+- 工具在启动时发现一次
+- 不能使用动态头信息
+- **推荐用于生产环境**
 
-**False (Transient Connection):**
-- New HTTP connection per tool call
-- Fresh state every time
-- 必需 for dynamic headers
-- Higher latency (reconnection cost)
-- Tools rediscovered each time
+**False（临时连接）：**
+- 每个工具调用创建新的 HTTP 连接
+- 每次都是新状态
+- 动态头信息必需
+- 更高延迟（重连成本）
+- 每次重新发现工具
 
 **Examples:**
 ```python
-# Persistent (recommended)
+# 持久连接（推荐）
 oxy.StreamableMCPClient(
     name="persistent",
     server_url="http://localhost:8000/mcp",
-    is_keep_alive=True  # Default
+    is_keep_alive=True  # 默认
 )
 
-# Transient (for dynamic headers)
+# 临时连接（用于动态头信息）
 oxy.StreamableMCPClient(
     name="transient",
     server_url="http://localhost:8000/mcp",
     is_dynamic_headers=True,
-    is_keep_alive=False  # Required
+    is_keep_alive=False  # 必需
 )
 ```
 
 ### middlewares
 
-- **Type**: `list[Any]`
+- **类型**: `list[Any]`
 - **默认**: `[]`
-- **Description**: List of client-side middleware 对象s for processing streaming requests 和 responses. Middlewares intercept 和 modify stream data.
+- **描述**: 用于处理流式请求和响应的客户端中间件对象列表。中间件拦截和修改流数据。
 
-**Middleware Interface:**
-Middleware 对象s should implement methods for stream processing:
-- `process_request(request)` - Called before sending
-- `process_response(response)` - Called after receiving
-- `process_stream(stream)` - Called during streaming
+**中间件接口：**
+中间件对象应实现流处理方法：
+- `process_request(request)` - 发送前调用
+- `process_response(response)` - 接收后调用
+- `process_stream(stream)` - 流式传输期间调用
 
 **Example:**
 ```python
@@ -275,7 +275,7 @@ class StreamMetricsMiddleware:
 
     async def process_stream(self, stream):
         self.request_count += 1
-        # Process stream
+        # 处理流
         return stream
 
 class StreamLoggingMiddleware:
@@ -297,29 +297,29 @@ oxy.StreamableMCPClient(
 )
 ```
 
-**Compatibility:**
-- Depends on MCP client library version
-- If `session.add_middleware()` not available, warning logged
-- Middleware ignored in incompatible versions
+**兼容性：**
+- 依赖于 MCP 客户端库版本
+- 如果 `session.add_middleware()` 不可用，记录警告
+- 不兼容版本中忽略中间件
 
 ### timeout
 
-- **Type**: `float`
+- **类型**: `float`
 - **默认**: `60`
-- **Description**: Maximum execution time for each streaming tool call in seconds. Includes connection, streaming, 和 response time.
+- **描述**: 每个流式工具调用的最大执行时间（秒）。包括连接、流式传输和响应时间。
 
-**Guidelines:**
-- Quick streams: 10-30 seconds
-- St和ard operations: 30-60 seconds
-- Long-running streams: 60-300 seconds
-- Very long processes: 300+ seconds
+**指导原则：**
+- 快速流：10-30 秒
+- 标准操作：30-60 秒
+- 长时间运行的流：60-300 秒
+- 非常长的进程：300+ 秒
 
 **Example:**
 ```python
 oxy.StreamableMCPClient(
     name="long_streaming",
     server_url="http://api.example.com/mcp",
-    timeout=300  # 5 minutes for long streams
+    timeout=300  # 长流 5 分钟
 )
 ```
 
@@ -363,9 +363,9 @@ async def init(self, is_fetch_tools: bool = True) -> None
 
 **示例（内部使用）：**
 ```python
-# Called automatically by MAS
+# 由 MAS 自动调用
 async with MAS(oxy_space=[client, ...]) as mas:
-    # client.init() called here
+    # client.init() 在此处调用
     ...
 ```
 
@@ -403,7 +403,7 @@ async def call_tool(
 
 **示例（内部使用）：**
 ```python
-# Called internally for transient connections
+# 为临时连接内部调用
 response = await client.call_tool(
     tool_name="stream_process",
     arguments={"data": "large_dataset"},
@@ -432,7 +432,7 @@ async def list_tools(self) -> None
 
 **示例（内部使用）：**
 ```python
-# Called automatically during init()
+# 在 init() 期间自动调用
 await client.list_tools()
 ```
 
@@ -466,7 +466,7 @@ def add_tools(self, tools_response) -> None
 
 **示例（内部使用）：**
 ```python
-# Called by list_tools()
+# 由 list_tools() 调用
 tools_response = await session.list_tools()
 client.add_tools(tools_response)
 ```
@@ -493,10 +493,10 @@ async def cleanup(self) -> None
 
 **示例（通常自动）：**
 ```python
-# Automatic cleanup
+# 自动清理
 async with MAS(oxy_space=[client, ...]) as mas:
     ...
-# cleanup() called here
+# cleanup() 在此处调用
 ```
 
 ## 使用示例
@@ -576,11 +576,11 @@ middleware_client = oxy.StreamableMCPClient(
 perf_client = oxy.StreamableMCPClient(
     name="high_perf_streaming",
     server_url="http://localhost:8000/mcp",
-    is_keep_alive=True,          # Persistent connection
-    timeout=120,                 # 2 minute timeout
-    semaphore=64,                # 64 concurrent streams
-    retries=1,                   # Fast fail
-    is_permission_required=False # No permission overhead
+    is_keep_alive=True,          # 持久连接
+    timeout=120,                 # 2 分钟超时
+    semaphore=64,                # 64 个并发流
+    retries=1,                   # 快速失败
+    is_permission_required=False # 无权限开销
 )
 ```
 
@@ -590,21 +590,21 @@ perf_client = oxy.StreamableMCPClient(
 oxy_space = [
     oxy.HttpLLM(name="llm", ...),
 
-    # Production streaming
+    # 生产环境流式传输
     oxy.StreamableMCPClient(
         name="prod_stream",
         server_url="https://prod.example.com/mcp",
         headers={"Authorization": f"Bearer {os.getenv('PROD_TOKEN')}"}
     ),
 
-    # Analytics streaming
+    # 分析流式传输
     oxy.StreamableMCPClient(
         name="analytics_stream",
         server_url="https://analytics.example.com/mcp",
         headers={"Authorization": f"Bearer {os.getenv('ANALYTICS_TOKEN')}"}
     ),
 
-    # Local dev streaming
+    # 本地开发流式传输
     oxy.StreamableMCPClient(
         name="dev_stream",
         server_url="http://localhost:8000/mcp"
@@ -626,7 +626,7 @@ oxy_space = [
 try:
     client = oxy.StreamableMCPClient(
         name="unavailable",
-        server_url="http://localhost:9999/mcp"  # Not running
+        server_url="http://localhost:9999/mcp"  # 未运行
     )
     async with MAS(oxy_space=[client, ...]) as mas:
         await mas.call(...)
@@ -640,9 +640,9 @@ except Exception as e:
 client = oxy.StreamableMCPClient(
     name="strict_timeout",
     server_url="http://slow-server.com/mcp",
-    timeout=10  # Very short timeout
+    timeout=10  # 非常短的超时
 )
-# Streams exceeding 10 seconds will raise timeout
+# 超过 10 秒的流将引发超时
 ```
 
 ## 性能考虑
@@ -654,34 +654,34 @@ client = oxy.StreamableMCPClient(
 | **延迟** | 很低 | 高 |
 | **吞吐量** | 很高 | 较低 |
 | **资源使用** | 较高 | 较低 |
-| **Dynamic Headers** | No | Yes |
-| **Recommended For** | Production | Dev/Testing |
+| **动态头信息** | 否 | 是 |
+| **推荐用于** | 生产环境 | 开发/测试 |
 
-### Concurrency Optimization
+### 并发优化
 
 ```python
-# High throughput
+# 高吞吐量
 oxy.StreamableMCPClient(
     name="throughput",
     server_url="http://localhost:8000/mcp",
-    semaphore=128,  # Many concurrent streams
+    semaphore=128,  # 多个并发流
     timeout=60
 )
 
-# Low latency
+# 低延迟
 oxy.StreamableMCPClient(
     name="latency",
     server_url="http://localhost:8000/mcp",
     semaphore=16,
     timeout=5,
-    retries=0  # No retries for fastest response
+    retries=0  # 最快响应无重试
 )
 ```
 
 ## 相关文档
 
-- **[StreamableMCPClient Guide](/docs/tools-mcp-streamable)** - Main documentation 和 usage patterns
-- **[StdioMCPClient API](/oxyapi/tools-mcp-stdio-api)** - Local process client API
-- **[SSEMCPClient API](/oxyapi/tools-mcp-sse-api)** - HTTP SSE client API
-- **[BaseMCPClient](/docs/tools-mcp-base)** - Base class documentation
-- **[MCP Protocol](https://modelcontextprotocol.io/)** - Official MCP specification
+- **[StreamableMCPClient 指南](/docs/tools-mcp-streamable)** - 主要文档和使用模式
+- **[StdioMCPClient API](/oxyapi/tools-mcp-stdio-api)** - 本地进程客户端 API
+- **[SSEMCPClient API](/oxyapi/tools-mcp-sse-api)** - HTTP SSE 客户端 API
+- **[BaseMCPClient](/docs/tools-mcp-base)** - 基类文档
+- **[MCP Protocol](https://modelcontextprotocol.io/)** - 官方 MCP 规范

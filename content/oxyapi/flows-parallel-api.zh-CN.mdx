@@ -11,7 +11,7 @@ from oxygent.oxy.flows import ParallelFlow
 
 parallel_flow = ParallelFlow(
     name="data_fetcher",
-    desc="Fetch data from multiple sources in parallel",
+    desc="从多个数据源并行获取数据",
     permitted_tool_name_list=["tool_1", "tool_2", "tool_3"],
     timeout=100,
     llm_model="default_llm"
@@ -54,11 +54,11 @@ ParallelFlow(
 ```
 
 ### `permitted_tool_name_list`
-- **Type**: `list[str]`
-- **必需**: Yes (via `add_permitted_tools()`)
-- **Description**: List of tool or agent names that will be executed concurrently. All tools receive the same request 和 execute in parallel.
+- **类型**: `list[str]`
+- **必需**: 是（通过 `add_permitted_tools()`）
+- **描述**: 将并发执行的工具或代理名称列表。所有工具接收相同的请求并并行执行。
 
-**Important:** All tools in this list must be registered in the same MAS instance.
+**重要:** 此列表中的所有工具必须在同一个 MAS 实例中注册。
 
 **Example:**
 ```python
@@ -73,15 +73,15 @@ ParallelFlow(
 ```
 
 **使用指南:**
-- **Independence 必需**: Tools should be independent 包含 no execution dependencies
-- **Same Input**: All tools receive the same `oxy_request.arguments`
-- **Optimal Count**: 2-5 tools for best balance of speed 和 manageability
-- **Resource Consideration**: More tools = more concurrent operations, consider system limits
+- **独立性要求**: 工具应该是独立的，不包含执行依赖关系
+- **相同输入**: 所有工具接收相同的 `oxy_request.arguments`
+- **最佳数量**: 2-5 个工具可获得速度和可管理性的最佳平衡
+- **资源考虑**: 更多工具 = 更多并发操作，需考虑系统限制
 
 ### `desc`
-- **Type**: `str`
+- **类型**: `str`
 - **默认**: `""`
-- **Description**: Human-readable description of what this parallel flow does.
+- **描述**: 此并行流程功能的人类可读描述。
 
 **Example:**
 ```python
@@ -93,11 +93,11 @@ ParallelFlow(
 ```
 
 ### `timeout`
-- **Type**: `int`
+- **类型**: `int`
 - **默认**: `100`
-- **Description**: Maximum execution time in seconds for the entire parallel flow. If any tool exceeds this time, the flow will timeout.
+- **描述**: 整个并行流程的最大执行时间（秒）。如果任何工具超过此时间，流程将超时。
 
-**Important:** Timeout applies to the **slowest tool** since all tools run in parallel.
+**重要:** 由于所有工具并行运行，超时适用于**最慢的工具**。
 
 **使用指南:**
 - Fast tools (API calls): 30-60 seconds
@@ -108,15 +108,15 @@ ParallelFlow(
 ```python
 ParallelFlow(
     name="slow_processors",
-    timeout=200,  # Allow extra time for slower tools
+    timeout=200,  # 为较慢的工具预留额外时间
     permitted_tool_name_list=["heavy_processor_1", "heavy_processor_2"]
 )
 ```
 
 ### `llm_model`
-- **Type**: `str`
+- **类型**: `str`
 - **默认**: `"default_llm"`
-- **Description**: 对大语言模型组件的名称引用 in the MAS, used for any fallback LLM operations.
+- **描述**: MAS 中大语言模型组件的名称引用，用于任何后备 LLM 操作。
 
 **Example:**
 ```python
@@ -127,26 +127,26 @@ ParallelFlow(
 )
 ```
 
-### `is_permission_必需`
-- **Type**: `bool`
+### `is_permission_required`
+- **类型**: `bool`
 - **默认**: `False`
-- **Description**: Whether user permission is required before executing this parallel flow.
+- **描述**: 执行此并行流程前是否需要用户权限。
 
 ### `category`
-- **Type**: `str`
+- **类型**: `str`
 - **默认**: `"flow"`
-- **Description**: Category classification for the flow. Inherited from BaseFlow.
+- **描述**: 流程的类别分类。从 BaseFlow 继承。
 
 ### `is_master`
-- **Type**: `bool`
+- **类型**: `bool`
 - **默认**: `False`
-- **Description**: Whether this parallel flow is the master entry point for the multi-agent system.
+- **描述**: 此并行流程是否为多智能体系统的主入口点。
 
 **Example:**
 ```python
 ParallelFlow(
     name="master_parallel",
-    is_master=True,  # Entry point
+    is_master=True,  # 入口点
     permitted_tool_name_list=["tool_1", "tool_2", "tool_3"]
 )
 ```
@@ -155,12 +155,12 @@ ParallelFlow(
 
 ### `_execute(oxy_request: OxyRequest) -> OxyResponse`
 
-**Internal method** - Executes all permitted tools in parallel and aggregates results.
+**内部方法** - 并行执行所有允许的工具并聚合结果。
 
-**Implementation:**
+**实现：**
 ```python
 async def _execute(self, oxy_request: OxyRequest) -> OxyResponse:
-    # Execute all tools concurrently
+    # 并发执行所有工具
     oxy_responses = await asyncio.gather(
         *[
             oxy_request.call(
@@ -171,7 +171,7 @@ async def _execute(self, oxy_request: OxyRequest) -> OxyResponse:
         ]
     )
 
-    # Aggregate results
+    # 聚合结果
     oxy_response = OxyResponse(
         state=OxyState.COMPLETED,
         output="The following are the results from multiple executions:"
@@ -180,7 +180,7 @@ async def _execute(self, oxy_request: OxyRequest) -> OxyResponse:
     return oxy_response
 ```
 
-**Note:** This is an internal method. Users should call via `mas.call()` or `oxy_request.call()`.
+**注意:** 这是一个内部方法。用户应通过 `mas.call()` 或 `oxy_request.call()` 调用。
 
 ## 执行流程
 
@@ -221,8 +221,8 @@ Response 1      Response 2      Response 3      ...
 }
 ```
 
-**Output Format:**
-- Prefix: "The following are the results from multiple executions:"
+**输出格式:**
+- 前缀: "The following are the results from multiple executions:"
 - Each tool result on a new line
 - Results in the order of `permitted_tool_name_list`
 
@@ -236,19 +236,19 @@ import asyncio
 
 fh = oxy.FunctionHub(name="data_tools")
 
-@fh.tool(description="Fetch revenue for company A")
+@fh.tool(description="获取公司 A 的收入")
 async def get_revenue_a():
-    await asyncio.sleep(2)  # Simulate API call
+    await asyncio.sleep(2)  # 模拟 API 调用
     return "Company A revenue: $10M"
 
-@fh.tool(description="Fetch revenue for company B")
+@fh.tool(description="获取公司 B 的收入")
 async def get_revenue_b():
-    await asyncio.sleep(3)  # Simulate API call
+    await asyncio.sleep(3)  # 模拟 API 调用
     return "Company B revenue: $15M"
 
-@fh.tool(description="Fetch revenue for company C")
+@fh.tool(description="获取公司 C 的收入")
 async def get_revenue_c():
-    await asyncio.sleep(1)  # Simulate API call
+    await asyncio.sleep(1)  # 模拟 API 调用
     return "Company C revenue: $8M"
 
 oxy_space = [
@@ -272,7 +272,7 @@ async def main():
             arguments={}
         )
         print(result.output)
-        # Output:
+        # 输出:
         # The following are the results from multiple executions:
         # Company A revenue: $10M
         # Company B revenue: $15M
@@ -281,7 +281,7 @@ async def main():
 asyncio.run(main())
 ```
 
-### Parallel Agent Execution
+### 并行代理执行
 
 ```python
 oxy_space = [
@@ -303,7 +303,7 @@ oxy_space = [
     ),
     oxy.flows.ParallelFlow(
         name="multi_agent_parallel",
-        desc="Execute multiple analysis agents in parallel",
+        desc="并行执行多个分析代理",
         permitted_tool_name_list=[
             "analyzer_agent",
             "summarizer_agent",
@@ -313,12 +313,12 @@ oxy_space = [
 ]
 ```
 
-### Nested in ReActAgent
+### 嵌套在 ReActAgent 中
 
 ```python
 oxy_space = [
     oxy.HttpLLM(name="default_llm", ...),
-    fh,  # FunctionHub with tools
+    fh,  # 包含工具的 FunctionHub
     oxy.flows.ParallelFlow(
         name="parallel_data_fetch",
         permitted_tool_name_list=["tool_1", "tool_2", "tool_3"]
@@ -328,93 +328,93 @@ oxy_space = [
         is_master=True,
         sub_agents=["parallel_data_fetch"],
         llm_model="default_llm",
-        additional_prompt="Analyze and sort the parallel execution results"
+        additional_prompt="分析并整理并行执行结果"
     )
 ]
 ```
 
-### With Custom Timeout
+### 使用自定义超时
 
 ```python
 oxy.flows.ParallelFlow(
     name="long_running_parallel",
-    desc="Execute slow operations in parallel",
+    desc="并行执行慢速操作",
     permitted_tool_name_list=[
         "slow_processor_1",
         "slow_processor_2",
         "slow_processor_3"
     ],
-    timeout=300  # 5 minutes for slow operations
+    timeout=300  # 慢速操作的 5 分钟超时
 )
 ```
 
 ## 最佳实践
 
-### 1. Ensure Tool Independence
+### 1. 确保工具独立性
 
-Tools in `permitted_tool_name_list` should be independent:
+`permitted_tool_name_list` 中的工具应该是独立的：
 
 ```python
-# ✅ Good: Independent data fetchers
+# ✅ 好的：独立的数据获取器
 ParallelFlow(
     name="good_parallel",
     permitted_tool_name_list=[
-        "fetch_from_db",      # Independent
-        "fetch_from_api",     # Independent
-        "fetch_from_cache"    # Independent
+        "fetch_from_db",      # 独立的
+        "fetch_from_api",     # 独立的
+        "fetch_from_cache"    # 独立的
     ]
 )
 
-# ❌ Bad: Dependent tools (tool_2 needs tool_1's result)
+# ❌ 不好的：依赖工具（tool_2 需要 tool_1 的结果）
 ParallelFlow(
     name="bad_parallel",
     permitted_tool_name_list=[
-        "preprocess_data",    # Must run first
-        "analyze_data"        # Needs preprocessed data
+        "preprocess_data",    # 必须先运行
+        "analyze_data"        # 需要预处理的数据
     ]
 )
 ```
 
-### 2. Set Appropriate Timeouts
+### 2. 设置合适的超时时间
 
-Base timeout on the slowest expected tool:
+基于预期最慢工具设置超时时间：
 
 ```python
-# If slowest tool takes ~60 seconds, set timeout to 90-120 seconds
+# 如果最慢的工具需要约 60 秒，则将超时设置为 90-120 秒
 ParallelFlow(
     name="data_parallel",
-    timeout=120,  # Extra buffer for the slowest tool
+    timeout=120,  # 为最慢的工具预留额外缓冲时间
     permitted_tool_name_list=[...]
 )
 ```
 
-### 3. Limit Parallel Count
+### 3. 限制并行数量
 
-Keep the number of parallel tools reasonable:
+保持并行工具数量合理：
 
 ```python
-# ✅ Good: 2-5 parallel tools
+# ✅ 好的：2-5 个并行工具
 ParallelFlow(
     name="optimal_parallel",
-    permitted_tool_name_list=["tool_1", "tool_2", "tool_3"]  # 3 tools
+    permitted_tool_name_list=["tool_1", "tool_2", "tool_3"]  # 3 个工具
 )
 
-# ⚠️ Caution: 10+ parallel tools may cause resource issues
+# ⚠️ 注意：10+ 个并行工具可能导致资源问题
 ParallelFlow(
     name="heavy_parallel",
-    permitted_tool_name_list=["tool_1", ..., "tool_20"]  # 20 tools
+    permitted_tool_name_list=["tool_1", ..., "tool_20"]  # 20 个工具
 )
 ```
 
-### 4. Use ParallelAgent for Intelligent Summarization
+### 4. 使用 ParallelAgent 进行智能汇总
 
-If you need smart summarization of parallel results, use `ParallelAgent` instead:
+如果您需要对并行结果进行智能汇总，请使用 `ParallelAgent`：
 
 ```python
-# For simple aggregation: ParallelFlow
+# 用于简单聚合：ParallelFlow
 ParallelFlow(name="simple_parallel", ...)
 
-# For intelligent summary: ParallelAgent
+# 用于智能汇总：ParallelAgent
 oxy.ParallelAgent(
     name="smart_parallel",
     llm_model="gpt-4",
@@ -422,61 +422,61 @@ oxy.ParallelAgent(
 )
 ```
 
-### 5. Handle Tool Failures
+### 5. 处理工具故障
 
-Consider what happens if one tool fails:
+考虑如果一个工具失败会发生什么：
 
 ```python
-# ParallelFlow will propagate exceptions
-# If any tool fails, the entire flow fails
+# ParallelFlow 会传播异常
+# 如果任何工具失败，整个流程都会失败
 
-# For fault tolerance, wrap tools in error handling:
-@fh.tool(description="Resilient tool")
+# 为了容错，将工具包装在错误处理中：
+@fh.tool(description="容错工具")
 async def resilient_tool():
     try:
         result = await risky_operation()
         return result
     except Exception as e:
-        return f"Error: {str(e)}"  # Return error as string instead of raising
+        return f"Error: {str(e)}"  # 将错误作为字符串返回而不是抛出异常
 ```
 
-## Performance Considerations
+## 性能考虑
 
-### Parallelization Benefits
+### 并行化优势
 
-**Time Savings:**
-- Sequential execution: T1 + T2 + T3
-- Parallel execution: max(T1, T2, T3)
+**时间节省：**
+- 顺序执行：T1 + T2 + T3
+- 并行执行：max(T1, T2, T3)
 
-**Example:**
+**示例：**
 ```python
-# Sequential (using Workflow or normal agent calls)
-# Tool A: 5s, Tool B: 3s, Tool C: 4s
-# Total: 5 + 3 + 4 = 12 seconds
+# 顺序执行（使用 Workflow 或普通代理调用）
+# 工具 A：5秒，工具 B：3秒，工具 C：4秒
+# 总计：5 + 3 + 4 = 12 秒
 
-# Parallel (using ParallelFlow)
-# Total: max(5, 3, 4) = 5 seconds
-# Speedup: 12/5 = 2.4x faster
+# 并行执行（使用 ParallelFlow）
+# 总计：max(5, 3, 4) = 5 秒
+# 加速：12/5 = 2.4倍更快
 ```
 
-### Resource Usage
+### 资源使用
 
-**Concurrent Execution:**
-- CPU: All tools execute simultaneously
-- Memory: All tools loaded in memory
-- Network: All network calls made concurrently
+**并发执行：**
+- CPU：所有工具同时执行
+- 内存：所有工具加载到内存中
+- 网络：所有网络调用并发进行
 
-**Recommendation:**
-- Monitor system resources 包含 many parallel tools
-- Consider semaphores for rate limiting (e.g., in HttpLLM)
+**建议：**
+- 在包含许多并行工具时监控系统资源
+- 考虑使用信号量进行速率限制（例如，在 HttpLLM 中）
 
-### Timeout Strategy
+### 超时策略
 
-**Best Practice:**
+**最佳实践：**
 ```python
-# Estimate maximum tool time: 60s
-# Add buffer: 60s * 1.5 = 90s
-# Set timeout: 90s (or 100s for round number)
+# 估计最大工具时间：60秒
+# 添加缓冲：60秒 * 1.5 = 90秒
+# 设置超时：90秒（或整数 100秒）
 
 ParallelFlow(
     name="data_flow",
@@ -487,13 +487,13 @@ ParallelFlow(
 
 ## 常见模式
 
-### Pattern: Data Aggregation
+### 模式：数据聚合
 
 ```python
-# Fetch data from multiple sources and aggregate
+# 从多个数据源获取数据并聚合
 ParallelFlow(
     name="multi_source_data",
-    desc="Fetch from DB, API, and cache simultaneously",
+    desc="同时从数据库、API 和缓存获取数据",
     permitted_tool_name_list=[
         "database_reader",
         "api_fetcher",
@@ -502,13 +502,13 @@ ParallelFlow(
 )
 ```
 
-### Pattern: Parallel Analysis
+### 模式：并行分析
 
 ```python
-# Run multiple analyses on the same data
+# 对相同数据运行多种分析
 ParallelFlow(
     name="multi_perspective_analysis",
-    desc="Analyze data from different perspectives simultaneously",
+    desc="同时从不同角度分析数据",
     permitted_tool_name_list=[
         "sentiment_analyzer",
         "topic_classifier",
@@ -517,13 +517,13 @@ ParallelFlow(
 )
 ```
 
-### Pattern: Redundancy for Reliability
+### 模式：冗余提高可靠性
 
 ```python
-# Query multiple redundant sources for reliability
+# 查询多个冗余源以提高可靠性
 ParallelFlow(
     name="redundant_fetch",
-    desc="Fetch from multiple redundant sources, use fastest/best result",
+    desc="从多个冗余源获取数据，使用最快/最佳结果",
     permitted_tool_name_list=[
         "primary_api",
         "backup_api",
@@ -532,15 +532,15 @@ ParallelFlow(
 )
 ```
 
-## Comparison 使用 Other 流程
+## 与其他流程的比较
 
 |Feature|ParallelFlow|Workflow|PlanAndSolve|
 |---------|--------------|----------|--------------|
-| **Execution** | Concurrent | Custom logic | Sequential steps |
-| **Tool dependency** | Independent | Any | Dependent steps |
-| **Result aggregation** | Simple concat | Custom | N/A |
-| **Use case** | Parallel data fetch | Custom patterns | Multi-step plans |
-| **Complexity** | Low | Variable | High |
+| **执行方式** | 并发 | 自定义逻辑 | 顺序步骤 |
+| **工具依赖** | 独立 | 任意 | 依赖步骤 |
+| **结果聚合** | 简单连接 | 自定义 | 不适用 |
+| **使用场景** | 并行数据获取 | 自定义模式 | 多步骤计划 |
+| **复杂度** | 低 | 可变 | 高 |
 
 ## Related API 参考
 

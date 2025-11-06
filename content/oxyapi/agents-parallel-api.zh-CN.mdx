@@ -136,7 +136,7 @@ oxy_space = [
         model_name="gpt-3.5-turbo"
     ),
 
-    # Expert agents
+    # 专家代理
     ChatAgent(
         name="tech_expert",
         desc="Technical expert",
@@ -156,7 +156,7 @@ oxy_space = [
         prompt="You are a risk expert..."
     ),
 
-    # Parallel agent coordinating all experts
+    # 协调所有专家的并行代理
     ParallelAgent(
         name="expert_panel",
         desc="Expert panel for parallel analysis",
@@ -182,7 +182,7 @@ async def main():
 ```python
 from oxygent.oxy import FunctionTool
 
-# Create multiple function tools
+# 创建多个功能工具
 def analyze_market(query: str) -> str:
     """Market analysis tool"""
     return f"Market analysis result: {query}"
@@ -202,7 +202,7 @@ oxy_space = [
     FunctionTool(name="tech_tool", func=analyze_technology),
     FunctionTool(name="finance_tool", func=analyze_finance),
 
-    # Parallel execution of all analysis tools
+    # 并行执行所有分析工具
     ParallelAgent(
         name="analysis_agent",
         desc="Parallel analysis agent",
@@ -220,15 +220,15 @@ oxy_space = [
 oxy_space = [
     HttpLLM(name="default_llm", ...),
 
-    # Agents
+    # 代理
     ChatAgent(name="expert_agent", ...),
     ReActAgent(name="reasoning_agent", ...),
 
-    # Tools
+    # 工具
     FunctionTool(name="search_tool", ...),
     MCPTool(name="calculator", ...),
 
-    # Parallel execution of mixed types
+    # 混合类型的并行执行
     ParallelAgent(
         name="hybrid_agent",
         desc="Hybrid parallel execution",
@@ -245,12 +245,12 @@ oxy_space = [
 
 ### 并行执行配置
 
-- `permitted_tool_name_list`: List of tools/agents to execute in parallel
-- `llm_model`: Language model for result merging
+- `permitted_tool_name_list`: 要并行执行的工具/代理列表
+- `llm_model`: 用于结果合并的语言模型
 
-### Result Merging Configuration
+### 结果合并配置
 
-ParallelAgent automatically generates merge prompts in this format:
+ParallelAgent 自动生成以下格式的合并提示：
 
 ```
 You are a helpful assistant, the user's question is: {user_question}.
@@ -263,85 +263,85 @@ The parallel results are as following:
 ...
 ```
 
-### Memory Management
+### 内存管理
 
-- `short_memory_size`: Affects context length during result merging
-- Recommend smaller values since parallel results already contain rich information
+- `short_memory_size`: 影响结果合并时的上下文长度
+- 建议使用较小的值，因为并行结果已包含丰富信息
 
-## Performance Characteristics
+## 性能特征
 
-### Parallel Execution Advantages
+### 并行执行优势
 
-1. **Time efficiency**: All tasks execute simultaneously, total time equals slowest task
-2. **Resource utilization**: Fully utilizes system concurrency capabilities
-3. **Result diversity**: Obtains analysis results from multiple perspectives
+1. **时间效率**：所有任务同时执行，总时间等于最慢任务的时间
+2. **资源利用**：充分利用系统并发能力
+3. **结果多样性**：从多个角度获得分析结果
 
-### Performance Considerations
+### 性能考虑
 
-1. **Concurrency limits**: Affected by system concurrency capabilities 和 LLM API limits
-2. **Memory usage**: Simultaneous processing of multiple requests increases memory consumption
-3. **Merging cost**: LLM merging step adds additional API calls
+1. **并发限制**：受系统并发能力和 LLM API 限制影响
+2. **内存使用**：同时处理多个请求会增加内存消耗
+3. **合并成本**：LLM 合并步骤会增加额外的 API 调用
 
 ### 最佳实践
 
-1. **Reasonable quantity**: Recommend 3-10 parallel tasks
-2. **Task balancing**: Ensure parallel tasks have relatively balanced execution times
-3. **Error h和ling**: Design fault tolerance for partial task failures
+1. **合理数量**：建议 3-10 个并行任务
+2. **任务平衡**：确保并行任务的执行时间相对平衡
+3. **错误处理**：为部分任务失败设计容错机制
 
 ## 错误处理
 
-### Common Errors
+### 常见错误
 
-1. **Empty tool list**
+1. **工具列表为空**
    ```python
-   # Error: No parallel tools specified
+   # 错误：未指定并行工具
    ParallelAgent(
        name="agent",
        desc="test",
        llm_model="default_llm",
-       permitted_tool_name_list=[]  # Empty list
+       permitted_tool_name_list=[]  # 空列表
    )
    ```
 
-2. **Tool not found**
+2. **工具未找到**
    ```python
-   # Ensure all tools are registered
+   # 确保所有工具都已注册
    ParallelAgent(
-       permitted_tool_name_list=["tool1", "tool2"],  # Ensure tool1, tool2 exist
+       permitted_tool_name_list=["tool1", "tool2"],  # 确保 tool1, tool2 存在
    )
    ```
 
-3. **LLM model not configured**
+3. **LLM 模型未配置**
    ```python
-   # Ensure LLM is registered for result merging
+   # 确保 LLM 已注册用于结果合并
    oxy_space = [
        HttpLLM(name="merge_llm", ...),
        ParallelAgent(llm_model="merge_llm", ...)
    ]
    ```
 
-### Partial Failure Handling
+### 部分失败处理
 
-ParallelAgent uses `asyncio.gather()` for parallel task execution:
-- If any task fails, the entire parallel execution fails
-- Recommend implementing appropriate error h和ling in individual tools/agents
-- Consider custom implementation 包含 `return_exceptions=True`
+ParallelAgent 使用 `asyncio.gather()` 进行并行任务执行：
+- 如果任何任务失败，整个并行执行都会失败
+- 建议在各个工具/代理中实现适当的错误处理
+- 考虑自定义实现包含 `return_exceptions=True`
 
-## Use Cases
+## 使用场景
 
-### Suitable Scenarios
+### 适用场景
 
-1. **Multi-expert consultation**: Multiple experts analyzing the same problem simultaneously
-2. **Multi-dimensional analysis**: Technical, business, risk evaluation from multiple angles
-3. **Comparative assessment**: Parallel comparison of multiple solutions or options
-4. **Enhanced decision-making**: Improve decision quality through diverse perspectives
+1. **多专家咨询**：多个专家同时分析同一问题
+2. **多维度分析**：从技术、商业、风险等多个角度进行评估
+3. **对比评估**：并行比较多个解决方案或选项
+4. **增强决策**：通过多元化视角提高决策质量
 
-### Unsuitable Scenarios
+### 不适用场景
 
-1. **Sequential dependencies**: Later tasks depend on earlier task results
-2. **Resource competition**: Multiple tasks competing for same limited resources
-3. **Simple queries**: Single-dimension simple questions
-4. **Real-time interaction**: Scenarios requiring quick response
+1. **顺序依赖**：后续任务依赖于前面任务的结果
+2. **资源竞争**：多个任务竞争相同的有限资源
+3. **简单查询**：单维度的简单问题
+4. **实时交互**：需要快速响应的场景
 
 ## Related Links
 

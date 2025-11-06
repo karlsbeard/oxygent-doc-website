@@ -78,27 +78,27 @@ client = oxy.StdioMCPClient(
 **示例：**
 ```python
 oxy.StdioMCPClient(
-    name="filesystem_tools",  # Agents will use "filesystem_tools" in their tools list
+    name="filesystem_tools",  # Agent 将在其 tools 列表中使用 "filesystem_tools"
     ...
 )
 ```
 
 ### params
 
-- **Type**: `dict[str, Any]`
-- **必需**: Yes
-- **Description**: Configuration dictionary that specifies how to spawn 和 communicate 包含 the MCP server process.
+- **类型**: `dict[str, Any]`
+- **必需**: 是
+- **描述**: 配置字典，指定如何生成和与 MCP 服务器进程通信。
 
-**Structure:**
+**结构:**
 ```python
 params = {
-    "command": "npx",              # Executable command
-    "args": [                      # Command-line arguments
+    "command": "npx",              # 可执行命令
+    "args": [                      # 命令行参数
         "-y",
         "@modelcontextprotocol/server-filesystem",
         "/workspace"
     ],
-    "env": {                       # Optional environment variables
+    "env": {                       # 可选环境变量
         "DEBUG": "true",
         "API_KEY": "your-key"
     }
@@ -107,90 +107,90 @@ params = {
 
 ### params.command
 
-- **Type**: `str`
-- **必需**: Yes
-- **Description**: The comm和 to execute. Common values include:
-  - `"npx"` - Node Package eXecute for npm packages
-  - `"python"` - Python interpreter
-  - `"node"` - Node.js interpreter
-  - `"uv"` - Fast Python package manager
-  - Any other executable in PATH
+- **类型**: `str`
+- **必需**: 是
+- **描述**: 要执行的命令。常见值包括:
+  - `"npx"` - Node Package eXecute，用于 npm 包
+  - `"python"` - Python 解释器
+  - `"node"` - Node.js 解释器
+  - `"uv"` - 快速 Python 包管理器
+  - PATH 中的任何其他可执行文件
 
-**Special Handling:**
-- When `comm和="npx"`, it's automatically resolved to the full path using `shutil.which("npx")`
-- Other comm和s are used as-is
+**特殊处理:**
+- 当 `command="npx"` 时，会使用 `shutil.which("npx")` 自动解析为完整路径
+- 其他命令按原样使用
 
-**Examples:**
+**示例:**
 ```python
-# NPX (automatically resolved)
+# NPX (自动解析)
 params={"command": "npx", ...}
 
 # Python
 params={"command": "python", ...}
 
-# UV (Python package manager)
+# UV (Python 包管理器)
 params={"command": "uv", ...}
 
-# 否de.js
+# Node.js
 params={"command": "node", ...}
 ```
 
 ### params.args
 
-- **Type**: `list[str]`
-- **必需**: Yes
-- **Description**: Comm和-line arguments passed to the comm和. Each argument must be a separate string in the list.
+- **类型**: `list[str]`
+- **必需**: 是
+- **描述**: 传递给命令的命令行参数。每个参数必须是列表中的单独字符串。
 
 **常见模式:**
 
-1. **NPX 包含 npm package:**
+1. **NPX 与 npm 包:**
 ```python
 args=["-y", "@modelcontextprotocol/server-filesystem", "/workspace"]
 ```
 
-2. **Directory-based execution:**
+2. **基于目录的执行:**
 ```python
 args=["--directory", "./mcp_servers", "run", "server.py"]
 ```
 
-3. **Direct script execution:**
+3. **直接脚本执行:**
 ```python
 args=["./servers/my_mcp_server.py"]
 ```
 
-4. **With additional flags:**
+4. **带附加标志:**
 ```python
 args=["--verbose", "--config", "config.json", "server.py"]
 ```
 
-**Validation:**
-- If `args` contains `["--directory", <dir>, "run", <file>]`, the system validates:
-  - The directory `<dir>` must exist
-  - The file `<dir>/<file>` must exist
-  - Raises `FileNotFoundError` if validation fails
+**验证:**
+- 如果 `args` 包含 `["--directory", <dir>, "run", <file>]`，系统会验证:
+  - 目录 `<dir>` 必须存在
+  - 文件 `<dir>/<file>` 必须存在
+  - 验证失败时抛出 `FileNotFoundError`
 
 ### params.env
 
-- **Type**: `dict[str, str]`
-- **必需**: No
-- **默认**: `{}`
-- **Description**: Additional environment variables to pass to the MCP server process. These are merged 包含 `os.environ`, so the server has access to both system 和 custom variables.
+- **类型**: `dict[str, str]`
+- **必需**: 否
+- **默认值**: `{}`
+- **描述**: 传递给 MCP 服务器进程的附加环境变量。这些变量与 `os.environ` 合并，因此服务器可以访问系统和自定义变量。
 
-**Examples:**
+**示例:**
 ```python
-# Basic environment variables
+# 基本环境变量
 env={
     "DEBUG": "true",
     "LOG_LEVEL": "info"
 }
 
-# API keys and secrets
+# API 密钥和秘密
 env={
     "API_KEY": os.getenv("MY_API_KEY"),
     "DATABASE_URL": os.getenv("DATABASE_URL")
 }
 
-# Custom configuration
+# 自定义配置
 env={
     "CACHE_DIR": "/tmp/cache",
     "MAX_WORKERS": "4",
@@ -200,34 +200,34 @@ env={
 
 ### is_keep_alive
 
-- **Type**: `bool`
-- **默认**: From `Config.get_tool_mcp_is_keep_alive()`
-- **Description**: Controls MCP session lifecycle:
-  - `True`: Keep process 和 session alive between tool calls (faster, persistent)
-  - `False`: Create new process 和 session for each tool call (isolated, fresh state)
+- **类型**: `bool`
+- **默认值**: 来自 `Config.get_tool_mcp_is_keep_alive()`
+- **描述**: 控制 MCP 会话生命周期:
+  - `True`: 在工具调用之间保持进程和会话活动 (更快，持久)
+  - `False`: 为每次工具调用创建新进程和会话 (隔离，全新状态)
 
-**When to use True (persistent):**
-- Multiple tool calls expected
-- Startup cost is significant
-- State persistence is desired
-- Most common use case
+**何时使用 True (持久):**
+- 预期多次工具调用
+- 启动成本很高
+- 需要状态持久化
+- 最常见的用例
 
-**When to use False (transient):**
-- Single tool call
-- Complete isolation needed
-- Memory cleanup important
-- Debugging/testing
+**何时使用 False (临时):**
+- 单次工具调用
+- 需要完全隔离
+- 内存清理很重要
+- 调试/测试
 
-**Example:**
+**示例:**
 ```python
-# Persistent connection (recommended)
+# 持久连接 (推荐)
 oxy.StdioMCPClient(
     name="persistent",
     is_keep_alive=True,
     ...
 )
 
-# Transient connection
+# 临时连接
 oxy.StdioMCPClient(
     name="transient",
     is_keep_alive=False,
@@ -237,21 +237,21 @@ oxy.StdioMCPClient(
 
 ### timeout
 
-- **Type**: `float`
-- **默认**: `60`
-- **Description**: Maximum execution time for each tool call in seconds.
+- **类型**: `float`
+- **默认值**: `60`
+- **描述**: 每次工具调用的最大执行时间（秒）。
 
 **使用指南:**
-- Fast operations: 10-30 seconds
-- API calls: 30-60 seconds
-- File operations: 60-120 seconds
-- Long-running tasks: 120+ seconds
+- 快速操作: 10-30 秒
+- API 调用: 30-60 秒
+- 文件操作: 60-120 秒
+- 长时间运行的任务: 120+ 秒
 
-**Example:**
+**示例:**
 ```python
 oxy.StdioMCPClient(
     name="slow_server",
-    timeout=120,  # 2 minutes for slow operations
+    timeout=120,  # 慢操作 2 分钟
     ...
 )
 ```
@@ -287,9 +287,9 @@ async def init(self, is_fetch_tools: bool = True) -> None
 
 **示例（内部使用）：**
 ```python
-# Called automatically by MAS during initialization
+# 在初始化期间由 MAS 自动调用
 # async with MAS(oxy_space=[client, ...]) as mas:
-# # client.init() is called here
+# # client.init() 在这里被调用
 ```
 
 ### get_server_params()
@@ -318,7 +318,7 @@ async def get_server_params(self) -> StdioServerParameters
 
 **示例（内部使用）：**
 ```python
-# Used internally by init() and call_tool()
+# 由 init() 和 call_tool() 内部使用
 server_params = await self.get_server_params()
 ```
 
@@ -354,7 +354,7 @@ async def call_tool(
 
 **示例（内部使用）：**
 ```python
-# Called internally when is_keep_alive=False
+# 当 is_keep_alive=False 时内部调用
 response = await client.call_tool(
     tool_name="read_file",
     arguments={"path": "/tmp/test.txt"}
@@ -380,7 +380,7 @@ async def list_tools(self) -> None
 
 **示例（内部使用）：**
 ```python
-# Called automatically during init() if is_fetch_tools=True
+# 如果 is_fetch_tools=True，在 init() 期间自动调用
 await client.list_tools()
 ```
 
@@ -407,7 +407,7 @@ def add_tools(self, tools_response) -> None
 
 **示例（内部使用）：**
 ```python
-# Called by list_tools()
+# 由 list_tools() 调用
 tools_response = await session.list_tools()
 client.add_tools(tools_response)
 ```
@@ -434,10 +434,10 @@ async def cleanup(self) -> None
 
 **示例（通常自动）：**
 ```python
-# Automatic cleanup
+# 自动清理
 async with MAS(oxy_space=[client, ...]) as mas:
     ...
-# cleanup() called here automatically
+# cleanup() 在这里自动调用
 ```
 
 ## 内部实现细节
@@ -455,12 +455,12 @@ async def _ensure_directories_exist(self, args: list[str]) -> None
 
 **它处理的示例模式：**
 ```python
-# Filesystem server - creates /workspace if needed
+# 文件系统服务器 - 如果需要则创建 /workspace
 args = ["-y", "@modelcontextprotocol/server-filesystem", "/workspace"]
 
-# Directory-based server - validates file exists
+# 基于目录的服务器 - 验证文件存在
 args = ["--directory", "./mcp_servers", "run", "server.py"]
-# Ensures ./mcp_servers/server.py exists
+# 确保 ./mcp_servers/server.py 存在
 ```
 
 ## 使用示例
@@ -526,7 +526,7 @@ advanced_client = oxy.StdioMCPClient(
 oxy_space = [
     oxy.HttpLLM(name="llm", ...),
 
-    # Filesystem tools
+    # 文件系统工具
     oxy.StdioMCPClient(
         name="fs_tools",
         params={
@@ -535,7 +535,7 @@ oxy_space = [
         }
     ),
 
-    # Git tools
+    # Git 工具
     oxy.StdioMCPClient(
         name="git_tools",
         params={
@@ -544,7 +544,7 @@ oxy_space = [
         }
     ),
 
-    # Custom Python tools
+    # 自定义 Python 工具
     oxy.StdioMCPClient(
         name="custom_tools",
         params={
@@ -574,7 +574,7 @@ try:
     async with MAS(oxy_space=[client, ...]) as mas:
         await mas.call(...)
 except ValueError as e:
-    # "The command must be a valid string and cannot be None."
+    # "命令必须是有效字符串且不能为 None。"
     print(f"Command error: {e}")
 ```
 
@@ -592,7 +592,7 @@ try:
     async with MAS(oxy_space=[client, ...]) as mas:
         await mas.call(...)
 except FileNotFoundError as e:
-    # "./mcp_servers/missing.py does not exist."
+    # "./mcp_servers/missing.py 不存在。"
     print(f"File error: {e}")
 ```
 
@@ -603,7 +603,7 @@ try:
     async with MAS(oxy_space=[client, ...]) as mas:
         await mas.call(...)
 except Exception as e:
-    # "Server <name> error"
+    # "服务器 <name> 错误"
     print(f"Server initialization failed: {e}")
 ```
 

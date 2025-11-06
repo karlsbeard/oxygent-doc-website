@@ -453,7 +453,7 @@ response = await oxy_request.call(
 
 **身份验证：**`Authorization` 头中的 Bearer token
 
-**端点：**附加 `/chat/completions`
+**端点：** 附加 `/chat/completions`
 
 ### Gemini
 
@@ -462,23 +462,23 @@ response = await oxy_request.call(
 **模型：**
 - `gemini-2.0-flash-exp`、`gemini-pro`、`gemini-pro-vision`
 
-**身份验证：**`X-goog-api-key` 头中的 API 密钥
+**身份验证：** `X-goog-api-key` 头中的 API 密钥
 
 **端点：**附加 `/models/{model_name}:generateContent`
 
-**注意：**Gemini 内部使用不同的消息格式（自动转换）
+**注意：** Gemini 内部使用不同的消息格式（自动转换）
 
 ### Ollama
 
-**基础 URL：**`http://localhost:11434`（默认）
+**基础 URL：** `http://localhost:11434`（默认）
 
-**模型：**本地安装的任何模型（llama3.2、mistral 等）
+**模型：** 本地安装的任何模型（llama3.2、mistral 等）
 
 **身份验证：**无需
 
-**端点：**附加 `/api/chat`
+**端点：** 附加 `/api/chat`
 
-**注意：**无需 API 密钥，本地运行
+**注意：** 无需 API 密钥，本地运行
 
 ## 错误处理
 

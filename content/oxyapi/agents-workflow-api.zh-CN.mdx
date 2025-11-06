@@ -4,7 +4,7 @@ description: WorkflowAgent 类的完整 API 文档
 icon: Code
 ---
 
-## Class Definition
+## 类定义
 
 ```python
 from oxygent import oxy
@@ -12,7 +12,7 @@ from oxygent import oxy
 agent = oxy.WorkflowAgent(
     name="workflow_agent",
     func_workflow=my_workflow_function,
-    desc="Description of agent functionality",
+    desc="代理功能描述",
     llm_model="default_llm",
     sub_agents=["agent1", "agent2"],
     tools=["tool1", "tool2"],
@@ -23,107 +23,107 @@ agent = oxy.WorkflowAgent(
 
 ## 构造函数参数
 
-### 必需 参数s
+### 必需参数
 
 |参数|类型|必需|默认值|描述|
 |-----------|------|----------|---------|-------------|
-| `name` | `str` | **Yes** | - | Unique identifier for this agent in the MAS system |
-| `func_workflow` | `Callable[[OxyRequest], Awaitable[Any]]` | **Yes** | `None` | Async function that implements the workflow logic. Receives OxyRequest 和 返回 the output |
+| `name` | `str` | **是** | - | 在 MAS 系统中此代理的唯一标识符 |
+| `func_workflow` | `Callable[[OxyRequest], Awaitable[Any]]` | **是** | `None` | 实现工作流逻辑的异步函数。接收 OxyRequest 并返回输出 |
 
-### Core Configuration
-
-|参数|类型|默认值|描述|
-|-----------|------|---------|-------------|
-| `desc` | `str` | `""` | Human-readable description shown 当 this agent is called as a tool |
-| `llm_model` | `str` | From `Config` | LLM model identifier for sub-agent calls (required if using sub_agents) |
-| `prompt` | `str` | From `Config` | System prompt template for agent behavior (inherited but less useful for WorkflowAgent) |
-| `additional_prompt` | `str` | `""` | Additional prompt text appended to the default prompt |
-
-### Agent Orchestration
+### 核心配置
 
 |参数|类型|默认值|描述|
 |-----------|------|---------|-------------|
-| `sub_agents` | `list[str]` | `[]` | Names of sub-agents this workflow can delegate to |
-| `tools` | `list[str]` | `[]` | Names of tools available to this workflow (MCP tools, FunctionHubs, etc.) |
-| `except_tools` | `list[str]` | `[]` | Names of tools explicitly forbidden for this agent |
-| `is_master` | `bool` | `False` | Whether this agent is the master orchestrator for the MAS |
+| `desc` | `str` | `""` | 当此代理作为工具调用时显示的人类可读描述 |
+| `llm_model` | `str` | 来自 `Config` | 用于子代理调用的 LLM 模型标识符（使用 sub_agents 时必需） |
+| `prompt` | `str` | 来自 `Config` | 代理行为的系统提示模板（继承但对 WorkflowAgent 不太有用） |
+| `additional_prompt` | `str` | `""` | 附加到默认提示的额外提示文本 |
 
-### Memory & Context Management
-
-|参数|类型|默认值|描述|
-|-----------|------|---------|-------------|
-| `short_memory_size` | `int` | From `Config` | Number of conversation turns to retain in short-term memory |
-| `is_retain_master_short_memory` | `bool` | `False` | Whether to retain master-level (user-level) memory context in workflows |
-| `is_attachment_processing_enabled` | `bool` | `True` | Whether to inject attachments into query text |
-| `is_multimodal_supported` | `bool` | `False` | 是否支持多模态输入 (images, files, etc.) |
-
-### Tool Retrieval (Advanced)
+### 代理编排
 
 |参数|类型|默认值|描述|
 |-----------|------|---------|-------------|
-| `is_sourcing_tools` | `bool` | `False` | Enable dynamic tool retrieval instead of static tool list |
-| `top_k_tools` | `int` | `10` | 最大数量 tools to retrieve 当 sourcing is enabled |
-| `is_retain_subagent_in_toolset` | `bool` | `False` | Keep sub-agents in toolset (ensures they're always available) |
-| `is_retrieve_even_if_tools_scarce` | `bool` | `True` | Perform retrieval even if agent has fewer than k tools |
-| `intent_underst和ing_agent` | `str` | `None` | Name of agent used for query rewriting during tool retrieval |
+| `sub_agents` | `list[str]` | `[]` | 此工作流可以委托的子代理名称 |
+| `tools` | `list[str]` | `[]` | 此工作流可用的工具名称（MCP 工具、FunctionHubs 等） |
+| `except_tools` | `list[str]` | `[]` | 明确禁止此代理使用的工具名称 |
+| `is_master` | `bool` | `False` | 此代理是否为 MAS 的主编排器 |
 
-### Execution Control
-
-|参数|类型|默认值|描述|
-|-----------|------|---------|-------------|
-| `timeout` | `float` | `3600` | Maximum execution time in seconds (default: 1 hour) |
-| `semaphore` | `int` | `16` | 最大数量 concurrent executions allowed |
-| `retries` | `int` | `2` | Number of retry attempts on failure |
-| `delay` | `float` | `1.0` | Delay between retry attempts in seconds |
-| `team_size` | `int` | `1` | Number of parallel instances for team execution mode |
-
-### Messaging & Logging
+### 内存和上下文管理
 
 |参数|类型|默认值|描述|
 |-----------|------|---------|-------------|
-| `is_send_tool_call` | `bool` | From `Config` | Whether to send tool call messages to the user |
-| `is_send_observation` | `bool` | From `Config` | Whether to send observation/result messages to the user |
-| `is_send_answer` | `bool` | From `Config` | Whether to send final answer messages to the user |
-| `is_detailed_tool_call` | `bool` | From `Config` | Whether to show detailed tool call information in logs |
-| `is_detailed_observation` | `bool` | From `Config` | Whether to show detailed observation information in logs |
+| `short_memory_size` | `int` | 来自 `Config` | 在短期内存中保留的对话轮数 |
+| `is_retain_master_short_memory` | `bool` | `False` | 是否在工作流中保留主级别（用户级别）内存上下文 |
+| `is_attachment_processing_enabled` | `bool` | `True` | 是否将附件注入查询文本 |
+| `is_multimodal_supported` | `bool` | `False` | 是否支持多模态输入（图像、文件等） |
 
-### Advanced Configuration
-
-|参数|类型|默认值|描述|
-|-----------|------|---------|-------------|
-| `input_schema` | `dict[str, Any]` | From `Config` | Input schema definition for validation |
-| `is_permission_required` | `bool` | `True` | Whether this agent requires permission to execute |
-| `is_save_data` | `bool` | `True` | Whether to save execution traces to Elasticsearch |
-| `friendly_error_text` | `str` | `None` | User-friendly error message shown on failures |
-| `category` | `str` | `"agent"` | Category 类ification (automatically set) |
-
-### Function Hooks (Advanced)
+### 工具检索（高级）
 
 |参数|类型|默认值|描述|
 |-----------|------|---------|-------------|
-| `func_process_input` | `Callable` | Identity | Async function to process input before execution |
-| `func_process_output` | `Callable` | Identity | Async function to process output after execution |
-| `func_format_input` | `Callable` | Identity | Async function to format input for callees |
-| `func_format_output` | `Callable` | Identity | Async function to format output for callers |
-| `func_interceptor` | `Callable` | `None` | Async function to intercept 和 modify execution |
+| `is_sourcing_tools` | `bool` | `False` | 启用动态工具检索而不是静态工具列表 |
+| `top_k_tools` | `int` | `10` | 启用源检索时要检索的最大工具数量 |
+| `is_retain_subagent_in_toolset` | `bool` | `False` | 在工具集中保留子代理（确保它们始终可用） |
+| `is_retrieve_even_if_tools_scarce` | `bool` | `True` | 即使代理工具少于 k 个也执行检索 |
+| `intent_understanding_agent` | `str` | `None` | 在工具检索期间用于查询重写的代理名称 |
+
+### 执行控制
+
+|参数|类型|默认值|描述|
+|-----------|------|---------|-------------|
+| `timeout` | `float` | `3600` | 最大执行时间（秒）（默认：1 小时） |
+| `semaphore` | `int` | `16` | 允许的最大并发执行数 |
+| `retries` | `int` | `2` | 失败时的重试次数 |
+| `delay` | `float` | `1.0` | 重试间隔时间（秒） |
+| `team_size` | `int` | `1` | 团队执行模式的并行实例数 |
+
+### 消息和日志
+
+|参数|类型|默认值|描述|
+|-----------|------|---------|-------------|
+| `is_send_tool_call` | `bool` | 来自 `Config` | 是否向用户发送工具调用消息 |
+| `is_send_observation` | `bool` | 来自 `Config` | 是否向用户发送观察/结果消息 |
+| `is_send_answer` | `bool` | 来自 `Config` | 是否向用户发送最终答案消息 |
+| `is_detailed_tool_call` | `bool` | 来自 `Config` | 是否在日志中显示详细的工具调用信息 |
+| `is_detailed_observation` | `bool` | 来自 `Config` | 是否在日志中显示详细的观察信息 |
+
+### 高级配置
+
+|参数|类型|默认值|描述|
+|-----------|------|---------|-------------|
+| `input_schema` | `dict[str, Any]` | 来自 `Config` | 用于验证的输入模式定义 |
+| `is_permission_required` | `bool` | `True` | 此代理是否需要执行权限 |
+| `is_save_data` | `bool` | `True` | 是否将执行跟踪保存到 Elasticsearch |
+| `friendly_error_text` | `str` | `None` | 失败时显示的用户友好错误消息 |
+| `category` | `str` | `"agent"` | 类别分类（自动设置） |
+
+### 函数钩子（高级）
+
+|参数|类型|默认值|描述|
+|-----------|------|---------|-------------|
+| `func_process_input` | `Callable` | Identity | 执行前处理输入的异步函数 |
+| `func_process_output` | `Callable` | Identity | 执行后处理输出的异步函数 |
+| `func_format_input` | `Callable` | Identity | 为被调用者格式化输入的异步函数 |
+| `func_format_output` | `Callable` | Identity | 为调用者格式化输出的异步函数 |
+| `func_interceptor` | `Callable` | `None` | 拦截和修改执行的异步函数 |
 
 ## 方法
 
 ### _execute()
 
-Internal method that executes the workflow function. Not called directly by users.
+执行工作流函数的内部方法。用户不直接调用。
 
 ```python
 async def _execute(self, oxy_request: OxyRequest) -> OxyResponse
 ```
 
 **参数:**
-- `oxy_request` (OxyRequest): The request 对象，包含 query, memory, 和 context
+- `oxy_request` (OxyRequest): 包含查询、内存和上下文的请求对象
 
-**Returns:**
-- `OxyResponse`: Response object 包含 `state=COMPLETED` 和 `output` from workflow
+**返回值:**
+- `OxyResponse`: 包含 `state=COMPLETED` 和工作流输出的响应对象
 
-**Implementation:**
+**实现:**
 ```python
 return OxyResponse(
     state=OxyState.COMPLETED,
@@ -131,66 +131,66 @@ return OxyResponse(
 )
 ```
 
-## Workflow Function Signature
+## 工作流函数签名
 
-The `func_workflow` parameter must be an async function 包含 this signature:
+`func_workflow` 参数必须是具有以下签名的异步函数：
 
 ```python
 async def workflow_function(oxy_request: OxyRequest) -> Any:
-    # Your workflow logic here
+    # 您的工作流逻辑在这里
     return result
 ```
 
 ### OxyRequest API
 
-The `OxyRequest` 对象 提供 these methods for use 包含in workflows:
+`OxyRequest` 对象提供以下方法供工作流使用：
 
-#### Memory Access
+#### 内存访问
 
 ```python
-# Get local agent's short-term memory
+# 获取本地代理的短期内存
 local_memory = oxy_request.get_short_memory()
 
-# Get master agent's short-term memory (user-level history)
+# 获取主代理的短期内存（用户级别历史）
 master_memory = oxy_request.get_short_memory(master_level=True)
 ```
 
-**Return Type:** `list[Message]` - List of conversation messages
+**返回类型:** `list[Message]` - 对话消息列表
 
-#### Query Access
+#### 查询访问
 
 ```python
-# Get current query
+# 获取当前查询
 query = oxy_request.get_query()
 
-# Get master-level query (original user query)
+# 获取主级别查询（原始用户查询）
 master_query = oxy_request.get_query(master_level=True)
 ```
 
-**Return Type:** `str` - The query string
+**返回类型:** `str` - 查询字符串
 
-#### Calling Components
+#### 调用组件
 
 ```python
-# Call a sub-agent
+# 调用子代理
 response = await oxy_request.call(
     callee="agent_name",
-    arguments={"query": "What is..."}
+    arguments={"query": "什么是..."}
 )
 
-# Call a tool
+# 调用工具
 response = await oxy_request.call(
     callee="tool_name",
     arguments={"param1": "value1"}
 )
 
-# Call an LLM directly
+# 直接调用 LLM
 response = await oxy_request.call(
     callee="llm_name",
     arguments={
         "messages": [
-            {"role": "system", "content": "You are..."},
-            {"role": "user", "content": "Hello"}
+            {"role": "system", "content": "你是..."},
+            {"role": "user", "content": "你好"}
         ],
         "llm_params": {"temperature": 0.7}
     }
@@ -198,27 +198,27 @@ response = await oxy_request.call(
 ```
 
 **参数:**
-- `callee` (str): Name of the agent, tool, or LLM to call
-- `arguments` (dict): Arguments to pass to the callee
+- `callee` (str): 要调用的代理、工具或 LLM 的名称
+- `arguments` (dict): 传递给被调用者的参数
 
-**Return Type:** `OxyResponse` - Response 对象 使用 `.output` field
+**返回类型:** `OxyResponse` - 带有 `.output` 字段的响应对象
 
-#### Sending Messages
+#### 发送消息
 
 ```python
-# Send intermediate messages to the user
+# 向用户发送中间消息
 await oxy_request.send_message({
     "type": "status",
-    "content": "Processing step 2 of 5..."
+    "content": "正在处理第 2 步，共 5 步..."
 })
 ```
 
 **参数:**
-- `message` (dict): Message dictionary 包含 `type` 和 `content` 字段
+- `message` (dict): 包含 `type` 和 `content` 字段的消息字典
 
-## Usage 示例s
+## 使用示例
 
-### Basic Workflow
+### 基础工作流
 
 ```python
 async def simple_workflow(oxy_request: OxyRequest):
@@ -227,48 +227,48 @@ async def simple_workflow(oxy_request: OxyRequest):
         callee="time_tools",
         arguments={"timezone": "UTC"}
     )
-    return f"Time: {response.output}"
+    return f"时间: {response.output}"
 
 agent = oxy.WorkflowAgent(
     name="time_agent",
-    desc="Query current time",
+    desc="查询当前时间",
     func_workflow=simple_workflow,
     tools=["time_tools"]
 )
 ```
 
-### Multi-Step Workflow
+### 多步骤工作流
 
 ```python
 async def complex_workflow(oxy_request: OxyRequest):
-    # Step 1: Get context
+    # 步骤 1：获取上下文
     history = oxy_request.get_short_memory()
     query = oxy_request.get_query()
 
-    # Step 2: Call agent
-    await oxy_request.send_message({"type": "status", "content": "Analyzing..."})
+    # 步骤 2：调用代理
+    await oxy_request.send_message({"type": "status", "content": "分析中..."})
     agent_result = await oxy_request.call(
         callee="chat_agent",
         arguments={"query": query}
     )
 
-    # Step 3: Call LLM for analysis
+    # 步骤 3：调用 LLM 进行分析
     llm_result = await oxy_request.call(
         callee="default_llm",
         arguments={
             "messages": [
-                {"role": "user", "content": f"Summarize: {agent_result.output}"}
+                {"role": "user", "content": f"总结: {agent_result.output}"}
             ]
         }
     )
 
-    # Step 4: Call tool
+    # 步骤 4：调用工具
     tool_result = await oxy_request.call(
         callee="save_to_file",
         arguments={"content": llm_result.output}
     )
 
-    return f"Saved: {tool_result.output}"
+    return f"已保存: {tool_result.output}"
 
 agent = oxy.WorkflowAgent(
     name="master_workflow",
@@ -281,13 +281,13 @@ agent = oxy.WorkflowAgent(
 )
 ```
 
-### Conditional Workflow
+### 条件工作流
 
 ```python
 async def conditional_workflow(oxy_request: OxyRequest):
     query = oxy_request.get_query()
 
-    # Branch based on query content
+    # 基于查询内容进行分支
     if "urgent" in query.lower():
         response = await oxy_request.call(
             callee="priority_agent",
@@ -308,17 +308,17 @@ agent = oxy.WorkflowAgent(
 )
 ```
 
-### Workflow 使用 Memory
+### 使用内存的工作流
 
 ```python
 async def memory_workflow(oxy_request: OxyRequest):
-    # Access both local and master memory
+    # 访问本地和主内存
     local_history = oxy_request.get_short_memory()
     master_history = oxy_request.get_short_memory(master_level=True)
 
-    # Use context for decision making
+    # 使用上下文进行决策
     if len(master_history) > 5:
-        return "You've been chatting a lot! Need a summary?"
+        return "你聊了很多！需要总结吗？"
 
     query = oxy_request.get_query()
     response = await oxy_request.call(
@@ -337,18 +337,18 @@ agent = oxy.WorkflowAgent(
 )
 ```
 
-## 类型 Definitions
+## 类型定义
 
 ### OxyRequest
 
 ```python
 class OxyRequest:
-    arguments: dict                    # Node-level arguments
-    shared_data: dict                  # Request-level shared data
-    group_data: dict                   # Session group data
-    caller_category: str               # Category of caller ("user", "agent", etc.)
-    from_trace_id: str                 # Parent trace ID
-    root_trace_ids: list[str]          # Hierarchy of trace IDs
+    arguments: dict                    # 节点级参数
+    shared_data: dict                  # 请求级共享数据
+    group_data: dict                   # 会话组数据
+    caller_category: str               # 调用者类别（"user"、"agent" 等）
+    from_trace_id: str                 # 父跟踪 ID
+    root_trace_ids: list[str]          # 跟踪 ID 层次结构
 
     def get_short_memory(self, master_level: bool = False) -> list[Message]
     def get_query(self, master_level: bool = False) -> str
@@ -360,25 +360,25 @@ class OxyRequest:
 
 ```python
 class OxyResponse:
-    state: OxyState                    # COMPLETED, ERROR, etc.
-    output: Any                        # Result from workflow execution
-    error_msg: str                     # Error message if state is ERROR
+    state: OxyState                    # COMPLETED、ERROR 等
+    output: Any                        # 工作流执行结果
+    error_msg: str                     # 状态为 ERROR 时的错误消息
 ```
 
 ### OxyState
 
 ```python
 class OxyState(str, Enum):
-    COMPLETED = "completed"            # Successful completion
-    ERROR = "error"                    # Execution error
-    REJECT = "reject"                  # Permission rejected
-    TIMEOUT = "timeout"                # Execution timeout
+    COMPLETED = "completed"            # 成功完成
+    ERROR = "error"                    # 执行错误
+    REJECT = "reject"                  # 权限被拒绝
+    TIMEOUT = "timeout"                # 执行超时
 ```
 
 ## 相关文档
 
-- **[WorkflowAgent Guide](/docs/agents-workflow)** - Main documentation 和 usage patterns
-- **[ReActAgent API](/oxyapi/agents-react-api)** - API for reasoning 和 acting agent
-- **[OxyRequest & Context](/docs/context)** - Detailed context API documentation
-- **[Four-Scope System](/docs/four-scope)** - Underst和ing data scoping
-- **[Configuration](/docs/configuration)** - Global configuration options
+- **[WorkflowAgent 指南](/docs/agents-workflow)** - 主要文档和使用模式
+- **[ReActAgent API](/oxyapi/agents-react-api)** - 推理和行动代理的 API
+- **[OxyRequest 和上下文](/docs/context)** - 详细的上下文 API 文档
+- **[四作用域系统](/docs/four-scope)** - 理解数据作用域
+- **[配置](/docs/configuration)** - 全局配置选项

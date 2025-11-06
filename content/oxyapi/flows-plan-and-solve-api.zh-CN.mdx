@@ -24,7 +24,7 @@ plan_solve_flow = PlanAndSolve(
 
 ### 核心参数
 
-|参数|类型|默认值|描述|
+| 参数 | 类型 | 默认值 | 描述 |
 |-----------|------|---------|-------------|
 | `name` | str | 必需 | 流程的唯一标识符 |
 | `planner_agent_name` | str | "planner_agent" | 规划器代理的名称 |
@@ -32,7 +32,7 @@ plan_solve_flow = PlanAndSolve(
 
 ### 规划参数
 
-|参数|类型|默认值|描述|
+| 参数 | 类型 | 默认值 | 描述 |
 |-----------|------|---------|-------------|
 | `max_replan_rounds` | int | 30 | 最大规划迭代次数 |
 | `pre_plan_steps` | List[str] | None | 预定义的计划步骤（绕过规划器） |
@@ -40,7 +40,7 @@ plan_solve_flow = PlanAndSolve(
 
 ### LLM 和解析参数
 
-|参数|类型|默认值|描述|
+| 参数 | 类型 | 默认值 | 描述 |
 |-----------|------|---------|-------------|
 | `llm_model` | str | "default_llm" | 用于后备操作的 LLM 模型名称 |
 | `func_parse_planner_response` | Callable | None | 自定义规划器响应解析器 |
@@ -50,7 +50,7 @@ plan_solve_flow = PlanAndSolve(
 
 ### 可选参数
 
-|参数|类型|默认值|描述|
+| 参数 | 类型 | 默认值 | 描述 |
 |-----------|------|---------|-------------|
 | `desc` | str | "" | 流程用途的描述 |
 | `timeout` | int | 100 | 最大执行时间（秒） |
@@ -75,75 +75,75 @@ PlanAndSolve(
 ```
 
 ### `planner_agent_name`
-- **Type**: `str`
-- **默认**: `"planner_agent"`
-- **Description**: Name of the agent responsible for decomposing complex tasks into ordered sub-goals.
+- **类型**：`str`
+- **默认值**：`"planner_agent"`
+- **描述**：负责将复杂任务分解为有序子目标的代理名称。
 
-**Requirements:**
-- Agent must be 在同一多智能体系统中注册
-- Should be capable of structured output (Plan model)
-- Typically uses an LLM 包含 good planning capabilities
+**要求：**
+- 代理必须在同一多智能体系统中注册
+- 应该能够产生结构化输出（Plan 模型）
+- 通常使用具有良好规划能力的 LLM
 
-**Example:**
+**示例：**
 ```python
 PlanAndSolve(
     name="solver",
-    planner_agent_name="gpt4_planner",  # Custom planner agent
+    planner_agent_name="gpt4_planner",  # 自定义规划器代理
     executor_agent_name="executor"
 )
 ```
 
 ### `executor_agent_name`
-- **Type**: `str`
-- **默认**: `"executor_agent"`
-- **Description**: Name of the agent responsible for executing individual sub-goals.
+- **类型**：`str`
+- **默认值**：`"executor_agent"`
+- **描述**：负责执行单个子目标的代理名称。
 
-**Requirements:**
-- Agent must be 在同一多智能体系统中注册
-- Should have access to necessary tools
-- Often a ReActAgent 包含 tool access
+**要求：**
+- 代理必须在同一多智能体系统中注册
+- 应该能够访问必要的工具
+- 通常是具有工具访问权限的 ReActAgent
 
-**Example:**
+**示例：**
 ```python
 PlanAndSolve(
     name="solver",
     planner_agent_name="planner",
-    executor_agent_name="react_executor"  # ReActAgent with tools
+    executor_agent_name="react_executor"  # 具有工具的 ReActAgent
 )
 ```
 
 ### `max_replan_rounds`
-- **Type**: `int`
-- **默认**: `30`
-- **Description**: 最大数量 planning iterations to prevent infinite loops.
+- **类型**：`int`
+- **默认值**：`30`
+- **描述**：防止无限循环的最大规划迭代次数。
 
-**使用指南:**
-- 简单任务: 5-10 轮
-- Medium complexity: 10-20 轮
-- Complex tasks: 20-30 轮
-- Very complex: 30-50 轮 (increase 包含 caution)
+**使用指南：**
+- 简单任务：5-10 轮
+- 中等复杂度：10-20 轮
+- 复杂任务：20-30 轮
+- 非常复杂：30-50 轮（谨慎增加）
 
-**Example:**
+**示例：**
 ```python
 PlanAndSolve(
     name="complex_solver",
-    max_replan_rounds=50,  # Allow more iterations for very complex tasks
+    max_replan_rounds=50,  # 为非常复杂的任务允许更多迭代
     ...
 )
 ```
 
 ### `pre_plan_steps`
-- **Type**: `List[str]` | `None`
-- **默认**: `None`
-- **Description**: Predefined plan steps that bypass the initial planning phase.
+- **类型**：`List[str]` | `None`
+- **默认值**：`None`
+- **描述**：绕过初始规划阶段的预定义计划步骤。
 
-**When to use:**
-- Known, fixed workflow
-- Strict control over execution sequence
-- Testing specific execution paths
-- Templated procedures
+**何时使用：**
+- 已知的固定工作流程
+- 严格控制执行顺序
+- 测试特定执行路径
+- 模板化程序
 
-**Example:**
+**示例：**
 ```python
 PlanAndSolve(
     name="predefined_solver",
@@ -157,97 +157,97 @@ PlanAndSolve(
 )
 ```
 
-**Note:** When `pre_plan_steps` is provided, the planner agent is not called initially.
+**注意：** 当提供 `pre_plan_steps` 时，规划器代理不会被初始调用。
 
 ### `enable_replanner`
-- **Type**: `bool`
-- **默认**: `False`
-- **Description**: Enable dynamic replanning based on execution results.
+- **类型**：`bool`
+- **默认值**：`False`
+- **描述**：基于执行结果启用动态重新规划。
 
-**When enabled:**
-- After each step, replanner evaluates progress
-- Can modify remaining plan based on results
-- Can terminate early if goal achieved
-- Requires `replanner_agent_name` to be set
+**启用时：**
+- 每步之后，重新规划器评估进度
+- 可以根据结果修改剩余计划
+- 如果目标达成可以提前终止
+- 需要设置 `replanner_agent_name`
 
-**Usage:**
+**用法：**
 ```python
-# Basic mode (no replanning)
+# 基础模式（无重新规划）
 PlanAndSolve(
     name="basic_solver",
-    enable_replanner=False,  # Execute plan linearly
+    enable_replanner=False,  # 线性执行计划
     ...
 )
 
-# Advanced mode (with replanning)
+# 高级模式（带重新规划）
 PlanAndSolve(
     name="adaptive_solver",
-    enable_replanner=True,  # Adapt plan dynamically
+    enable_replanner=True,  # 动态调整计划
     replanner_agent_name="replanner_agent",
     ...
 )
 ```
 
-**Considerations:**
-- More flexible but slower
-- Can h和le unexpected situations
-- Risk of circular planning (use `max_replan_轮`)
+**考虑事项：**
+- 更灵活但更慢
+- 可以处理意外情况
+- 存在循环规划的风险（使用 `max_replan_rounds`）
 
 ### `llm_model`
-- **Type**: `str`
-- **默认**: `"default_llm"`
-- **Description**: LLM model name for fallback operations 当 max 轮 exceeded.
+- **类型**：`str`
+- **默认值**：`"default_llm"`
+- **描述**：当超过最大轮数时用于后备操作的 LLM 模型名称。
 
-**Example:**
+**示例：**
 ```python
 PlanAndSolve(
     name="solver",
-    llm_model="gpt-4",  # Use for fallback synthesis
+    llm_model="gpt-4",  # 用于后备合成
     ...
 )
 ```
 
 ### `func_parse_planner_response`
-- **Type**: `可选[Callable[[str], LLMResponse]]`
-- **默认**: `None`
-- **Description**: Custom function to parse planner agent responses.
+- **类型**：`Optional[Callable[[str], LLMResponse]]`
+- **默认值**：`None`
+- **描述**：解析规划器代理响应的自定义函数。
 
-**When to use:**
-- Custom planner output format
-- Non-st和ard Plan structure
-- Legacy system integration
+**何时使用：**
+- 自定义规划器输出格式
+- 非标准 Plan 结构
+- 遗留系统集成
 
-**Function Signature:**
+**函数签名：**
 ```python
 def custom_planner_parser(response: str) -> Plan:
     """
     Args:
-        response: Raw string output from planner agent
+        response: 规划器代理的原始字符串输出
 
     Returns:
-        Plan: Parsed plan with steps list
+        Plan: 包含步骤列表的解析计划
     """
-    # Custom parsing logic
+    # 自定义解析逻辑
     steps = extract_steps_from_response(response)
     return Plan(steps=steps)
 ```
 
-**Example:**
+**示例：**
 ```python
 PlanAndSolve(
     name="custom_solver",
     func_parse_planner_response=custom_planner_parser,
-    pydantic_parser_planner=None,  # Disable default parser
+    pydantic_parser_planner=None,  # 禁用默认解析器
     ...
 )
 ```
 
 ### `pydantic_parser_planner`
-- **Type**: `PydanticOutputParser`
-- **默认**: `PydanticOutputParser(output_cls=Plan)`
-- **Description**: Pydantic parser for structured planner output.
+- **类型**：`PydanticOutputParser`
+- **默认值**：`PydanticOutputParser(output_cls=Plan)`
+- **描述**：用于结构化规划器输出的 Pydantic 解析器。
 
-**默认 Plan Model:**
+**默认 Plan 模型：**
 ```python
 class Plan(BaseModel):
     steps: List[str] = Field(
@@ -255,7 +255,7 @@ class Plan(BaseModel):
     )
 ```
 
-**Custom Example:**
+**自定义示例：**
 ```python
 from pydantic import BaseModel, Field
 from oxygent.utils.llm_pydantic_parser import PydanticOutputParser
@@ -275,21 +275,21 @@ PlanAndSolve(
 ```
 
 ### `func_parse_replanner_response`
-- **Type**: `可选[Callable[[str], LLMResponse]]`
-- **默认**: `None`
-- **Description**: Custom function to parse replanner agent responses.
+- **类型**：`Optional[Callable[[str], LLMResponse]]`
+- **默认值**：`None`
+- **描述**：解析重新规划器代理响应的自定义函数。
 
-**Function Signature:**
+**函数签名：**
 ```python
 def custom_replanner_parser(response: str) -> Action:
     """
     Args:
-        response: Raw string output from replanner agent
+        response: 重新规划器代理的原始字符串输出
 
     Returns:
-        Action: Either Response (done) or Plan (continue)
+        Action: Response（完成）或 Plan（继续）
     """
-    # Custom parsing logic
+    # 自定义解析逻辑
     if is_complete(response):
         return Action(action=Response(response=final_answer))
     else:
@@ -297,11 +297,11 @@ def custom_replanner_parser(response: str) -> Action:
 ```
 
 ### `pydantic_parser_replanner`
-- **Type**: `PydanticOutputParser`
-- **默认**: `PydanticOutputParser(output_cls=Action)`
-- **Description**: Pydantic parser for structured replanner output.
+- **类型**：`PydanticOutputParser`
+- **默认值**：`PydanticOutputParser(output_cls=Action)`
+- **描述**：用于结构化重新规划器输出的 Pydantic 解析器。
 
-**默认 Action Model:**
+**默认 Action 模型：**
 ```python
 class Response(BaseModel):
     response: str
@@ -319,84 +319,84 @@ class Action(BaseModel):
 
 ### `_execute(oxy_request: OxyRequest) -> OxyResponse`
 
-**Internal method** - Orchestrates the plan-and-solve workflow.
+**内部方法** - 编排计划和解决工作流程。
 
-**执行流程:**
-1. **Initial Planning** (if `pre_plan_steps` is None):
-   - Call planner agent 包含 formatted query
-   - Parse response into Plan model
-   - Extract list of steps
+**执行流程：**
+1. **初始规划**（如果 `pre_plan_steps` 为 None）：
+   - 使用格式化查询调用规划器代理
+   - 将响应解析为 Plan 模型
+   - 提取步骤列表
 
-2. **Step Execution Loop**:
-   - For each step in plan:
-     - Format step 包含 context (past steps)
-     - Call executor agent
-     - Record execution result
-     - Update past_steps history
+2. **步骤执行循环**：
+   - 对于计划中的每个步骤：
+     - 使用上下文（过去步骤）格式化步骤
+     - 调用执行器代理
+     - 记录执行结果
+     - 更新 past_steps 历史记录
 
-3. **Replanning** (if `enable_replanner=True`):
-   - After each step, call replanner agent
-   - Evaluate: Continue (new Plan) or Terminate (Response)
-   - Update plan if continuing
+3. **重新规划**（如果 `enable_replanner=True`）：
+   - 每步之后，调用重新规划器代理
+   - 评估：继续（新 Plan）或终止（Response）
+   - 如果继续则更新计划
 
-4. **Termination**:
-   - Plan exhausted: Return final executor output
-   - Replanner terminates: Return Response
-   - Max 轮 exceeded: Use LLM fallback
+4. **终止**：
+   - 计划耗尽：返回最终执行器输出
+   - 重新规划器终止：返回 Response
+   - 超过最大轮数：使用 LLM 后备
 
-**Note:** Internal method - use `mas.call()` or `oxy_request.call()` instead.
+**注意：** 内部方法 - 请使用 `mas.call()` 或 `oxy_request.call()`。
 
-## 执行流程 Diagram
+## 执行流程图
 
 ```
-User Request
+用户请求
     ↓
-Initial Planning (unless pre_plan_steps provided)
+初始规划（除非提供了 pre_plan_steps）
     ↓
 planner_agent → Plan(steps=[...])
     ↓
-┌─── Execution Loop (max_replan_rounds) ───┐
+┌─── 执行循环（max_replan_rounds）───┐
 │                                           │
-│  Current Step = plan_steps[0]            │
+│  当前步骤 = plan_steps[0]            │
 │    ↓                                      │
-│  Format with past_steps context          │
+│  使用 past_steps 上下文格式化          │
 │    ↓                                      │
-│  executor_agent executes step            │
+│  executor_agent 执行步骤            │
 │    ↓                                      │
-│  Record result in past_steps             │
+│  在 past_steps 中记录结果             │
 │    ↓                                      │
-│  [If enable_replanner]                   │
+│  [如果 enable_replanner]                   │
 │    ↓                                      │
-│  replanner_agent evaluates progress      │
+│  replanner_agent 评估进度      │
 │    ↓                                      │
-│  Response? → Return final answer         │
-│  Plan? → Update plan_steps               │
+│  Response? → 返回最终答案         │
+│  Plan? → 更新 plan_steps               │
 │    ↓                                      │
-│  [If !enable_replanner]                  │
+│  [如果 !enable_replanner]                  │
 │    ↓                                      │
-│  Remove completed step from plan         │
+│  从计划中移除已完成步骤         │
 │    ↓                                      │
-│  plan_steps empty? → Return result       │
+│  plan_steps 为空? → 返回结果       │
 │    ↓                                      │
 └───────────────────────────────────────────┘
     ↓
 OxyResponse(state=COMPLETED, output=result)
 ```
 
-## Return Value
+## 返回值
 
-### OxyResponse Structure
+### OxyResponse 结构
 
 ```python
 {
     "state": OxyState.COMPLETED,
-    "output": "final execution result"  # From executor or replanner
+    "output": "final execution result"  # 来自执行器或重新规划器
 }
 ```
 
-## Usage 示例s
+## 使用示例
 
-### Basic Plan-and-Solve
+### 基础计划和解决
 
 ```python
 from oxygent import MAS, oxy
@@ -429,7 +429,7 @@ async def main():
         print(result.output)
 ```
 
-### With Predefined Steps
+### 使用预定义步骤
 
 ```python
 oxy.flows.PlanAndSolve(
@@ -446,30 +446,30 @@ oxy.flows.PlanAndSolve(
 )
 ```
 
-### With Dynamic Replanning
+### 使用动态重新规划
 
 ```python
 oxy_space = [
     oxy.HttpLLM(name="default_llm", ...),
     oxy.ChatAgent(name="planner_agent", ...),
-    oxy.ChatAgent(name="replanner_agent", ...),  # Additional agent
+    oxy.ChatAgent(name="replanner_agent", ...),  # 额外的代理
     oxy.ReActAgent(name="executor_agent", ...),
     oxy.flows.PlanAndSolve(
         name="adaptive_solver",
         planner_agent_name="planner_agent",
         executor_agent_name="executor_agent",
         enable_replanner=True,
-        replanner_agent_name="replanner_agent",  # Required when enable_replanner=True
+        replanner_agent_name="replanner_agent",  # enable_replanner=True 时必需
         max_replan_rounds=30
     )
 ]
 ```
 
-### Custom Parsing Functions
+### 自定义解析函数
 
 ```python
 def parse_custom_plan(response: str) -> Plan:
-    """Parse planner output in custom format."""
+    """以自定义格式解析规划器输出。"""
     lines = response.split("\n")
     steps = [line.strip("- ").strip() for line in lines if line.strip().startswith("-")]
     return Plan(steps=steps)
@@ -477,49 +477,49 @@ def parse_custom_plan(response: str) -> Plan:
 oxy.flows.PlanAndSolve(
     name="custom_solver",
     func_parse_planner_response=parse_custom_plan,
-    pydantic_parser_planner=None,  # Disable default
+    pydantic_parser_planner=None,  # 禁用默认
     ...
 )
 ```
 
 ## 最佳实践
 
-### 1. Choose Appropriate Planner Agent
+### 1. 选择合适的规划器代理
 
-Use capable LLMs for planning:
+使用有能力的 LLM 进行规划：
 
 ```python
-# ✅ Good: Use advanced LLM for planning
+# ✅ 好：使用高级 LLM 进行规划
 oxy.ChatAgent(
     name="planner",
-    llm_model="gpt-4",  # Strong planning capabilities
+    llm_model="gpt-4",  # 强大的规划能力
     prompt="Break down tasks into clear, ordered steps"
 )
 
-# ⚠️ Caution: Weaker models may produce poor plans
+# ⚠️ 注意：较弱的模型可能产生糟糕的计划
 oxy.ChatAgent(
     name="planner",
-    llm_model="gpt-3.5-turbo",  # May struggle with complex planning
+    llm_model="gpt-3.5-turbo",  # 可能在复杂规划中遇到困难
     ...
 )
 ```
 
-### 2. Set Appropriate Max Rounds
+### 2. 设置合适的最大轮数
 
-Balance completeness 和 performance:
+平衡完整性和性能：
 
 ```python
-# Simple, well-defined tasks
+# 简单、定义明确的任务
 PlanAndSolve(name="simple", max_replan_rounds=10, ...)
 
-# Complex, multi-faceted tasks
+# 复杂、多方面的任务
 PlanAndSolve(name="complex", max_replan_rounds=30, ...)
 ```
 
-### 3. Use Predefined Steps for Fixed Workflows
+### 3. 对固定工作流程使用预定义步骤
 
 ```python
-# When workflow is known and fixed
+# 当工作流程已知且固定时
 PlanAndSolve(
     name="onboarding_flow",
     pre_plan_steps=[
@@ -532,18 +532,18 @@ PlanAndSolve(
 )
 ```
 
-### 4. Enable Replanner for Dynamic Scenarios
+### 4. 为动态场景启用重新规划器
 
 ```python
-# For unpredictable tasks that may need adaptation
+# 对于可能需要适应的不可预测任务
 PlanAndSolve(
     name="research_task",
-    enable_replanner=True,  # Adapt based on findings
+    enable_replanner=True,  # 根据发现进行适应
     ...
 )
 ```
 
-### 5. Provide Clear Executor Instructions
+### 5. 提供清晰的执行器指令
 
 ```python
 oxy.ReActAgent(
@@ -555,7 +555,7 @@ oxy.ReActAgent(
 
 ## 常见模式
 
-### Pattern: Data Pipeline
+### 模式：数据管道
 
 ```python
 PlanAndSolve(
@@ -570,19 +570,19 @@ PlanAndSolve(
 )
 ```
 
-### Pattern: Research Task
+### 模式：研究任务
 
 ```python
 PlanAndSolve(
     name="research_flow",
     planner_agent_name="research_planner",
     executor_agent_name="research_executor",
-    enable_replanner=True,  # Adapt based on findings
+    enable_replanner=True,  # 根据发现进行适应
     max_replan_rounds=40
 )
 ```
 
-### Pattern: Multi-Step Analysis
+### 模式：多步骤分析
 
 ```python
 PlanAndSolve(
@@ -597,20 +597,20 @@ PlanAndSolve(
 )
 ```
 
-## Comparison 使用 Other 流程
+## 与其他流程的比较
 
-|Feature|PlanAndSolve|Workflow|ParallelFlow|
+| 功能 | PlanAndSolve | Workflow | ParallelFlow |
 |---------|--------------|----------|--------------|
-| **Planning** | Automatic | Manual | N/A |
-| **Execution** | Sequential | Custom | Parallel |
-| **Replanning** | 可选 | Manual | N/A |
-| **Complexity** | High | Variable | Low |
-| **Use case** | 多步骤任务 | Custom logic | Independent ops |
+| **规划** | 自动 | 手动 | 不适用 |
+| **执行** | 顺序 | 自定义 | 并行 |
+| **重新规划** | 可选 | 手动 | 不适用 |
+| **复杂度** | 高 | 可变 | 低 |
+| **用例** | 多步骤任务 | 自定义逻辑 | 独立操作 |
 
-## Related API 参考s
+## 相关 API 参考
 
-- [Workflow API](/oxyapi/flows-workflow-api) - Custom workflow flow API
-- [ParallelFlow API](/oxyapi/flows-parallel-api) - Parallel execution flow API
-- [Reflexion API](/oxyapi/flows-reflexion-api) - Self-evaluation flow API
-- [ReActAgent API](/oxyapi/agents-react-api) - Executor agent API
-- [ChatAgent API](/oxyapi/agents-chat-api) - Planner agent API
+- [Workflow API](/oxyapi/flows-workflow-api) - 自定义工作流程流 API
+- [ParallelFlow API](/oxyapi/flows-parallel-api) - 并行执行流 API
+- [Reflexion API](/oxyapi/flows-reflexion-api) - 自我评估流 API
+- [ReActAgent API](/oxyapi/agents-react-api) - 执行器代理 API
+- [ChatAgent API](/oxyapi/agents-chat-api) - 规划器代理 API
